@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LINEA</string>
+    <string name="nav_dialpad">Dial Pad</string>
+    <string name="nav_history">History</string>
+    <string name="nav_contacts">Contacts</string>
+    <string name="nav_settings">Settings</string>
+    
+    <!-- Phone Account & Telecom -->
+    <string name="phone_account_label">LINEA Cellular</string>
+    <string name="sim_slot_1">SIM 1</string>
+    <string name="sim_slot_2">SIM 2</string>
+    
+    <!-- Role & Permissions -->
+    <string name="role_required_title">Default Phone App Required</string>
+    <string name="role_required_desc">LINEA needs to be set as your default phone dialer to handle incoming and outgoing cellular calls.</string>
+    <string name="set_default_dialer">Set as Default Dialer</string>
+    <string name="role_active">Active Default Phone App</string>
+    
+    <!-- Status -->
+    <string name="phase0_badge">PHASE 0: FOUNDATION</string>
+</resources>

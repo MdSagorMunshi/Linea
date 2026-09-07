@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Linea Color System -->
+    <color name="background_graphite_dark">#0D0F12</color>
+    <color name="background_graphite_light">#1A1D21</color>
+    <color name="glass_fill">#14FFFFFF</color>
+    <color name="glass_border">#1FFFFFFF</color>
+    <color name="glass_fallback">#14171B</color>
+    
+    <color name="accent_titanium_blue">#5C7C99</color>
+    <color name="accent_desaturated_teal">#3E5C5C</color>
+    <color name="warning_muted_rust">#C97B4A</color>
+    <color name="danger_muted_brick_red">#B5473F</color>
+    <color name="success_muted_sage_green">#5A8F6B</color>
+    
+    <color name="text_primary">#E8EAED</color>
+    <color name="text_secondary">#9BA1A8</color>
+    <color name="text_tertiary">#5C6169</color>
+</resources>
