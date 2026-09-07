@@ -34,7 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,11 +73,30 @@ fun DialpadScreen(
     val activeSims by viewModel.simAccounts.collectAsState()
     val soundEnabled by viewModel.soundEnabled.collectAsState()
     val vibrationEnabled by viewModel.vibrationEnabled.collectAsState()
+    val askSimBeforeDial by viewModel.askSimBeforeDial.collectAsState()
+    val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
+    val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
+
+    var pendingCallNumber by remember { mutableStateOf<String?>(null) }
+    var showCountdownDialog by remember { mutableStateOf(false) }
+    var showSimSelectSheet by remember { mutableStateOf(false) }
+    val simSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
 
     val displayedSims = if (activeSims.isNotEmpty()) activeSims else simAccounts
+
+    val initiateCall = { number: String ->
+        pendingCallNumber = number
+        if (askSimBeforeDial && displayedSims.size > 1) {
+            showSimSelectSheet = true
+        } else if (callConfirmationEnabled) {
+            showCountdownDialog = true
+        } else {
+            viewModel.placeCall(number)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -132,7 +153,7 @@ fun DialpadScreen(
                 viewModel.setNumber(number)
             },
             onDirectCall = { number ->
-                viewModel.placeCall(number)
+                initiateCall(number)
             },
             modifier = Modifier.padding(bottom = 6.dp)
         )
@@ -213,7 +234,7 @@ fun DialpadScreen(
             CallButton(
                 onClick = {
                     if (enteredNumber.isNotEmpty()) {
-                        viewModel.placeCall()
+                        initiateCall(enteredNumber)
                     }
                 }
             )
@@ -240,6 +261,36 @@ fun DialpadScreen(
         }
 
         Spacer(modifier = Modifier.height(96.dp)) // Space for floating bottom navigation bar
+    }
+
+    if (showSimSelectSheet) {
+        SimSelectSheet(
+            sheetState = simSheetState,
+            phoneNumber = pendingCallNumber ?: enteredNumber,
+            accounts = displayedSims,
+            onSelectSim = { slot ->
+                viewModel.selectSim(slot)
+                showSimSelectSheet = false
+                if (callConfirmationEnabled) {
+                    showCountdownDialog = true
+                } else {
+                    viewModel.placeCall(pendingCallNumber)
+                }
+            },
+            onDismiss = { showSimSelectSheet = false }
+        )
+    }
+
+    if (showCountdownDialog) {
+        CallCountdownDialog(
+            phoneNumber = pendingCallNumber ?: enteredNumber,
+            totalSeconds = callCountdownSeconds,
+            onConfirmCall = {
+                showCountdownDialog = false
+                viewModel.placeCall(pendingCallNumber)
+            },
+            onCancel = { showCountdownDialog = false }
+        )
     }
 }
 

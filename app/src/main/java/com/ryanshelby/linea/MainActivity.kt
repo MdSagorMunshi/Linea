@@ -65,13 +65,10 @@ class MainActivity : ComponentActivity() {
                     isDefaultDialer = isDefaultDialerState,
                     simAccounts = simAccountsState,
                     reduceAnimations = reduceAnimations,
+                    phoneAccountManager = phoneAccountManager,
+                    lineaPreferences = lineaPreferences,
                     onRequestDefaultDialer = { requestDefaultDialerRole() },
-                    onRequestPermissions = { requestAllPermissionsUpfront() },
-                    onToggleReduceAnimations = { enabled ->
-                        scope.launch {
-                            lineaPreferences.setReduceAnimations(enabled)
-                        }
-                    }
+                    onRequestPermissions = { requestAllPermissionsUpfront() }
                 )
             }
         }

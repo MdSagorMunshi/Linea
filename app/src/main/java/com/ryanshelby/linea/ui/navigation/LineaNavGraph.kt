@@ -5,69 +5,118 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.ryanshelby.linea.data.preferences.LineaPreferences
+import com.ryanshelby.linea.telecom.PhoneAccountManager
 import com.ryanshelby.linea.telecom.SimAccountInfo
 import com.ryanshelby.linea.ui.screens.contacts.ContactsScreen
 import com.ryanshelby.linea.ui.screens.dialpad.DialpadScreen
 import com.ryanshelby.linea.ui.screens.history.HistoryScreen
 import com.ryanshelby.linea.ui.screens.settings.SettingsScreen
+import com.ryanshelby.linea.ui.screens.settings.SettingsViewModel
+import com.ryanshelby.linea.ui.screens.settings.blocking.BlockingScreen
+import com.ryanshelby.linea.ui.screens.settings.blocking.BlockingViewModel
+import com.ryanshelby.linea.ui.screens.settings.dualsim.DualSimScreen
+import com.ryanshelby.linea.ui.screens.settings.permissions.PermissionsScreen
 import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
+
+enum class SettingsSubScreen {
+    BLOCKING,
+    DUAL_SIM,
+    PERMISSIONS
+}
 
 @Composable
 fun LineaNavGraph(
     isDefaultDialer: Boolean,
     simAccounts: List<SimAccountInfo>,
     reduceAnimations: Boolean,
+    phoneAccountManager: PhoneAccountManager,
+    lineaPreferences: LineaPreferences,
     onRequestDefaultDialer: () -> Unit,
     onRequestPermissions: () -> Unit,
-    onToggleReduceAnimations: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+    blockingViewModel: BlockingViewModel = hiltViewModel()
 ) {
     var currentDestination by remember { mutableStateOf(LineaDestination.DIALPAD) }
+    var settingsSubScreen by remember { mutableStateOf<SettingsSubScreen?>(null) }
     val reduceAnim = LocalReduceAnimations.current
 
+    val settingsState by settingsViewModel.uiState.collectAsState()
+
     Box(modifier = modifier.fillMaxSize()) {
-        Crossfade(
-            targetState = currentDestination,
-            animationSpec = tween(durationMillis = if (reduceAnim) 120 else 220),
-            label = "screen_crossfade"
-        ) { destination ->
-            when (destination) {
-                LineaDestination.DIALPAD -> {
-                    DialpadScreen(
-                        isDefaultDialer = isDefaultDialer,
-                        simAccounts = simAccounts,
-                        onRequestDefaultDialer = onRequestDefaultDialer
+        if (settingsSubScreen != null) {
+            when (settingsSubScreen) {
+                SettingsSubScreen.BLOCKING -> {
+                    BlockingScreen(
+                        viewModel = blockingViewModel,
+                        onNavigateBack = { settingsSubScreen = null }
                     )
                 }
-                LineaDestination.HISTORY -> {
-                    HistoryScreen()
+                SettingsSubScreen.DUAL_SIM -> {
+                    DualSimScreen(
+                        phoneAccountManager = phoneAccountManager,
+                        preferences = lineaPreferences,
+                        onNavigateBack = { settingsSubScreen = null }
+                    )
                 }
-                LineaDestination.CONTACTS -> {
-                    ContactsScreen()
-                }
-                LineaDestination.SETTINGS -> {
-                    SettingsScreen(
+                SettingsSubScreen.PERMISSIONS -> {
+                    PermissionsScreen(
                         isDefaultDialer = isDefaultDialer,
-                        reduceAnimations = reduceAnimations,
-                        onToggleReduceAnimations = onToggleReduceAnimations,
                         onRequestDefaultDialer = onRequestDefaultDialer,
-                        onRequestPermissions = onRequestPermissions
+                        onNavigateBack = { settingsSubScreen = null }
                     )
+                }
+                null -> Unit
+            }
+        } else {
+            Crossfade(
+                targetState = currentDestination,
+                animationSpec = tween(durationMillis = if (reduceAnim) 120 else 220),
+                label = "screen_crossfade"
+            ) { destination ->
+                when (destination) {
+                    LineaDestination.DIALPAD -> {
+                        DialpadScreen(
+                            isDefaultDialer = isDefaultDialer,
+                            simAccounts = simAccounts,
+                            onRequestDefaultDialer = onRequestDefaultDialer
+                        )
+                    }
+                    LineaDestination.HISTORY -> {
+                        HistoryScreen()
+                    }
+                    LineaDestination.CONTACTS -> {
+                        ContactsScreen()
+                    }
+                    LineaDestination.SETTINGS -> {
+                        SettingsScreen(
+                            viewModel = settingsViewModel,
+                            isDefaultDialer = isDefaultDialer,
+                            onRequestDefaultDialer = onRequestDefaultDialer,
+                            onNavigateToBlocking = { settingsSubScreen = SettingsSubScreen.BLOCKING },
+                            onNavigateToDualSim = { settingsSubScreen = SettingsSubScreen.DUAL_SIM },
+                            onNavigateToPermissions = { settingsSubScreen = SettingsSubScreen.PERMISSIONS }
+                        )
+                    }
                 }
             }
-        }
 
-        // Floating Glass Bottom Navigation Bar
-        FloatingGlassNavBar(
-            currentDestination = currentDestination,
-            onNavigate = { destination -> currentDestination = destination },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+            // Floating Glass Bottom Navigation Bar with unread missed calls badge
+            FloatingGlassNavBar(
+                currentDestination = currentDestination,
+                onNavigate = { destination -> currentDestination = destination },
+                unreadMissedCalls = settingsState.unreadMissedCalls,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
     }
 }

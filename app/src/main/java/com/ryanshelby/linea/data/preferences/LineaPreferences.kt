@@ -54,8 +54,16 @@ class LineaPreferences @Inject constructor(
     val dialpadSoundEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_DIALPAD_SOUND] ?: true }
     val dialpadVibrationEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_DIALPAD_VIBRATION] ?: true }
     val callVibrationEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_VIBRATION] ?: true }
+    val callConfirmationEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_CONFIRMATION] ?: false }
     val callCountdownSeconds: Flow<Int> = dataStore.data.map { it[KEY_CALL_COUNTDOWN_SECONDS] ?: 0 }
     val repeatCallOverride: Flow<Boolean> = dataStore.data.map { it[KEY_REPEAT_CALL_OVERRIDE] ?: true }
+    val blockUnknown: Flow<Boolean> = dataStore.data.map { it[KEY_BLOCK_UNKNOWN] ?: false }
+    val blockPrivate: Flow<Boolean> = dataStore.data.map { it[KEY_BLOCK_PRIVATE] ?: false }
+    val blockNonContacts: Flow<Boolean> = dataStore.data.map { it[KEY_BLOCK_NON_CONTACTS] ?: false }
+    val blockInternational: Flow<Boolean> = dataStore.data.map { it[KEY_BLOCK_INTERNATIONAL] ?: false }
+    val allowListMode: Flow<Boolean> = dataStore.data.map { it[KEY_ALLOW_LIST_MODE] ?: false }
+    val themePreference: Flow<String> = dataStore.data.map { it[KEY_THEME] ?: "DARK" }
+    val cleanupDays: Flow<Int> = dataStore.data.map { it[KEY_CLEANUP_DAYS] ?: 0 }
 
     suspend fun setReduceAnimations(enabled: Boolean) {
         dataStore.edit { it[KEY_REDUCE_ANIMATIONS] = enabled }
@@ -65,11 +73,63 @@ class LineaPreferences @Inject constructor(
         dataStore.edit { it[KEY_DEFAULT_SIM] = sim }
     }
 
+    suspend fun setAskSimBeforeDial(enabled: Boolean) {
+        dataStore.edit { it[KEY_ASK_SIM_BEFORE_DIAL] = enabled }
+    }
+
     suspend fun setProximitySensor(enabled: Boolean) {
         dataStore.edit { it[KEY_PROXIMITY_SENSOR] = enabled }
     }
 
+    suspend fun setDialpadSound(enabled: Boolean) {
+        dataStore.edit { it[KEY_DIALPAD_SOUND] = enabled }
+    }
+
+    suspend fun setDialpadVibration(enabled: Boolean) {
+        dataStore.edit { it[KEY_DIALPAD_VIBRATION] = enabled }
+    }
+
+    suspend fun setCallVibration(enabled: Boolean) {
+        dataStore.edit { it[KEY_CALL_VIBRATION] = enabled }
+    }
+
+    suspend fun setCallConfirmation(enabled: Boolean) {
+        dataStore.edit { it[KEY_CALL_CONFIRMATION] = enabled }
+    }
+
     suspend fun setCountdownSeconds(seconds: Int) {
         dataStore.edit { it[KEY_CALL_COUNTDOWN_SECONDS] = seconds }
+    }
+
+    suspend fun setRepeatCallOverride(enabled: Boolean) {
+        dataStore.edit { it[KEY_REPEAT_CALL_OVERRIDE] = enabled }
+    }
+
+    suspend fun setBlockUnknown(enabled: Boolean) {
+        dataStore.edit { it[KEY_BLOCK_UNKNOWN] = enabled }
+    }
+
+    suspend fun setBlockPrivate(enabled: Boolean) {
+        dataStore.edit { it[KEY_BLOCK_PRIVATE] = enabled }
+    }
+
+    suspend fun setBlockNonContacts(enabled: Boolean) {
+        dataStore.edit { it[KEY_BLOCK_NON_CONTACTS] = enabled }
+    }
+
+    suspend fun setBlockInternational(enabled: Boolean) {
+        dataStore.edit { it[KEY_BLOCK_INTERNATIONAL] = enabled }
+    }
+
+    suspend fun setAllowListMode(enabled: Boolean) {
+        dataStore.edit { it[KEY_ALLOW_LIST_MODE] = enabled }
+    }
+
+    suspend fun setThemePreference(theme: String) {
+        dataStore.edit { it[KEY_THEME] = theme }
+    }
+
+    suspend fun setCleanupDays(days: Int) {
+        dataStore.edit { it[KEY_CLEANUP_DAYS] = days }
     }
 }

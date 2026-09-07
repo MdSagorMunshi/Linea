@@ -12,6 +12,9 @@ import com.ryanshelby.linea.data.local.entities.CallDirectionType
 import com.ryanshelby.linea.data.repository.CallLogRepository
 import com.ryanshelby.linea.notifications.CallNotificationManager
 import com.ryanshelby.linea.ui.incall.InCallActivity
+import com.ryanshelby.linea.telecom.screening.CallScreeningEngine
+import com.ryanshelby.linea.telecom.screening.ScreeningDecision
+import com.ryanshelby.linea.data.preferences.LineaPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -61,7 +65,9 @@ class CallManager @Inject constructor(
     private val telecomManager: TelecomManager,
     private val callLogRepository: CallLogRepository,
     private val notificationManager: CallNotificationManager,
-    private val proximitySensorManager: ProximitySensorManager
+    private val proximitySensorManager: ProximitySensorManager,
+    private val screeningEngine: CallScreeningEngine,
+    private val preferences: LineaPreferences
 ) {
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -80,6 +86,7 @@ class CallManager @Inject constructor(
 
     private var inCallService: LineaInCallService? = null
     private var timerJob: Job? = null
+    private var previousCallState: LineaCallState = LineaCallState.IDLE
 
     fun registerInCallService(service: LineaInCallService) {
         this.inCallService = service
@@ -94,12 +101,49 @@ class CallManager @Inject constructor(
         val isIncoming = call.state == Call.STATE_RINGING
 
         if (_currentCall.value == null) {
-            updateCallState(call)
-            // Launch InCallActivity
-            val intent = Intent(context, InCallActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            if (isIncoming) {
+                scope.launch {
+                    val decision = screeningEngine.screenCall(
+                        phoneNumber = number,
+                        isPrivate = number.isBlank(),
+                        simSlot = 0
+                    )
+
+                    if (decision is ScreeningDecision.Block) {
+                        // Automatically reject call without ringing!
+                        screeningEngine.recordBlockedCall(decision, number)
+                        try {
+                            call.reject(Call.REJECT_REASON_DECLINED)
+                        } catch (_: Exception) {
+                            call.disconnect()
+                        }
+                        callLogRepository.logCall(
+                            phoneNumber = number,
+                            formattedNumber = number,
+                            callerName = null,
+                            photoUri = null,
+                            direction = CallDirectionType.BLOCKED,
+                            timestamp = System.currentTimeMillis(),
+                            durationSeconds = 0,
+                            simSlot = 0
+                        )
+                        return@launch
+                    }
+
+                    // Call allowed -> proceed to normal ringing flow
+                    updateCallState(call)
+                    val intent = Intent(context, InCallActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                    context.startActivity(intent)
+                }
+            } else {
+                updateCallState(call)
+                val intent = Intent(context, InCallActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                context.startActivity(intent)
             }
-            context.startActivity(intent)
         } else {
             // Secondary call (Call Waiting)
             _secondaryCall.value = ActiveCallInfo(
@@ -222,6 +266,21 @@ class CallManager @Inject constructor(
         val isSpeaker = _audioRoute.value == LineaAudioRoute.SPEAKER
         proximitySensorManager.onCallStateOrAudioChanged(state == LineaCallState.ACTIVE, isSpeaker)
 
+        if (previousCallState != LineaCallState.ACTIVE && state == LineaCallState.ACTIVE) {
+            scope.launch {
+                if (preferences.callVibrationEnabled.first()) {
+                    vibrateFeedback(longArrayOf(0, 80))
+                }
+            }
+        } else if (previousCallState == LineaCallState.ACTIVE && state == LineaCallState.DISCONNECTED) {
+            scope.launch {
+                if (preferences.callVibrationEnabled.first()) {
+                    vibrateFeedback(longArrayOf(0, 60, 60, 60))
+                }
+            }
+        }
+        previousCallState = state
+
         if (state == LineaCallState.ACTIVE) {
             startDurationTimer(connectTime)
             notificationManager.showOngoingCallNotification(
@@ -236,6 +295,28 @@ class CallManager @Inject constructor(
                 stateText = "Dialing..."
             )
         }
+    }
+
+    private fun vibrateFeedback(pattern: LongArray) {
+        try {
+            val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            }
+            vibrator?.let {
+                if (it.hasVibrator()) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        it.vibrate(android.os.VibrationEffect.createWaveform(pattern, -1))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        it.vibrate(pattern, -1)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     private fun startDurationTimer(connectTime: Long) {

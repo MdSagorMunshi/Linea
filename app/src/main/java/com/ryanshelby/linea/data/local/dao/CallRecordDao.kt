@@ -27,6 +27,9 @@ interface CallRecordDao {
     @Query("SELECT COUNT(*) FROM call_records WHERE callType = 'MISSED'")
     fun getUnreadMissedCallCount(): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM call_records WHERE phoneNumber = :number AND timestamp >= :sinceTimestamp")
+    suspend fun getRecentCallCountForNumber(number: String, sinceTimestamp: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCallRecord(callRecord: CallRecordEntity): Long
 

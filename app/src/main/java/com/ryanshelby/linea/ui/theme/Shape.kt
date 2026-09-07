@@ -12,6 +12,7 @@ object LineaDimensions {
     val SectionGap = 24.dp
     val PanelPadding = 20.dp
     val PanelCornerRadius = 20.dp
+    val CardCornerRadius = 20.dp
     val ButtonCornerRadius = 12.dp
     val HairlineBorder = 1.dp
     val GlassBlur = 20.dp

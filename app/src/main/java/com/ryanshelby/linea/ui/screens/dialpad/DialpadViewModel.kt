@@ -45,6 +45,15 @@ class DialpadViewModel @Inject constructor(
     val vibrationEnabled: StateFlow<Boolean> = preferences.dialpadVibrationEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val askSimBeforeDial: StateFlow<Boolean> = preferences.askSimBeforeDial
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val callConfirmationEnabled: StateFlow<Boolean> = preferences.callConfirmationEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val callCountdownSeconds: StateFlow<Int> = preferences.callCountdownSeconds
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 3)
+
     val t9Matches: StateFlow<List<T9SearchResult>> = combine(
         _enteredNumber,
         _contacts
