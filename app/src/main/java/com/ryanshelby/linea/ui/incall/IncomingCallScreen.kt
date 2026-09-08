@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ryanshelby.linea.ui.components.ContactAvatar
 import com.ryanshelby.linea.telecom.ActiveCallInfo
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.theme.LineaColors
@@ -100,23 +101,14 @@ fun IncomingCallScreen(
 
                 // Caller Avatar & Details Panel
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    FrostedGlassBox(
-                        modifier = Modifier.size(110.dp),
-                        shape = CircleShape,
-                        borderColor = LineaColors.TitaniumBlue.copy(alpha = 0.4f)
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Person,
-                                contentDescription = null,
-                                tint = LineaColors.TitaniumBlue,
-                                modifier = Modifier.size(54.dp)
-                            )
-                        }
-                    }
+                    ContactAvatar(
+                        photoUri = callInfo.photoUri,
+                        displayName = callInfo.displayName ?: callInfo.phoneNumber,
+                        size = 110.dp,
+                        initialsTextSize = 42.sp,
+                        borderWidth = 1.5.dp,
+                        borderColor = LineaColors.TitaniumBlue.copy(alpha = 0.5f)
+                    )
 
                     Spacer(modifier = Modifier.height(24.dp))
 

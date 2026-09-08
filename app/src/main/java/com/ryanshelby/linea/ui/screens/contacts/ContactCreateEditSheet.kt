@@ -17,6 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
@@ -25,9 +31,19 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.SimCard
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.ryanshelby.linea.ui.components.ContactAvatar
+import com.ryanshelby.linea.util.ContactPhotoHelper
+import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -73,10 +89,14 @@ fun ContactCreateEditSheet(
         numbers: List<Pair<String, String>>,
         emails: List<String>,
         preferredSimSlot: Int?,
-        notes: String?
+        notes: String?,
+        photoUri: String?,
+        photoBytes: ByteArray?
     ) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
 
@@ -86,6 +106,49 @@ fun ContactCreateEditSheet(
     var preferredSimSlot by remember { mutableStateOf(contactToEdit?.preferredSimSlot) }
     var emailInput by remember { mutableStateOf("") }
 
+    var currentPhotoUri by remember { mutableStateOf(contactToEdit?.photoUri) }
+    var currentPhotoBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var showPhotoOptionsDialog by remember { mutableStateOf(false) }
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempCameraUri != null) {
+            coroutineScope.launch {
+                val (savedUri, bytes) = ContactPhotoHelper.saveUriToInternal(context, tempCameraUri!!)
+                if (savedUri.isNotBlank()) {
+                    currentPhotoUri = savedUri
+                    currentPhotoBytes = bytes
+                }
+            }
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val (uri, _) = ContactPhotoHelper.createTempCameraUri(context)
+            tempCameraUri = uri
+            cameraLauncher.launch(uri)
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                val (savedUri, bytes) = ContactPhotoHelper.saveUriToInternal(context, uri)
+                if (savedUri.isNotBlank()) {
+                    currentPhotoUri = savedUri
+                    currentPhotoBytes = bytes
+                }
+            }
+        }
+    }
+
     val numbersList = remember {
         mutableStateListOf<Pair<String, String>>().apply {
             if (initialNumbers.isNotEmpty()) {
@@ -94,6 +157,123 @@ fun ContactCreateEditSheet(
                 add("" to "Mobile")
             }
         }
+    }
+
+    if (showPhotoOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhotoOptionsDialog = false },
+            title = {
+                Text(
+                    text = "Contact Photo",
+                    style = LineaTypography.titleMedium,
+                    color = LineaColors.TextPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Take photo with camera
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                showPhotoOptionsDialog = false
+                                val hasCam = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.CAMERA
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (hasCam) {
+                                    val (uri, _) = ContactPhotoHelper.createTempCameraUri(context)
+                                    tempCameraUri = uri
+                                    cameraLauncher.launch(uri)
+                                } else {
+                                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                }
+                            }
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PhotoCamera,
+                            contentDescription = null,
+                            tint = LineaColors.TitaniumBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Text(
+                            text = "Take Photo",
+                            style = LineaTypography.bodyMedium,
+                            color = LineaColors.TextPrimary
+                        )
+                    }
+
+                    // Choose from gallery
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                showPhotoOptionsDialog = false
+                                galleryLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PhotoLibrary,
+                            contentDescription = null,
+                            tint = LineaColors.TitaniumBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Text(
+                            text = "Choose from Gallery",
+                            style = LineaTypography.bodyMedium,
+                            color = LineaColors.TextPrimary
+                        )
+                    }
+
+                    // Remove photo option if one is set
+                    if (!currentPhotoUri.isNullOrBlank()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    showPhotoOptionsDialog = false
+                                    currentPhotoUri = null
+                                    currentPhotoBytes = null
+                                }
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = null,
+                                tint = LineaColors.Danger,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Text(
+                                text = "Remove Photo",
+                                style = LineaTypography.bodyMedium,
+                                color = LineaColors.Danger
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showPhotoOptionsDialog = false }) {
+                    Text("Cancel", color = LineaColors.TextSecondary)
+                }
+            },
+            containerColor = LineaColors.BackgroundTop,
+            shape = RoundedCornerShape(20.dp)
+        )
     }
 
     ModalBottomSheet(
@@ -139,7 +319,9 @@ fun ContactCreateEditSheet(
                                 validNumbers,
                                 if (emailInput.isNotBlank()) listOf(emailInput.trim()) else emptyList(),
                                 preferredSimSlot,
-                                notes.ifBlank { null }
+                                notes.ifBlank { null },
+                                currentPhotoUri,
+                                currentPhotoBytes
                             )
                         }
                     },
@@ -154,7 +336,61 @@ fun ContactCreateEditSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Contact Photo Avatar with Camera Badge
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(86.dp)
+                        .clip(CircleShape)
+                        .clickable { showPhotoOptionsDialog = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    ContactAvatar(
+                        photoUri = currentPhotoUri,
+                        displayName = displayName.ifBlank { "New Contact" },
+                        size = 86.dp,
+                        initialsTextSize = 28.sp,
+                        borderWidth = 1.5.dp,
+                        borderColor = LineaColors.TitaniumBlue.copy(alpha = 0.5f)
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .align(Alignment.BottomEnd)
+                            .clip(CircleShape)
+                            .background(LineaColors.TitaniumBlue)
+                            .border(1.5.dp, LineaColors.BackgroundTop, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PhotoCamera,
+                            contentDescription = "Set Photo",
+                            tint = Color.White,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = if (currentPhotoUri.isNullOrBlank()) "Add Photo" else "Change Photo",
+                    style = LineaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = LineaColors.TitaniumBlue,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { showPhotoOptionsDialog = true }
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Account Selector (Save destination for new contacts)
             if (contactToEdit == null) {

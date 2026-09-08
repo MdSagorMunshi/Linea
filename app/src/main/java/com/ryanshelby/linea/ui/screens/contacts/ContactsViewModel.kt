@@ -223,19 +223,27 @@ class ContactsViewModel @Inject constructor(
         numbers: List<Pair<String, String>>,
         emails: List<String>,
         preferredSimSlot: Int?,
-        notes: String?
+        notes: String?,
+        photoUri: String? = null,
+        photoBytes: ByteArray? = null
     ) {
         viewModelScope.launch {
             val editing = _contactToEdit.value
             if (editing != null) {
                 // Update existing
+                val photoChanged = (photoUri != editing.photoUri) || (photoBytes != null)
                 val updated = editing.copy(
                     displayName = displayName,
                     company = company,
                     preferredSimSlot = preferredSimSlot,
-                    notes = notes
+                    notes = notes,
+                    photoUri = if (photoChanged) photoUri else editing.photoUri
                 )
-                contactSyncRepository.updateContact(updated)
+                contactSyncRepository.updateContact(
+                    updated,
+                    photoBytes = photoBytes,
+                    hasPhotoChanged = photoChanged
+                )
                 _selectedContactForDetail.value = updated
             } else {
                 // Create new
@@ -250,7 +258,9 @@ class ContactsViewModel @Inject constructor(
                     preferredSimSlot = preferredSimSlot,
                     notes = notes,
                     accountName = accName,
-                    accountType = accType
+                    accountType = accType,
+                    photoUri = photoUri,
+                    photoBytes = photoBytes
                 )
             }
             dismissCreateOrEditSheet()

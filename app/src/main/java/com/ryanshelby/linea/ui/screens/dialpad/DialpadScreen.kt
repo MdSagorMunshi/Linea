@@ -455,8 +455,8 @@ fun DialpadScreen(
             selectedAccount = selectedAccount,
             onSelectAccount = { contactsViewModel.selectContactAccount(it) },
             onDismiss = { showCreateContactSheet = false },
-            onSave = { displayName, company, numbers, emails, preferredSimSlot, notes ->
-                contactsViewModel.saveContact(displayName, company, numbers, emails, preferredSimSlot, notes)
+            onSave = { displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes ->
+                contactsViewModel.saveContact(displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes)
                 showCreateContactSheet = false
                 Toast.makeText(context, "Saved $displayName", Toast.LENGTH_SHORT).show()
             }

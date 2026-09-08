@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.ryanshelby.linea.ui.components.ContactAvatar
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -407,8 +408,8 @@ fun ContactsScreen(
             selectedAccount = selectedContactAccount,
             onSelectAccount = { viewModel.selectContactAccount(it) },
             onDismiss = { viewModel.dismissCreateOrEditSheet() },
-            onSave = { displayName, company, numbers, emails, preferredSimSlot, notes ->
-                viewModel.saveContact(displayName, company, numbers, emails, preferredSimSlot, notes)
+            onSave = { displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes ->
+                viewModel.saveContact(displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes)
             }
         )
     }
@@ -439,21 +440,12 @@ private fun PinnedContactCard(
             modifier = Modifier.padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(LineaColors.GlassFill)
-                    .border(LineaDimensions.HairlineBorder, LineaColors.TitaniumBlue.copy(alpha = 0.5f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Person,
-                    contentDescription = null,
-                    tint = LineaColors.TextSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            ContactAvatar(
+                photoUri = contact.photoUri,
+                displayName = contact.displayName,
+                size = 42.dp,
+                borderColor = LineaColors.TitaniumBlue.copy(alpha = 0.5f)
+            )
 
             Spacer(modifier = Modifier.height(6.dp))
 
@@ -498,21 +490,12 @@ private fun ContactCardRow(
             modifier = Modifier.weight(1f)
         ) {
             // Avatar
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(LineaColors.BackgroundBottom)
-                    .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                val initial = contact.displayName.firstOrNull()?.uppercaseChar()?.toString() ?: ""
-                Text(
-                    text = initial,
-                    style = LineaTypography.titleSmall,
-                    color = LineaColors.TextPrimary
-                )
-            }
+            ContactAvatar(
+                photoUri = contact.photoUri,
+                displayName = contact.displayName,
+                size = 42.dp,
+                borderColor = LineaColors.GlassBorder
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 

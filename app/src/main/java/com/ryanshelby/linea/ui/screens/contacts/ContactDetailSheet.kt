@@ -43,6 +43,7 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import com.ryanshelby.linea.ui.components.ContactAvatar
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -159,23 +160,14 @@ fun ContactDetailSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                FrostedGlassBox(
-                    modifier = Modifier.size(88.dp),
-                    shape = CircleShape,
+                ContactAvatar(
+                    photoUri = contact.photoUri,
+                    displayName = contact.displayName,
+                    size = 88.dp,
+                    initialsTextSize = 32.sp,
+                    borderWidth = 1.5.dp,
                     borderColor = LineaColors.TitaniumBlue.copy(alpha = 0.5f)
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Person,
-                            contentDescription = null,
-                            tint = LineaColors.TextSecondary,
-                            modifier = Modifier.size(46.dp)
-                        )
-                    }
-                }
+                )
 
                 Spacer(modifier = Modifier.height(14.dp))
 

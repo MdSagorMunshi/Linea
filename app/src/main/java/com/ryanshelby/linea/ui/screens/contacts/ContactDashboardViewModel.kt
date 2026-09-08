@@ -14,6 +14,7 @@ import com.ryanshelby.linea.telecom.CallManager
 import com.ryanshelby.linea.telecom.PhoneAccountManager
 import com.ryanshelby.linea.telecom.logic.AvailabilityInsight
 import com.ryanshelby.linea.telecom.logic.AvailabilityInsightEngine
+import com.ryanshelby.linea.data.repository.ContactSyncRepository
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -53,6 +54,7 @@ class ContactDashboardViewModel @Inject constructor(
     private val callNoteDao: CallNoteDao,
     private val callManager: CallManager,
     private val phoneAccountManager: PhoneAccountManager,
+    private val contactSyncRepository: ContactSyncRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -258,5 +260,18 @@ class ContactDashboardViewModel @Inject constructor(
         val simHandle = simAccounts.find { it.slotIndex == simSlot }?.phoneAccountHandle
             ?: simAccounts.firstOrNull()?.phoneAccountHandle
         callManager.placeCall(number, simHandle)
+    }
+
+    fun updateContactPhoto(photoUri: String?, photoBytes: ByteArray?) {
+        val current = _state.value.contact ?: return
+        viewModelScope.launch {
+            val updated = current.copy(photoUri = photoUri)
+            contactSyncRepository.updateContact(
+                updated,
+                photoBytes = photoBytes,
+                hasPhotoChanged = true
+            )
+            _state.value = _state.value.copy(contact = updated)
+        }
     }
 }

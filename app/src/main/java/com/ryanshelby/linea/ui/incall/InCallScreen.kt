@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.SwapCalls
 import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.WarningAmber
+import com.ryanshelby.linea.ui.components.ContactAvatar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -433,27 +434,19 @@ fun InCallScreen(
                     }
                 } else {
                     // Standard Single Caller Avatar
-                    FrostedGlassBox(
-                        modifier = Modifier.size(100.dp),
-                        shape = CircleShape,
-                        borderColor = if (callInfo.state == LineaCallState.HOLDING) {
-                            LineaColors.Warning.copy(alpha = 0.5f)
-                        } else {
-                            LineaColors.GlassBorderFocused
-                        }
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Person,
-                                contentDescription = "Caller",
-                                modifier = Modifier.size(52.dp),
-                                tint = LineaColors.TextSecondary
-                            )
-                        }
+                    val borderColor = if (callInfo.state == LineaCallState.HOLDING) {
+                        LineaColors.Warning.copy(alpha = 0.5f)
+                    } else {
+                        LineaColors.GlassBorderFocused
                     }
+                    ContactAvatar(
+                        photoUri = callInfo.photoUri,
+                        displayName = callInfo.displayName?.ifBlank { null } ?: callInfo.phoneNumber,
+                        size = 100.dp,
+                        initialsTextSize = 38.sp,
+                        borderWidth = 1.5.dp,
+                        borderColor = borderColor
+                    )
 
                     Spacer(modifier = Modifier.height(18.dp))
 

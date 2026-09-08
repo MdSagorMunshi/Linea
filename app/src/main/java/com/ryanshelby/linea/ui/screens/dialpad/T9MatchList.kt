@@ -40,6 +40,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.telecom.T9SearchResult
+import com.ryanshelby.linea.ui.components.ContactAvatar
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
@@ -100,21 +101,14 @@ private fun T9MatchItem(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            // Avatar / Icon
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(LineaColors.GlassFill),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Person,
-                    contentDescription = null,
-                    tint = LineaColors.TextSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // Avatar / Photo
+            ContactAvatar(
+                photoUri = match.contact.photoUri,
+                displayName = match.contact.displayName,
+                size = 38.dp,
+                initialsTextSize = 14.sp,
+                borderColor = LineaColors.GlassBorder
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 

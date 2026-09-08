@@ -38,6 +38,7 @@ class ContactSyncRepository @Inject constructor(
             ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
             ContactsContract.CommonDataKinds.Phone.NUMBER,
+            ContactsContract.CommonDataKinds.Phone.PHOTO_URI,
             ContactsContract.CommonDataKinds.Phone.PHOTO_THUMBNAIL_URI
         )
 
@@ -54,13 +55,16 @@ class ContactSyncRepository @Inject constructor(
                 val idIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
                 val nameIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
                 val numberIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                val photoIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_THUMBNAIL_URI)
+                val photoIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
+                val thumbIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_THUMBNAIL_URI)
 
                 while (it.moveToNext()) {
                     val id = if (idIdx >= 0) it.getLong(idIdx) else 0L
                     val name = if (nameIdx >= 0) it.getString(nameIdx) ?: "Unknown" else "Unknown"
                     val number = if (numberIdx >= 0) it.getString(numberIdx) ?: "" else ""
-                    val photo = if (photoIdx >= 0) it.getString(photoIdx) else null
+                    val highResPhoto = if (photoIdx >= 0) it.getString(photoIdx) else null
+                    val thumbPhoto = if (thumbIdx >= 0) it.getString(thumbIdx) else null
+                    val resolvedPhoto = highResPhoto ?: thumbPhoto
 
                     if (number.isNotBlank()) {
                         contactsList.add(
@@ -68,7 +72,7 @@ class ContactSyncRepository @Inject constructor(
                                 id = id,
                                 displayName = name,
                                 phoneNumber = number,
-                                photoUri = photo
+                                photoUri = resolvedPhoto
                             )
                         )
                     }
@@ -88,6 +92,7 @@ class ContactSyncRepository @Inject constructor(
             ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
             ContactsContract.CommonDataKinds.Phone.NUMBER,
+            ContactsContract.CommonDataKinds.Phone.PHOTO_URI,
             ContactsContract.CommonDataKinds.Phone.PHOTO_THUMBNAIL_URI,
             ContactsContract.CommonDataKinds.Phone.TYPE,
             ContactsContract.CommonDataKinds.Phone.LABEL
@@ -117,7 +122,8 @@ class ContactSyncRepository @Inject constructor(
                 val idIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
                 val nameIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
                 val numberIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                val photoIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_THUMBNAIL_URI)
+                val photoIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
+                val thumbIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_THUMBNAIL_URI)
                 val typeIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE)
                 val labelIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.LABEL)
 
@@ -125,7 +131,9 @@ class ContactSyncRepository @Inject constructor(
                     val id = if (idIdx >= 0) it.getLong(idIdx) else 0L
                     val name = if (nameIdx >= 0) it.getString(nameIdx) ?: "Unknown" else "Unknown"
                     val number = if (numberIdx >= 0) it.getString(numberIdx) ?: "" else ""
-                    val photo = if (photoIdx >= 0) it.getString(photoIdx) else null
+                    val highResPhoto = if (photoIdx >= 0) it.getString(photoIdx) else null
+                    val thumbPhoto = if (thumbIdx >= 0) it.getString(thumbIdx) else null
+                    val resolvedPhoto = highResPhoto ?: thumbPhoto
                     val type = if (typeIdx >= 0) it.getInt(typeIdx) else ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE
                     val customLabel = if (labelIdx >= 0) it.getString(labelIdx) else null
 
@@ -143,7 +151,7 @@ class ContactSyncRepository @Inject constructor(
                                 id = id,
                                 displayName = name,
                                 phoneNumber = number,
-                                photoUri = photo
+                                photoUri = resolvedPhoto
                             )
                         )
 
@@ -153,9 +161,12 @@ class ContactSyncRepository @Inject constructor(
                             GroupedContact(
                                 androidId = id,
                                 displayName = name,
-                                photoUri = photo,
+                                photoUri = resolvedPhoto,
                                 phones = mutableListOf()
                             )
+                        }
+                        if (existing.photoUri.isNullOrBlank() && !resolvedPhoto.isNullOrBlank()) {
+                            groupedMap[key] = existing.copy(photoUri = resolvedPhoto)
                         }
                         if (existing.phones.none { it.number == number }) {
                             existing.phones.add(RawPhone(number, label))
@@ -307,7 +318,9 @@ class ContactSyncRepository @Inject constructor(
         preferredSimSlot: Int? = null,
         notes: String? = null,
         accountName: String? = null,
-        accountType: String? = null
+        accountType: String? = null,
+        photoUri: String? = null,
+        photoBytes: ByteArray? = null
     ): Long = withContext(Dispatchers.IO) {
         var rawContactId: Long? = null
 
@@ -351,6 +364,17 @@ class ContactSyncRepository @Inject constructor(
                 }
             }
 
+            // Photo if provided
+            if (photoBytes != null && photoBytes.isNotEmpty()) {
+                ops.add(
+                    android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawContactInsertIndex)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
+                        .build()
+                )
+            }
+
             val results = context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
             if (results.isNotEmpty() && results[0].uri != null) {
                 rawContactId = android.content.ContentUris.parseId(results[0].uri!!)
@@ -365,7 +389,8 @@ class ContactSyncRepository @Inject constructor(
             displayName = displayName,
             company = company,
             preferredSimSlot = preferredSimSlot,
-            notes = notes
+            notes = notes,
+            photoUri = photoUri
         )
         val contactId = contactDao.insertContact(contactEntity)
 
@@ -397,9 +422,72 @@ class ContactSyncRepository @Inject constructor(
         contactId
     }
 
-    suspend fun updateContact(contact: ContactEntity) = withContext(Dispatchers.IO) {
+    suspend fun updateContact(
+        contact: ContactEntity,
+        photoBytes: ByteArray? = null,
+        hasPhotoChanged: Boolean = false
+    ) = withContext(Dispatchers.IO) {
         contactDao.updateContact(contact)
+        if (hasPhotoChanged && contact.androidContactId != null && contact.androidContactId > 0) {
+            updateContactPhotoInSystem(contact.androidContactId, photoBytes)
+        }
         loadContacts()
+    }
+
+    private fun updateContactPhotoInSystem(contactIdOrRawId: Long, photoBytes: ByteArray?) {
+        try {
+            val rawContactIds = mutableListOf<Long>()
+
+            val rawCursor = context.contentResolver.query(
+                ContactsContract.RawContacts.CONTENT_URI,
+                arrayOf(ContactsContract.RawContacts._ID),
+                "${ContactsContract.RawContacts.CONTACT_ID} = ? OR ${ContactsContract.RawContacts._ID} = ?",
+                arrayOf(contactIdOrRawId.toString(), contactIdOrRawId.toString()),
+                null
+            )
+            rawCursor?.use {
+                val idIdx = it.getColumnIndex(ContactsContract.RawContacts._ID)
+                while (it.moveToNext()) {
+                    if (idIdx >= 0) rawContactIds.add(it.getLong(idIdx))
+                }
+            }
+
+            if (rawContactIds.isEmpty()) {
+                rawContactIds.add(contactIdOrRawId)
+            }
+
+            for (rawId in rawContactIds) {
+                val dataCursor = context.contentResolver.query(
+                    ContactsContract.Data.CONTENT_URI,
+                    arrayOf(ContactsContract.Data._ID),
+                    "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                    arrayOf(rawId.toString(), ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE),
+                    null
+                )
+                val existingDataId = dataCursor?.use {
+                    if (it.moveToFirst()) it.getLong(0) else null
+                }
+
+                if (photoBytes != null && photoBytes.isNotEmpty()) {
+                    val values = android.content.ContentValues().apply {
+                        put(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                        put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                        put(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
+                    }
+                    if (existingDataId != null) {
+                        val uri = android.content.ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, existingDataId)
+                        context.contentResolver.update(uri, values, null, null)
+                    } else {
+                        context.contentResolver.insert(ContactsContract.Data.CONTENT_URI, values)
+                    }
+                } else if (existingDataId != null) {
+                    val uri = android.content.ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, existingDataId)
+                    context.contentResolver.delete(uri, null, null)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     suspend fun deleteContact(id: Long, androidContactId: Long? = null) = withContext(Dispatchers.IO) {
