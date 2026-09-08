@@ -60,10 +60,10 @@ class MainActivity : ComponentActivity() {
         requestAllPermissionsUpfront()
 
         setContent {
-            val scope = rememberCoroutineScope()
             val reduceAnimations by lineaPreferences.reduceAnimations.collectAsState(initial = false)
+            val themePreference by lineaPreferences.themePreference.collectAsState(initial = "DARK")
 
-            LineaTheme(reduceAnimations = reduceAnimations) {
+            LineaTheme(theme = themePreference, reduceAnimations = reduceAnimations) {
                 LineaNavGraph(
                     isDefaultDialer = isDefaultDialerState,
                     simAccounts = simAccountsState,

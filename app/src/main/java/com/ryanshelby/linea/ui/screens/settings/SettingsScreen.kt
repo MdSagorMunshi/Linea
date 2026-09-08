@@ -63,6 +63,14 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.FileDownload
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -85,7 +93,18 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val activeProfile by viewModel.activeProfile.collectAsState()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
     var showClearHistoryDialog by remember { mutableStateOf(false) }
+
+    val exportCsvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        uri?.let {
+            viewModel.exportCallHistoryCsv(it, context.contentResolver) { success, msg ->
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -432,21 +451,26 @@ fun SettingsScreen(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     SelectionPill(
-                        label = "Graphite Dark",
-                        isSelected = uiState.theme == "DARK",
+                        label = "Light Glass",
+                        isSelected = uiState.theme.uppercase() == "LIGHT",
+                        onClick = { viewModel.setTheme("LIGHT") }
+                    )
+                    SelectionPill(
+                        label = "Dark",
+                        isSelected = uiState.theme.uppercase() == "DARK",
                         onClick = { viewModel.setTheme("DARK") }
                     )
                     SelectionPill(
-                        label = "OLED Pitch",
-                        isSelected = uiState.theme == "AMOLED",
+                        label = "OLED",
+                        isSelected = uiState.theme.uppercase() == "AMOLED",
                         onClick = { viewModel.setTheme("AMOLED") }
                     )
                     SelectionPill(
                         label = "System",
-                        isSelected = uiState.theme == "SYSTEM",
+                        isSelected = uiState.theme.uppercase() == "SYSTEM",
                         onClick = { viewModel.setTheme("SYSTEM") }
                     )
                 }
@@ -502,7 +526,18 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 OutlinedButton(
-                    onClick = { viewModel.cleanHistoryNow() },
+                    onClick = {
+                        viewModel.cleanHistoryNow { deleted ->
+                            val msg = if (uiState.cleanupDays == 0) {
+                                "Retention set to 'Forever'. Select 30 or 90 days to automatically prune older logs."
+                            } else if (deleted > 0) {
+                                "Cleaned $deleted call record(s) older than ${uiState.cleanupDays} days."
+                            } else {
+                                "History is clean. No records older than ${uiState.cleanupDays} days found."
+                            }
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(LineaDimensions.ButtonCornerRadius),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = LineaColors.TitaniumBlue)
@@ -518,6 +553,31 @@ fun SettingsScreen(
                         text = "Run History Cleanup Now",
                         style = LineaTypography.labelLarge,
                         color = LineaColors.TitaniumBlue
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                        exportCsvLauncher.launch("linea_call_history_$timestamp.csv")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(LineaDimensions.ButtonCornerRadius),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LineaColors.TextPrimary)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FileDownload,
+                        contentDescription = null,
+                        tint = LineaColors.TextPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Export Call History (.csv)",
+                        style = LineaTypography.labelLarge,
+                        color = LineaColors.TextPrimary
                     )
                 }
 
@@ -585,6 +645,7 @@ fun SettingsScreen(
                     onClick = {
                         viewModel.clearAllCallHistory()
                         showClearHistoryDialog = false
+                        Toast.makeText(context, "Call history cleared", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = LineaColors.CarmineRed,

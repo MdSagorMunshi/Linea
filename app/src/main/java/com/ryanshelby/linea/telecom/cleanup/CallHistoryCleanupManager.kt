@@ -6,6 +6,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.ryanshelby.linea.LineaApp
 import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.data.local.dao.ContactDao
 import com.ryanshelby.linea.data.preferences.LineaPreferences
@@ -44,7 +45,8 @@ class CallHistoryCleanupManager @Inject constructor(
                 if (!record.notes.isNullOrBlank()) continue
 
                 // Check if number belongs to a favorite contact
-                val numberEntity = contactDao.findNumberByNormalized(record.phoneNumber.replace(Regex("[^0-9+]"), ""))
+                val normalized = record.phoneNumber.replace(Regex("[^0-9+]"), "")
+                val numberEntity = contactDao.findNumberByNormalized(normalized)
                 if (numberEntity != null && favoriteContactIds.contains(numberEntity.contactId)) {
                     // Exempt favorite
                     continue
@@ -75,7 +77,12 @@ class CallHistoryCleanupWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        // Entry point for periodic background cleanup
-        return Result.success()
+        return try {
+            val app = applicationContext as? LineaApp
+            app?.cleanupManager?.runCleanupNow()
+            Result.success()
+        } catch (e: Exception) {
+            Result.retry()
+        }
     }
 }

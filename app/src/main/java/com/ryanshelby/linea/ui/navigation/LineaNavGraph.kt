@@ -116,11 +116,13 @@ fun LineaNavGraph(
                 }
                 SettingsSubScreen.CALL_FORWARDING -> {
                     com.ryanshelby.linea.ui.screens.settings.telecom.CallForwardingScreen(
+                        simAccounts = simAccounts,
                         onNavigateBack = { settingsSubScreen = null }
                     )
                 }
                 SettingsSubScreen.CALL_BARRING_FDN -> {
                     com.ryanshelby.linea.ui.screens.settings.telecom.CallBarringFdnScreen(
+                        simAccounts = simAccounts,
                         onNavigateBack = { settingsSubScreen = null }
                     )
                 }

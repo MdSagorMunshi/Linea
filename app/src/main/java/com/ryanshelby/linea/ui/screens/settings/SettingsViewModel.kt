@@ -205,4 +205,36 @@ class SettingsViewModel @Inject constructor(
             callRecordDao.clearAllCallRecords()
         }
     }
+
+    fun exportCallHistoryCsv(
+        uri: android.net.Uri,
+        contentResolver: android.content.ContentResolver,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val records = callRecordDao.getAllRecordsOnce()
+                contentResolver.openOutputStream(uri)?.use { os ->
+                    val writer = java.io.BufferedWriter(java.io.OutputStreamWriter(os, Charsets.UTF_8))
+                    writer.write("ID,Phone Number,Caller Name,Call Type,Date,Duration (Seconds),SIM Slot,Network Type,Notes\n")
+                    val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                    for (r in records) {
+                        val dateStr = dateFormat.format(java.util.Date(r.timestamp))
+                        val cleanName = (r.callerName ?: "").replace("\"", "\"\"")
+                        val cleanNum = r.phoneNumber.replace("\"", "\"\"")
+                        val cleanNotes = (r.notes ?: "").replace("\"", "\"\"")
+                        writer.write("${r.id},\"$cleanNum\",\"$cleanName\",${r.callType.name},\"$dateStr\",${r.durationSeconds},${r.simSlot},${r.networkType},\"$cleanNotes\"\n")
+                    }
+                    writer.flush()
+                }
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onResult(true, "Call history exported (${records.size} records)")
+                }
+            } catch (e: Exception) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onResult(false, "Export failed: ${e.localizedMessage}")
+                }
+            }
+        }
+    }
 }

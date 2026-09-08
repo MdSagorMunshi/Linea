@@ -3,7 +3,10 @@ package com.ryanshelby.linea.ui.screens.settings.telecom
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,14 +22,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CallMissed
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PhoneForwarded
 import androidx.compose.material.icons.filled.PhonePaused
 import androidx.compose.material.icons.filled.SignalWifiBad
+import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -39,7 +45,9 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,10 +58,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ryanshelby.linea.telecom.SimAccountInfo
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.theme.LineaColors
+import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 
 enum class ForwardingCondition(
@@ -61,6 +72,7 @@ enum class ForwardingCondition(
     val description: String,
     val mmiActivateCode: String,
     val mmiDeactivateCode: String,
+    val mmiQueryCode: String,
     val icon: ImageVector
 ) {
     ALWAYS(
@@ -68,6 +80,7 @@ enum class ForwardingCondition(
         description = "Forward all incoming calls unconditionally",
         mmiActivateCode = "*21*",
         mmiDeactivateCode = "##21#",
+        mmiQueryCode = "*#21#",
         icon = Icons.Filled.PhoneForwarded
     ),
     WHEN_BUSY(
@@ -75,6 +88,7 @@ enum class ForwardingCondition(
         description = "Forward when you decline or are on another call",
         mmiActivateCode = "*67*",
         mmiDeactivateCode = "##67#",
+        mmiQueryCode = "*#67#",
         icon = Icons.Filled.PhonePaused
     ),
     WHEN_UNANSWERED(
@@ -82,6 +96,7 @@ enum class ForwardingCondition(
         description = "Forward when incoming calls are not picked up",
         mmiActivateCode = "*61*",
         mmiDeactivateCode = "##61#",
+        mmiQueryCode = "*#61#",
         icon = Icons.Filled.CallMissed
     ),
     WHEN_UNREACHABLE(
@@ -89,15 +104,21 @@ enum class ForwardingCondition(
         description = "Forward when out of range or in airplane mode",
         mmiActivateCode = "*62*",
         mmiDeactivateCode = "##62#",
+        mmiQueryCode = "*#62#",
         icon = Icons.Filled.SignalWifiBad
     )
 }
 
 @Composable
 fun CallForwardingScreen(
+    simAccounts: List<SimAccountInfo> = emptyList(),
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("linea_call_forwarding", Context.MODE_PRIVATE) }
+
+    var selectedSimIndex by remember { mutableIntStateOf(0) }
+
     var activeConditionToEdit by remember { mutableStateOf<ForwardingCondition?>(null) }
     var enteredNumber by remember { mutableStateOf("") }
 
@@ -113,13 +134,53 @@ fun CallForwardingScreen(
     var unreachableEnabled by remember { mutableStateOf(false) }
     var unreachableNumber by remember { mutableStateOf("") }
 
+    // Load state whenever selected SIM slot changes
+    LaunchedEffect(selectedSimIndex) {
+        alwaysEnabled = prefs.getBoolean("sim_${selectedSimIndex}_always_en", false)
+        alwaysNumber = prefs.getString("sim_${selectedSimIndex}_always_num", "") ?: ""
+        busyEnabled = prefs.getBoolean("sim_${selectedSimIndex}_busy_en", false)
+        busyNumber = prefs.getString("sim_${selectedSimIndex}_busy_num", "") ?: ""
+        unansweredEnabled = prefs.getBoolean("sim_${selectedSimIndex}_unanswered_en", false)
+        unansweredNumber = prefs.getString("sim_${selectedSimIndex}_unanswered_num", "") ?: ""
+        unreachableEnabled = prefs.getBoolean("sim_${selectedSimIndex}_unreachable_en", false)
+        unreachableNumber = prefs.getString("sim_${selectedSimIndex}_unreachable_num", "") ?: ""
+    }
+
+    fun saveSimState() {
+        prefs.edit().apply {
+            putBoolean("sim_${selectedSimIndex}_always_en", alwaysEnabled)
+            putString("sim_${selectedSimIndex}_always_num", alwaysNumber)
+            putBoolean("sim_${selectedSimIndex}_busy_en", busyEnabled)
+            putString("sim_${selectedSimIndex}_busy_num", busyNumber)
+            putBoolean("sim_${selectedSimIndex}_unanswered_en", unansweredEnabled)
+            putString("sim_${selectedSimIndex}_unanswered_num", unansweredNumber)
+            putBoolean("sim_${selectedSimIndex}_unreachable_en", unreachableEnabled)
+            putString("sim_${selectedSimIndex}_unreachable_num", unreachableNumber)
+            apply()
+        }
+    }
+
     fun sendMmiIntent(code: String) {
+        val selectedSim = simAccounts.getOrNull(selectedSimIndex)
         val encodedHash = Uri.encode("#")
         val uri = Uri.parse("tel:" + code.replace("#", encodedHash))
-        val intent = Intent(Intent.ACTION_DIAL, uri).apply {
+        val intent = Intent(Intent.ACTION_CALL, uri).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            if (selectedSim?.phoneAccountHandle != null) {
+                putExtra(android.telecom.TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, selectedSim.phoneAccountHandle)
+            }
         }
-        context.startActivity(intent)
+        try {
+            context.startActivity(intent)
+        } catch (_: SecurityException) {
+            val dialIntent = Intent(Intent.ACTION_DIAL, uri).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                if (selectedSim?.phoneAccountHandle != null) {
+                    putExtra(android.telecom.TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, selectedSim.phoneAccountHandle)
+                }
+            }
+            context.startActivity(dialIntent)
+        }
     }
 
     Box(
@@ -164,7 +225,48 @@ fun CallForwardingScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // SIM Selector Pill if multiple SIMs are detected
+            if (simAccounts.size > 1) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    simAccounts.forEachIndexed { index, sim ->
+                        val isSelected = selectedSimIndex == index
+                        FrostedGlassBox(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { selectedSimIndex = index },
+                            fillColor = if (isSelected) LineaColors.TitaniumBlue else LineaColors.GlassFill,
+                            borderColor = if (isSelected) LineaColors.TitaniumBlue else LineaColors.GlassBorder
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.SimCard,
+                                    contentDescription = null,
+                                    tint = if (isSelected) Color.White else LineaColors.TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = sim.displayName.ifBlank { "SIM ${sim.slotIndex + 1}" },
+                                    style = LineaTypography.labelMedium,
+                                    color = if (isSelected) Color.White else LineaColors.TextPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Column(
                 modifier = Modifier
@@ -178,11 +280,17 @@ fun CallForwardingScreen(
                     isEnabled = alwaysEnabled,
                     forwardingNumber = alwaysNumber,
                     onToggle = { enabled ->
-                        alwaysEnabled = enabled
-                        if (enabled) {
-                            sendMmiIntent("${ForwardingCondition.ALWAYS.mmiActivateCode}$alwaysNumber#")
+                        if (enabled && alwaysNumber.isBlank()) {
+                            activeConditionToEdit = ForwardingCondition.ALWAYS
+                            enteredNumber = ""
                         } else {
-                            sendMmiIntent(ForwardingCondition.ALWAYS.mmiDeactivateCode)
+                            alwaysEnabled = enabled
+                            saveSimState()
+                            if (enabled) {
+                                sendMmiIntent("${ForwardingCondition.ALWAYS.mmiActivateCode}$alwaysNumber#")
+                            } else {
+                                sendMmiIntent(ForwardingCondition.ALWAYS.mmiDeactivateCode)
+                            }
                         }
                     },
                     onEditNumber = {
@@ -197,11 +305,17 @@ fun CallForwardingScreen(
                     isEnabled = busyEnabled,
                     forwardingNumber = busyNumber,
                     onToggle = { enabled ->
-                        busyEnabled = enabled
-                        if (enabled) {
-                            sendMmiIntent("${ForwardingCondition.WHEN_BUSY.mmiActivateCode}$busyNumber#")
+                        if (enabled && busyNumber.isBlank()) {
+                            activeConditionToEdit = ForwardingCondition.WHEN_BUSY
+                            enteredNumber = ""
                         } else {
-                            sendMmiIntent(ForwardingCondition.WHEN_BUSY.mmiDeactivateCode)
+                            busyEnabled = enabled
+                            saveSimState()
+                            if (enabled) {
+                                sendMmiIntent("${ForwardingCondition.WHEN_BUSY.mmiActivateCode}$busyNumber#")
+                            } else {
+                                sendMmiIntent(ForwardingCondition.WHEN_BUSY.mmiDeactivateCode)
+                            }
                         }
                     },
                     onEditNumber = {
@@ -216,11 +330,17 @@ fun CallForwardingScreen(
                     isEnabled = unansweredEnabled,
                     forwardingNumber = unansweredNumber,
                     onToggle = { enabled ->
-                        unansweredEnabled = enabled
-                        if (enabled) {
-                            sendMmiIntent("${ForwardingCondition.WHEN_UNANSWERED.mmiActivateCode}$unansweredNumber#")
+                        if (enabled && unansweredNumber.isBlank()) {
+                            activeConditionToEdit = ForwardingCondition.WHEN_UNANSWERED
+                            enteredNumber = ""
                         } else {
-                            sendMmiIntent(ForwardingCondition.WHEN_UNANSWERED.mmiDeactivateCode)
+                            unansweredEnabled = enabled
+                            saveSimState()
+                            if (enabled) {
+                                sendMmiIntent("${ForwardingCondition.WHEN_UNANSWERED.mmiActivateCode}$unansweredNumber#")
+                            } else {
+                                sendMmiIntent(ForwardingCondition.WHEN_UNANSWERED.mmiDeactivateCode)
+                            }
                         }
                     },
                     onEditNumber = {
@@ -235,11 +355,17 @@ fun CallForwardingScreen(
                     isEnabled = unreachableEnabled,
                     forwardingNumber = unreachableNumber,
                     onToggle = { enabled ->
-                        unreachableEnabled = enabled
-                        if (enabled) {
-                            sendMmiIntent("${ForwardingCondition.WHEN_UNREACHABLE.mmiActivateCode}$unreachableNumber#")
+                        if (enabled && unreachableNumber.isBlank()) {
+                            activeConditionToEdit = ForwardingCondition.WHEN_UNREACHABLE
+                            enteredNumber = ""
                         } else {
-                            sendMmiIntent(ForwardingCondition.WHEN_UNREACHABLE.mmiDeactivateCode)
+                            unreachableEnabled = enabled
+                            saveSimState()
+                            if (enabled) {
+                                sendMmiIntent("${ForwardingCondition.WHEN_UNREACHABLE.mmiActivateCode}$unreachableNumber#")
+                            } else {
+                                sendMmiIntent(ForwardingCondition.WHEN_UNREACHABLE.mmiDeactivateCode)
+                            }
                         }
                     },
                     onEditNumber = {
@@ -248,29 +374,42 @@ fun CallForwardingScreen(
                     }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Info Note
+                // Carrier Status Query Card
                 FrostedGlassBox(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    borderColor = LineaColors.GlassBorder
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "CARRIER COMPATIBILITY NOTE",
-                            style = LineaTypography.bodySmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            ),
-                            color = LineaColors.TitaniumBlue
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                sendMmiIntent("*#21#")
+                                Toast.makeText(context, "Querying network forwarding status...", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = LineaColors.TitaniumBlue,
+                            modifier = Modifier.size(22.dp)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Forwarding requests are handled directly by your cellular network via GSM/UMTS MMI strings. Ensure your carrier supports unconditional and conditional call diverting.",
-                            style = LineaTypography.bodySmall,
-                            color = LineaColors.TextSecondary
-                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Query Network Status (*#21#)",
+                                style = LineaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = LineaColors.TextPrimary
+                            )
+                            Text(
+                                text = "Interrogates carrier network for active forward rules",
+                                style = LineaTypography.bodySmall,
+                                color = LineaColors.TextSecondary
+                            )
+                        }
                     }
                 }
 
@@ -279,21 +418,22 @@ fun CallForwardingScreen(
         }
 
         // Edit Number Dialog
-        activeConditionToEdit?.let { condition ->
+        if (activeConditionToEdit != null) {
+            val cond = activeConditionToEdit!!
             AlertDialog(
                 onDismissRequest = { activeConditionToEdit = null },
-                containerColor = LineaColors.SurfaceElevated,
+                containerColor = LineaColors.BackgroundElevated,
                 title = {
                     Text(
-                        text = "Forward ${condition.title}",
-                        style = LineaTypography.titleLarge,
+                        text = cond.title,
+                        style = LineaTypography.titleMedium,
                         color = LineaColors.TextPrimary
                     )
                 },
                 text = {
                     Column {
                         Text(
-                            text = "Enter phone number to receive diverted calls:",
+                            text = "Enter the destination phone number to forward calls to:",
                             style = LineaTypography.bodySmall,
                             color = LineaColors.TextSecondary
                         )
@@ -301,39 +441,55 @@ fun CallForwardingScreen(
                         OutlinedTextField(
                             value = enteredNumber,
                             onValueChange = { enteredNumber = it },
-                            placeholder = { Text("e.g. +1 555 019 2000", color = LineaColors.TextTertiary) },
+                            placeholder = { Text("Phone number", color = LineaColors.TextTertiary) },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = LineaColors.TitaniumBlue,
-                                unfocusedBorderColor = LineaColors.GlassBorder,
                                 focusedContainerColor = LineaColors.GlassFill,
                                 unfocusedContainerColor = LineaColors.GlassFill,
+                                focusedBorderColor = LineaColors.TitaniumBlue,
+                                unfocusedBorderColor = LineaColors.GlassBorder,
                                 focusedTextColor = LineaColors.TextPrimary,
                                 unfocusedTextColor = LineaColors.TextPrimary
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            shape = RoundedCornerShape(12.dp)
                         )
                     }
                 },
                 confirmButton = {
                     Button(
                         onClick = {
-                            when (condition) {
-                                ForwardingCondition.ALWAYS -> alwaysNumber = enteredNumber
-                                ForwardingCondition.WHEN_BUSY -> busyNumber = enteredNumber
-                                ForwardingCondition.WHEN_UNANSWERED -> unansweredNumber = enteredNumber
-                                ForwardingCondition.WHEN_UNREACHABLE -> unreachableNumber = enteredNumber
+                            val num = enteredNumber.trim()
+                            when (cond) {
+                                ForwardingCondition.ALWAYS -> {
+                                    alwaysNumber = num
+                                    alwaysEnabled = num.isNotBlank()
+                                    if (alwaysEnabled) sendMmiIntent("${cond.mmiActivateCode}$num#")
+                                }
+                                ForwardingCondition.WHEN_BUSY -> {
+                                    busyNumber = num
+                                    busyEnabled = num.isNotBlank()
+                                    if (busyEnabled) sendMmiIntent("${cond.mmiActivateCode}$num#")
+                                }
+                                ForwardingCondition.WHEN_UNANSWERED -> {
+                                    unansweredNumber = num
+                                    unansweredEnabled = num.isNotBlank()
+                                    if (unansweredEnabled) sendMmiIntent("${cond.mmiActivateCode}$num#")
+                                }
+                                ForwardingCondition.WHEN_UNREACHABLE -> {
+                                    unreachableNumber = num
+                                    unreachableEnabled = num.isNotBlank()
+                                    if (unreachableEnabled) sendMmiIntent("${cond.mmiActivateCode}$num#")
+                                }
                             }
+                            saveSimState()
                             activeConditionToEdit = null
                         },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = LineaColors.TitaniumBlue,
-                            contentColor = Color.White
-                        )
+                        colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Save")
+                        Text("Save & Apply", color = Color.White)
                     }
                 },
                 dismissButton = {
@@ -347,7 +503,7 @@ fun CallForwardingScreen(
 }
 
 @Composable
-fun ForwardingItemCard(
+private fun ForwardingItemCard(
     condition: ForwardingCondition,
     isEnabled: Boolean,
     forwardingNumber: String,
@@ -390,7 +546,7 @@ fun ForwardingItemCard(
                         color = LineaColors.TextPrimary
                     )
                     Text(
-                        text = if (isEnabled) "Forwarding to $forwardingNumber" else condition.description,
+                        text = if (isEnabled && forwardingNumber.isNotBlank()) "Forwarding to $forwardingNumber" else condition.description,
                         style = LineaTypography.bodySmall,
                         color = if (isEnabled) LineaColors.TitaniumBlue else LineaColors.TextSecondary
                     )
@@ -409,22 +565,28 @@ fun ForwardingItemCard(
             }
 
             if (isEnabled) {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(LineaColors.GlassFill)
+                        .clickable(onClick = onEditNumber)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onEditNumber) {
-                        Icon(
-                            imageVector = Icons.Filled.Edit,
-                            contentDescription = null,
-                            tint = LineaColors.TitaniumBlue,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Change Target Number", color = LineaColors.TitaniumBlue, style = LineaTypography.bodySmall)
-                    }
+                    Text(
+                        text = forwardingNumber.ifBlank { "Tap to set number" },
+                        style = LineaTypography.bodyMedium,
+                        color = if (forwardingNumber.isNotBlank()) LineaColors.TextPrimary else LineaColors.TextTertiary
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Edit Number",
+                        tint = LineaColors.TitaniumBlue,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
         }

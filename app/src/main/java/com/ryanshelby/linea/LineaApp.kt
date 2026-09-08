@@ -21,6 +21,9 @@ class LineaApp : Application() {
     @Inject
     lateinit var screeningEngine: CallScreeningEngine
 
+    @Inject
+    lateinit var cleanupManager: com.ryanshelby.linea.telecom.cleanup.CallHistoryCleanupManager
+
     companion object {
         const val CHANNEL_ONGOING_CALLS = "linea_ongoing_calls"
         const val CHANNEL_INCOMING_CALLS = "linea_incoming_calls"
@@ -40,6 +43,7 @@ class LineaApp : Application() {
         createNotificationChannels()
         registerPhoneAccounts()
         purgeLegacyRules()
+        cleanupManager.schedulePeriodicCleanup()
     }
 
     private fun purgeLegacyRules() {

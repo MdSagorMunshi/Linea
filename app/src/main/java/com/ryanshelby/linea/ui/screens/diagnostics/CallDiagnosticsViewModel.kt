@@ -12,6 +12,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ryanshelby.linea.telecom.CallManager
 import com.ryanshelby.linea.telecom.LineaCallState
+import com.ryanshelby.linea.telecom.PhoneAccountManager
+import com.ryanshelby.linea.telecom.SimAccountInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -24,10 +26,13 @@ import javax.inject.Inject
 
 data class TelephonyDiagnosticsState(
     val simSlot: Int = 0,
+    val subscriptionId: Int = -1,
     val carrierName: String = "Cellular SIM 1",
     val networkType: String = "Cellular",
     val isVoLteActive: Boolean = true,
     val isVoWifiActive: Boolean = false,
+    val isRoaming: Boolean = false,
+    val simState: String = "Ready",
     val signalDbm: Int = -85,
     val signalBars: Int = 4,
     val audioRoute: String = "Built-in Earpiece",
@@ -35,13 +40,16 @@ data class TelephonyDiagnosticsState(
     val connectionState: String = "Idle / Ready",
     val estimatedLatencyMs: Int = 0,
     val packetLossPercent: Double = 0.0,
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val availableSims: List<SimAccountInfo> = emptyList(),
+    val selectedSimIndex: Int = 0
 )
 
 @HiltViewModel
 class CallDiagnosticsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val callManager: CallManager
+    private val callManager: CallManager,
+    private val phoneAccountManager: PhoneAccountManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TelephonyDiagnosticsState())
@@ -51,21 +59,25 @@ class CallDiagnosticsViewModel @Inject constructor(
         refreshDiagnostics()
     }
 
+    fun selectSim(index: Int) {
+        _state.value = _state.value.copy(selectedSimIndex = index)
+        refreshDiagnostics()
+    }
+
     fun refreshDiagnostics() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isRefreshing = true)
-            
+
             val updatedState = withContext(Dispatchers.IO) {
-                queryHardwareDiagnostics()
+                queryHardwareDiagnostics(_state.value.selectedSimIndex)
             }
-            
+
             _state.value = updatedState
         }
     }
 
-    private fun queryHardwareDiagnostics(): TelephonyDiagnosticsState {
+    private fun queryHardwareDiagnostics(selectedSimIndex: Int): TelephonyDiagnosticsState {
         val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
-        val subscriptionManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
@@ -74,33 +86,63 @@ class CallDiagnosticsViewModel @Inject constructor(
             currentCall.state != LineaCallState.IDLE &&
             currentCall.state != LineaCallState.DISCONNECTED
 
-        // Carrier & SIM slot
-        var carrierName = "Cellular Network"
-        var simSlot = 0
-        try {
-            val subList = subscriptionManager?.activeSubscriptionInfoList
-            if (!subList.isNullOrEmpty()) {
-                val primarySub = subList[0]
-                carrierName = primarySub.displayName?.toString()?.ifBlank { null }
-                    ?: primarySub.carrierName?.toString()?.ifBlank { null }
-                    ?: "SIM 1"
-                simSlot = primarySub.simSlotIndex.coerceAtLeast(0)
-            } else if (telephonyManager != null) {
-                carrierName = telephonyManager.networkOperatorName.ifBlank {
-                    telephonyManager.simOperatorName.ifBlank { "Cellular Network" }
-                }
-            }
-        } catch (_: SecurityException) {
-            carrierName = telephonyManager?.networkOperatorName?.ifBlank { "Cellular Network" } ?: "Cellular Network"
+        // Fetch registered SIM accounts
+        val simList = try {
+            phoneAccountManager.getSimAccounts()
+        } catch (_: Exception) {
+            emptyList()
         }
 
-        // Network Type
+        val clampedIndex = if (selectedSimIndex in simList.indices) selectedSimIndex else 0
+        val selectedAccount = simList.getOrNull(clampedIndex)
+
+        // Target telephony for the specific SIM if available
+        val targetTelephony = if (selectedAccount != null && selectedAccount.subscriptionId > 0) {
+            try {
+                telephonyManager?.createForSubscriptionId(selectedAccount.subscriptionId) ?: telephonyManager
+            } catch (_: Exception) {
+                telephonyManager
+            }
+        } else {
+            telephonyManager
+        }
+
+        // Carrier & SIM details
+        val carrierName = selectedAccount?.let {
+            val name = it.displayName.ifBlank { it.carrierName }
+            if (name.isNotBlank()) name else "SIM ${it.slotIndex + 1}"
+        } ?: targetTelephony?.networkOperatorName?.ifBlank {
+            targetTelephony.simOperatorName.ifBlank { "Cellular Network" }
+        } ?: "Cellular Network"
+
+        val simSlot = selectedAccount?.slotIndex ?: 0
+        val subscriptionId = selectedAccount?.subscriptionId ?: -1
+
+        // SIM State string
+        val simStateStr = when (targetTelephony?.simState) {
+            TelephonyManager.SIM_STATE_READY -> "UICC Ready"
+            TelephonyManager.SIM_STATE_PIN_REQUIRED -> "PIN Required"
+            TelephonyManager.SIM_STATE_PUK_REQUIRED -> "PUK Required"
+            TelephonyManager.SIM_STATE_NETWORK_LOCKED -> "Network Locked"
+            TelephonyManager.SIM_STATE_ABSENT -> "No SIM Inserted"
+            TelephonyManager.SIM_STATE_CARD_RESTRICTED -> "Card Restricted"
+            TelephonyManager.SIM_STATE_NOT_READY -> "SIM Initializing"
+            else -> "Ready"
+        }
+
+        // Network Type & Roaming
+        val isRoaming = try {
+            targetTelephony?.isNetworkRoaming == true
+        } catch (_: Exception) {
+            false
+        }
+
         val networkType = try {
-            if (telephonyManager != null) {
+            if (targetTelephony != null) {
                 @Suppress("DEPRECATION")
-                when (telephonyManager.dataNetworkType) {
-                    TelephonyManager.NETWORK_TYPE_NR -> "5G NR"
-                    TelephonyManager.NETWORK_TYPE_LTE -> "4G LTE (VoLTE Ready)"
+                when (targetTelephony.dataNetworkType) {
+                    TelephonyManager.NETWORK_TYPE_NR -> "5G NR Sub-6/mmWave"
+                    TelephonyManager.NETWORK_TYPE_LTE -> "4G LTE (VoLTE Active)"
                     TelephonyManager.NETWORK_TYPE_HSDPA,
                     TelephonyManager.NETWORK_TYPE_HSPA,
                     TelephonyManager.NETWORK_TYPE_HSPAP,
@@ -120,9 +162,9 @@ class CallDiagnosticsViewModel @Inject constructor(
         // Signal strength & dBm
         var signalBars = 4
         var signalDbm = -85
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && telephonyManager != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && targetTelephony != null) {
             try {
-                val signalStrength = telephonyManager.signalStrength
+                val signalStrength = targetTelephony.signalStrength
                 if (signalStrength != null) {
                     signalBars = signalStrength.level.coerceIn(0, 4)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -157,13 +199,13 @@ class CallDiagnosticsViewModel @Inject constructor(
                 when {
                     audioManager.isBluetoothScoOn || audioManager.isBluetoothA2dpOn -> {
                         audioRoute = "Bluetooth Audio"
-                        bluetoothDeviceName = "Connected Bluetooth Device"
+                        bluetoothDeviceName = "Connected Wireless Headset"
                     }
                     audioManager.isSpeakerphoneOn -> {
                         audioRoute = "Speakerphone"
                     }
                     audioManager.isWiredHeadsetOn -> {
-                        audioRoute = "Wired Headset"
+                        audioRoute = "Wired Headset (3.5mm/USB-C)"
                     }
                     hasActiveCall -> {
                         audioRoute = "Built-in Earpiece"
@@ -181,14 +223,17 @@ class CallDiagnosticsViewModel @Inject constructor(
             LineaCallState.HOLDING -> "Call on Hold"
         }
 
-        val latencyMs = if (hasActiveCall) 20 else 0
+        val latencyMs = if (hasActiveCall) 22 else 0
 
         return TelephonyDiagnosticsState(
             simSlot = simSlot,
+            subscriptionId = subscriptionId,
             carrierName = carrierName,
             networkType = networkType,
             isVoLteActive = true,
             isVoWifiActive = isVoWifiActive,
+            isRoaming = isRoaming,
+            simState = simStateStr,
             signalDbm = signalDbm,
             signalBars = signalBars,
             audioRoute = audioRoute,
@@ -196,7 +241,9 @@ class CallDiagnosticsViewModel @Inject constructor(
             connectionState = connectionState,
             estimatedLatencyMs = latencyMs,
             packetLossPercent = 0.0,
-            isRefreshing = false
+            isRefreshing = false,
+            availableSims = simList,
+            selectedSimIndex = clampedIndex
         )
     }
 }
