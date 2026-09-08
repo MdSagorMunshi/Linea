@@ -16,6 +16,12 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class ContactAccount(
+    val name: String,
+    val type: String?,
+    val isDevice: Boolean = (type == null)
+)
+
 @Singleton
 class ContactSyncRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -239,13 +245,69 @@ class ContactSyncRepository @Inject constructor(
         }
     }
 
+    suspend fun getAvailableAccounts(): List<ContactAccount> = withContext(Dispatchers.IO) {
+        val accounts = linkedSetOf<ContactAccount>()
+
+        // 1. Check AccountManager for accounts
+        try {
+            val accountManager = android.accounts.AccountManager.get(context)
+            val googleAccounts = accountManager.getAccountsByType("com.google")
+            for (acc in googleAccounts) {
+                if (!acc.name.isNullOrBlank()) {
+                    accounts.add(ContactAccount(name = acc.name, type = acc.type, isDevice = false))
+                }
+            }
+            val allAccounts = accountManager.accounts
+            for (acc in allAccounts) {
+                if (!acc.name.isNullOrBlank()) {
+                    accounts.add(ContactAccount(name = acc.name, type = acc.type, isDevice = false))
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 2. Query RawContacts for existing sync accounts
+        try {
+            val cursor = context.contentResolver.query(
+                ContactsContract.RawContacts.CONTENT_URI,
+                arrayOf(ContactsContract.RawContacts.ACCOUNT_NAME, ContactsContract.RawContacts.ACCOUNT_TYPE),
+                "${ContactsContract.RawContacts.ACCOUNT_NAME} IS NOT NULL",
+                null,
+                null
+            )
+            cursor?.use {
+                val nameIdx = it.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_NAME)
+                val typeIdx = it.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_TYPE)
+                while (it.moveToNext()) {
+                    val name = if (nameIdx >= 0) it.getString(nameIdx) else null
+                    val type = if (typeIdx >= 0) it.getString(typeIdx) else null
+                    if (!name.isNullOrBlank()) {
+                        accounts.add(ContactAccount(name = name, type = type, isDevice = (type == null)))
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 3. Always include Phone storage as an option
+        accounts.add(ContactAccount(name = "Phone storage", type = null, isDevice = true))
+
+        accounts.toList().sortedWith(compareBy<ContactAccount> {
+            when {
+                it.type == "com.google" -> 0
+                !it.isDevice -> 1
+                else -> 2
+            }
+        })
+    }
+
     suspend fun createContact(
         displayName: String,
         company: String? = null,
         numbers: List<Pair<String, String>>, // (Number, Label)
         emails: List<String> = emptyList(),
         preferredSimSlot: Int? = null,
-        notes: String? = null
+        notes: String? = null,
+        accountName: String? = null,
+        accountType: String? = null
     ): Long = withContext(Dispatchers.IO) {
         var rawContactId: Long? = null
 
@@ -256,8 +318,8 @@ class ContactSyncRepository @Inject constructor(
 
             ops.add(
                 android.content.ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
-                    .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
-                    .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, accountType)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, accountName)
                     .build()
             )
 

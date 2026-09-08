@@ -79,6 +79,8 @@ fun ContactsScreen(
     val numbersForSelected by viewModel.numbersForSelectedContact.collectAsState()
     val isCreateSheetOpen by viewModel.isCreateSheetOpen.collectAsState()
     val contactToEdit by viewModel.contactToEdit.collectAsState()
+    val availableAccounts by viewModel.availableAccounts.collectAsState()
+    val selectedContactAccount by viewModel.selectedContactAccount.collectAsState()
     val preCallNoteForSelected by viewModel.preCallNoteForSelected.collectAsState()
     val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
     val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
@@ -401,6 +403,9 @@ fun ContactsScreen(
     if (isCreateSheetOpen) {
         ContactCreateEditSheet(
             contactToEdit = contactToEdit,
+            availableAccounts = availableAccounts,
+            selectedAccount = selectedContactAccount,
+            onSelectAccount = { viewModel.selectContactAccount(it) },
             onDismiss = { viewModel.dismissCreateOrEditSheet() },
             onSave = { displayName, company, numbers, emails, preferredSimSlot, notes ->
                 viewModel.saveContact(displayName, company, numbers, emails, preferredSimSlot, notes)

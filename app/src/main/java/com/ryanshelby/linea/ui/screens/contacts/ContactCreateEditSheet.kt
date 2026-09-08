@@ -18,13 +18,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -42,9 +47,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.data.local.entities.ContactEntity
+import com.ryanshelby.linea.data.repository.ContactAccount
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
@@ -55,6 +63,9 @@ import com.ryanshelby.linea.ui.theme.LineaTypography
 fun ContactCreateEditSheet(
     contactToEdit: ContactEntity? = null,
     initialNumbers: List<Pair<String, String>> = listOf("" to "Mobile"),
+    availableAccounts: List<ContactAccount> = emptyList(),
+    selectedAccount: ContactAccount? = null,
+    onSelectAccount: (ContactAccount) -> Unit = {},
     onDismiss: () -> Unit,
     onSave: (
         displayName: String,
@@ -144,6 +155,161 @@ fun ContactCreateEditSheet(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Account Selector (Save destination for new contacts)
+            if (contactToEdit == null) {
+                var expanded by remember { mutableStateOf(false) }
+
+                FrostedGlassBox(
+                    shape = RoundedCornerShape(14.dp),
+                    borderColor = LineaColors.GlassBorder,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { expanded = !expanded }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (selectedAccount?.isDevice == true)
+                                                LineaColors.GlassFill
+                                            else
+                                                LineaColors.TitaniumBlue.copy(alpha = 0.2f)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (selectedAccount?.isDevice == true)
+                                            Icons.Filled.PhoneAndroid
+                                        else
+                                            Icons.Filled.AccountCircle,
+                                        contentDescription = null,
+                                        tint = if (selectedAccount?.isDevice == true)
+                                            LineaColors.TextSecondary
+                                        else
+                                            LineaColors.TitaniumBlue,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column {
+                                    Text(
+                                        text = if (selectedAccount?.isDevice == true) "Save to Phone" else "Save to Google",
+                                        style = LineaTypography.labelSmall,
+                                        color = LineaColors.TextSecondary
+                                    )
+                                    Text(
+                                        text = selectedAccount?.name ?: "Phone storage",
+                                        style = LineaTypography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                        color = LineaColors.TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(LineaColors.GlassFill)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "Switch",
+                                    style = LineaTypography.labelSmall,
+                                    color = LineaColors.TitaniumBlue
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(
+                                    imageVector = Icons.Filled.ExpandMore,
+                                    contentDescription = "Switch Account",
+                                    tint = LineaColors.TitaniumBlue,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        // Expanded list of accounts
+                        if (expanded && availableAccounts.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(color = LineaColors.GlassBorder, thickness = 0.5.dp)
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            availableAccounts.forEach { account ->
+                                val isSelected = (selectedAccount?.name == account.name && selectedAccount?.type == account.type)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (isSelected) LineaColors.TitaniumBlue.copy(alpha = 0.12f) else Color.Transparent)
+                                        .clickable {
+                                            onSelectAccount(account)
+                                            expanded = false
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (account.isDevice) Icons.Filled.PhoneAndroid else Icons.Filled.AccountCircle,
+                                            contentDescription = null,
+                                            tint = if (isSelected) LineaColors.TitaniumBlue else LineaColors.TextTertiary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = account.name,
+                                                style = LineaTypography.bodyMedium,
+                                                color = if (isSelected) LineaColors.TitaniumBlue else LineaColors.TextPrimary
+                                            )
+                                            Text(
+                                                text = if (account.isDevice) "Device only (no cloud sync)" else if (account.type == "com.google") "Google account" else (account.type ?: ""),
+                                                style = LineaTypography.labelSmall.copy(fontSize = 11.sp),
+                                                color = LineaColors.TextTertiary
+                                            )
+                                        }
+                                    }
+
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = "Selected",
+                                            tint = LineaColors.TitaniumBlue,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Display Name
             Text(

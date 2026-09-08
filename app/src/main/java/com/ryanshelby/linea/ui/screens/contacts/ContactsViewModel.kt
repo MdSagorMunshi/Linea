@@ -26,6 +26,8 @@ import kotlinx.coroutines.launch
 import com.ryanshelby.linea.data.local.dao.CallNoteDao
 import com.ryanshelby.linea.data.local.entities.CallNoteEntity
 import com.ryanshelby.linea.data.preferences.LineaPreferences
+import com.ryanshelby.linea.data.repository.ContactAccount
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -100,6 +102,12 @@ class ContactsViewModel @Inject constructor(
     private val _contactToEdit = MutableStateFlow<ContactEntity?>(null)
     val contactToEdit: StateFlow<ContactEntity?> = _contactToEdit.asStateFlow()
 
+    private val _availableAccounts = MutableStateFlow<List<ContactAccount>>(emptyList())
+    val availableAccounts: StateFlow<List<ContactAccount>> = _availableAccounts.asStateFlow()
+
+    private val _selectedContactAccount = MutableStateFlow<ContactAccount?>(null)
+    val selectedContactAccount: StateFlow<ContactAccount?> = _selectedContactAccount.asStateFlow()
+
     val pinnedFavorites: StateFlow<List<ContactEntity>> = contactDao.getFavoriteContacts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -152,6 +160,33 @@ class ContactsViewModel @Inject constructor(
         viewModelScope.launch {
             contactSyncRepository.syncWithLocalDb()
         }
+        loadAccounts()
+    }
+
+    fun loadAccounts() {
+        viewModelScope.launch {
+            val accounts = contactSyncRepository.getAvailableAccounts()
+            _availableAccounts.value = accounts
+            val lastAccName = preferences.lastContactAccountName.first()
+            val lastAccType = preferences.lastContactAccountType.first()
+
+            val defaultAccount = accounts.firstOrNull { it.name == lastAccName && it.type == lastAccType }
+                ?: accounts.firstOrNull { it.type == "com.google" }
+                ?: accounts.firstOrNull { it.isDevice }
+                ?: accounts.firstOrNull()
+
+            _selectedContactAccount.value = defaultAccount
+        }
+    }
+
+    fun selectContactAccount(account: ContactAccount) {
+        _selectedContactAccount.value = account
+        viewModelScope.launch {
+            preferences.setLastContactAccount(
+                name = if (!account.isDevice) account.name else null,
+                type = account.type
+            )
+        }
     }
 
     fun onSearchQueryChange(query: String) {
@@ -168,6 +203,7 @@ class ContactsViewModel @Inject constructor(
 
     fun openCreateSheet() {
         _contactToEdit.value = null
+        loadAccounts()
         _isCreateSheetOpen.value = true
     }
 
@@ -203,13 +239,18 @@ class ContactsViewModel @Inject constructor(
                 _selectedContactForDetail.value = updated
             } else {
                 // Create new
+                val acc = _selectedContactAccount.value
+                val accName = if (acc != null && !acc.isDevice) acc.name else null
+                val accType = acc?.type
                 contactSyncRepository.createContact(
                     displayName = displayName,
                     company = company,
                     numbers = numbers,
                     emails = emails,
                     preferredSimSlot = preferredSimSlot,
-                    notes = notes
+                    notes = notes,
+                    accountName = accName,
+                    accountType = accType
                 )
             }
             dismissCreateOrEditSheet()

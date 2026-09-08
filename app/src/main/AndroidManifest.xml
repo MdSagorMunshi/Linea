@@ -9,9 +9,10 @@
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
     
-    <!-- Contacts -->
+    <!-- Contacts & Accounts -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     
     <!-- Audio & Bluetooth -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
