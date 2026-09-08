@@ -96,9 +96,14 @@ object HistoryGrouper {
 
     fun formatDuration(seconds: Long): String {
         if (seconds <= 0) return ""
-        val mins = seconds / 60
+        val hrs = seconds / 3600
+        val mins = (seconds % 3600) / 60
         val secs = seconds % 60
-        return if (mins > 0) "${mins}m ${secs}s" else "${secs}s"
+        return when {
+            hrs > 0 -> "${hrs}h ${mins}m ${secs}s"
+            mins > 0 -> "${mins}m ${secs}s"
+            else -> "${secs}s"
+        }
     }
 
     /**

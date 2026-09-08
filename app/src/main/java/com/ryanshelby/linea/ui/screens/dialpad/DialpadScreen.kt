@@ -2,6 +2,7 @@
 
 package com.ryanshelby.linea.ui.screens.dialpad
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -89,6 +90,11 @@ fun DialpadScreen(
     val haptic = LocalHapticFeedback.current
 
     val displayedSims = if (activeSims.isNotEmpty()) activeSims else simAccounts
+
+    // Back gesture clears typed buffer before app exit or screen switch
+    BackHandler(enabled = enteredNumber.isNotEmpty()) {
+        viewModel.clearNumber()
+    }
 
     val initiateCall = { number: String ->
         pendingCallNumber = number

@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
@@ -62,6 +63,11 @@ class InCallActivity : ComponentActivity() {
             val isRecording by callManager.isRecording.collectAsState()
             val recordingDuration by callManager.recordingDurationSeconds.collectAsState()
             val durationWarningActive by callManager.durationWarningActive.collectAsState()
+
+            // System back gesture safely minimizes in-call task instead of terminating cellular call
+            BackHandler {
+                moveTaskToBack(true)
+            }
 
             LaunchedEffect(currentCall?.state) {
                 val state = currentCall?.state

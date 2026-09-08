@@ -1,5 +1,6 @@
 package com.ryanshelby.linea.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
@@ -61,6 +62,19 @@ fun LineaNavGraph(
     val reduceAnim = LocalReduceAnimations.current
 
     val settingsState by settingsViewModel.uiState.collectAsState()
+
+    // Handle system back gestures seamlessly across all sub-screens
+    BackHandler(enabled = activeContactDashboardId != null) {
+        activeContactDashboardId = null
+    }
+
+    BackHandler(enabled = activeContactDashboardId == null && settingsSubScreen != null) {
+        settingsSubScreen = null
+    }
+
+    BackHandler(enabled = activeContactDashboardId == null && settingsSubScreen == null && currentDestination != LineaDestination.DIALPAD) {
+        currentDestination = LineaDestination.DIALPAD
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         if (activeContactDashboardId != null) {

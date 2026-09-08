@@ -166,7 +166,10 @@ fun ContactDashboardScreen(
                             Text(
                                 text = contact.displayName,
                                 style = LineaTypography.titleLarge,
-                                color = LineaColors.TextPrimary
+                                color = LineaColors.TextPrimary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
 
                             if (!contact.company.isNullOrBlank()) {

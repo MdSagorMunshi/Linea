@@ -222,68 +222,109 @@ fun ContactsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Alphabetical Contact List with Scrubber
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            ) {
-                // Contact List
-                LazyColumn(
-                    state = listState,
+            if (groupedContacts.isEmpty()) {
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    contentPadding = PaddingValues(bottom = 100.dp)
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val sortedLetters = groupedContacts.keys.sorted()
-
-                    sortedLetters.forEach { letter ->
-                        val contactsInLetter = groupedContacts[letter] ?: emptyList()
-
-                        // Section Header
-                        item(key = "letter_$letter") {
-                            Text(
-                                text = letter.toString(),
-                                style = LineaTypography.titleSmall.copy(
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = LineaColors.TitaniumBlue,
-                                modifier = Modifier.padding(top = 10.dp, bottom = 4.dp, start = 4.dp)
+                    FrostedGlassBox(
+                        modifier = Modifier.fillMaxWidth(0.9f),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = null,
+                                tint = LineaColors.TitaniumBlue.copy(alpha = 0.6f),
+                                modifier = Modifier.size(44.dp)
                             )
-                        }
-
-                        items(contactsInLetter, key = { it.id }) { contact ->
-                            ContactCardRow(
-                                contact = contact,
-                                onClick = { onContactClick?.invoke(contact.id) ?: viewModel.selectContactForDetail(contact) }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = if (searchQuery.isNotEmpty()) "No matching contacts" else "No contacts yet",
+                                style = LineaTypography.titleMedium,
+                                color = LineaColors.TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = if (searchQuery.isNotEmpty()) "Check spelling or search by phone number." else "Contacts synced from your device and added in LINEA will appear here.",
+                                style = LineaTypography.bodySmall,
+                                color = LineaColors.TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
                     }
                 }
+            } else {
+                // Alphabetical Contact List with Scrubber
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    // Contact List
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(bottom = 100.dp)
+                    ) {
+                        val sortedLetters = groupedContacts.keys.sorted()
 
-                // Vertical A-Z Scrubber
-                AlphabeticalScrubber(
-                    activeLetter = activeLetter,
-                    onLetterSelected = { letter ->
-                        viewModel.onScrubberLetter(letter)
-                        scope.launch {
-                            // Find index of section header in LazyColumn
-                            val sortedLetters = groupedContacts.keys.sorted()
-                            val targetIndex = sortedLetters.indexOf(letter)
-                            if (targetIndex >= 0) {
-                                // Calculate position offset
-                                var cumulative = 0
-                                for (i in 0 until targetIndex) {
-                                    val l = sortedLetters[i]
-                                    cumulative += 1 + (groupedContacts[l]?.size ?: 0)
-                                }
-                                listState.scrollToItem(cumulative)
+                        sortedLetters.forEach { letter ->
+                            val contactsInLetter = groupedContacts[letter] ?: emptyList()
+
+                            // Section Header
+                            item(key = "letter_$letter") {
+                                Text(
+                                    text = letter.toString(),
+                                    style = LineaTypography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = LineaColors.TitaniumBlue,
+                                    modifier = Modifier.padding(top = 10.dp, bottom = 4.dp, start = 4.dp)
+                                )
+                            }
+
+                            items(contactsInLetter, key = { it.id }) { contact ->
+                                ContactCardRow(
+                                    contact = contact,
+                                    onClick = { onContactClick?.invoke(contact.id) ?: viewModel.selectContactForDetail(contact) }
+                                )
                             }
                         }
                     }
-                )
+
+                    // Vertical A-Z Scrubber
+                    AlphabeticalScrubber(
+                        activeLetter = activeLetter,
+                        onLetterSelected = { letter ->
+                            viewModel.onScrubberLetter(letter)
+                            scope.launch {
+                                // Find index of section header in LazyColumn
+                                val sortedLetters = groupedContacts.keys.sorted()
+                                val targetIndex = sortedLetters.indexOf(letter)
+                                if (targetIndex >= 0) {
+                                    // Calculate position offset
+                                    var cumulative = 0
+                                    for (i in 0 until targetIndex) {
+                                        val l = sortedLetters[i]
+                                        cumulative += 1 + (groupedContacts[l]?.size ?: 0)
+                                    }
+                                    listState.scrollToItem(cumulative)
+                                }
+                            }
+                        }
+                    )
+                }
             }
         }
 
