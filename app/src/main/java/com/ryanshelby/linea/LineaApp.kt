@@ -16,6 +16,7 @@ class LineaApp : Application() {
 
     companion object {
         const val CHANNEL_ONGOING_CALLS = "linea_ongoing_calls"
+        const val CHANNEL_INCOMING_CALLS = "linea_incoming_calls"
         const val CHANNEL_MISSED_CALLS = "linea_missed_calls"
         const val CHANNEL_VOICEMAIL = "linea_voicemail"
         const val CHANNEL_REMINDERS = "linea_reminders"
@@ -38,6 +39,15 @@ class LineaApp : Application() {
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(NotificationManager::class.java) ?: return
+
+            val incomingCallChannel = NotificationChannel(
+                CHANNEL_INCOMING_CALLS,
+                "Incoming Calls",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Shows heads-up notifications for incoming cellular calls"
+                enableVibration(true)
+            }
 
             val ongoingCallChannel = NotificationChannel(
                 CHANNEL_ONGOING_CALLS,
@@ -73,7 +83,7 @@ class LineaApp : Application() {
             }
 
             notificationManager.createNotificationChannels(
-                listOf(ongoingCallChannel, missedCallChannel, voicemailChannel, reminderChannel)
+                listOf(incomingCallChannel, ongoingCallChannel, missedCallChannel, voicemailChannel, reminderChannel)
             )
         }
     }

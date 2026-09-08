@@ -94,6 +94,14 @@ class CallManager @Inject constructor(
     private val _durationWarningActive = MutableStateFlow(false)
     val durationWarningActive: StateFlow<Boolean> = _durationWarningActive.asStateFlow()
 
+    private val _incomingFloatingCall = MutableStateFlow<ActiveCallInfo?>(null)
+    val incomingFloatingCall: StateFlow<ActiveCallInfo?> = _incomingFloatingCall.asStateFlow()
+
+    fun dismissFloatingCall() {
+        _incomingFloatingCall.value = null
+        notificationManager.dismissIncomingCallHeadsUpNotification()
+    }
+
     private var inCallService: LineaInCallService? = null
     private var timerJob: Job? = null
     private var previousCallState: LineaCallState = LineaCallState.IDLE
@@ -140,12 +148,21 @@ class CallManager @Inject constructor(
                         return@launch
                     }
 
-                    // Call allowed -> proceed to normal ringing flow
+                    // Call allowed -> proceed to ringing flow
                     updateCallState(call)
-                    val intent = Intent(context, InCallActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    val isDim = preferences.dontInterruptMe.first()
+                    if (isDim) {
+                        _incomingFloatingCall.value = _currentCall.value
+                        notificationManager.showIncomingCallHeadsUpNotification(
+                            callerName = call.details?.callerDisplayName,
+                            phoneNumber = number
+                        )
+                    } else {
+                        val intent = Intent(context, InCallActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        }
+                        context.startActivity(intent)
                     }
-                    context.startActivity(intent)
                 }
             } else {
                 updateCallState(call)
@@ -220,6 +237,7 @@ class CallManager @Inject constructor(
 
             _currentCall.value = active.copy(state = LineaCallState.DISCONNECTED)
             _currentCall.value = null
+            dismissFloatingCall()
 
             // If secondary call is waiting, promote it
             val secondary = _secondaryCall.value

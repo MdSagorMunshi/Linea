@@ -19,8 +19,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.ryanshelby.linea.data.local.dao.CallNoteDao
+import com.ryanshelby.linea.data.local.entities.CallNoteEntity
+import com.ryanshelby.linea.data.preferences.LineaPreferences
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -29,7 +33,9 @@ class ContactsViewModel @Inject constructor(
     private val contactDao: ContactDao,
     private val contactSyncRepository: ContactSyncRepository,
     private val callManager: CallManager,
-    private val phoneAccountManager: PhoneAccountManager
+    private val phoneAccountManager: PhoneAccountManager,
+    private val callNoteDao: CallNoteDao,
+    private val preferences: LineaPreferences
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -40,6 +46,22 @@ class ContactsViewModel @Inject constructor(
 
     private val _selectedContactForDetail = MutableStateFlow<ContactEntity?>(null)
     val selectedContactForDetail: StateFlow<ContactEntity?> = _selectedContactForDetail.asStateFlow()
+
+    val callCountdownSeconds: StateFlow<Int> = preferences.callCountdownSeconds
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val callConfirmationEnabled: StateFlow<Boolean> = preferences.callConfirmationEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val preCallNoteForSelected: StateFlow<CallNoteEntity?> = _selectedContactForDetail
+        .flatMapLatest { contact ->
+            if (contact != null) {
+                callNoteDao.getNotesForContact(contact.id, "")
+                    .map { notes -> notes.firstOrNull { it.isPreCallNote } }
+            } else {
+                flowOf(null)
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _isCreateSheetOpen = MutableStateFlow(false)
     val isCreateSheetOpen: StateFlow<Boolean> = _isCreateSheetOpen.asStateFlow()
@@ -198,5 +220,28 @@ class ContactsViewModel @Inject constructor(
             simAccounts.firstOrNull()?.phoneAccountHandle
         }
         callManager.placeCall(phoneNumber, simHandle)
+    }
+
+    fun setPreCallNote(contactId: Long?, phoneNumber: String, noteText: String) {
+        viewModelScope.launch {
+            callNoteDao.clearPreCallNotes(contactId, phoneNumber)
+            if (noteText.isNotBlank()) {
+                callNoteDao.insertNote(
+                    CallNoteEntity(
+                        contactId = contactId,
+                        phoneNumber = phoneNumber,
+                        noteText = noteText.trim(),
+                        timestamp = System.currentTimeMillis(),
+                        isPreCallNote = true
+                    )
+                )
+            }
+        }
+    }
+
+    fun clearPreCallNote(contactId: Long?, phoneNumber: String) {
+        viewModelScope.launch {
+            callNoteDao.clearPreCallNotes(contactId, phoneNumber)
+        }
     }
 }

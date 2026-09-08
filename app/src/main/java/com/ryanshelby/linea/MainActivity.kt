@@ -35,6 +35,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var lineaPreferences: LineaPreferences
 
+    @Inject
+    lateinit var callManager: com.ryanshelby.linea.telecom.CallManager
+
     private var isDefaultDialerState by mutableStateOf(false)
     private var simAccountsState by mutableStateOf<List<SimAccountInfo>>(emptyList())
 
@@ -67,6 +70,7 @@ class MainActivity : ComponentActivity() {
                     reduceAnimations = reduceAnimations,
                     phoneAccountManager = phoneAccountManager,
                     lineaPreferences = lineaPreferences,
+                    callManager = callManager,
                     onRequestDefaultDialer = { requestDefaultDialerRole() },
                     onRequestPermissions = { requestAllPermissionsUpfront() }
                 )

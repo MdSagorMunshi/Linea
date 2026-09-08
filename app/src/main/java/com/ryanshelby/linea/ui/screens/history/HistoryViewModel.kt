@@ -187,8 +187,11 @@ class HistoryViewModel @Inject constructor(
     }
 
     fun scheduleCallbackReminder(phoneNumber: String, callerName: String?, delayHours: Long) {
+        scheduleCallbackReminderMs(phoneNumber, callerName, delayHours * 3600 * 1000)
+    }
+
+    fun scheduleCallbackReminderMs(phoneNumber: String, callerName: String?, delayMs: Long) {
         viewModelScope.launch {
-            val delayMs = delayHours * 3600 * 1000
             reminderScheduler.scheduleReminder(
                 phoneNumber = phoneNumber,
                 callerName = callerName,

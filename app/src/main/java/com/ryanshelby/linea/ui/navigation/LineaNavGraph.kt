@@ -34,7 +34,8 @@ enum class SettingsSubScreen {
     RECORDINGS,
     VOICEMAIL,
     CALL_FORWARDING,
-    CALL_BARRING_FDN
+    CALL_BARRING_FDN,
+    CALL_RULES
 }
 
 @Composable
@@ -47,6 +48,7 @@ fun LineaNavGraph(
     onRequestDefaultDialer: () -> Unit,
     onRequestPermissions: () -> Unit,
     modifier: Modifier = Modifier,
+    callManager: com.ryanshelby.linea.telecom.CallManager? = null,
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     blockingViewModel: BlockingViewModel = hiltViewModel()
 ) {
@@ -99,6 +101,11 @@ fun LineaNavGraph(
                         onNavigateBack = { settingsSubScreen = null }
                     )
                 }
+                SettingsSubScreen.CALL_RULES -> {
+                    com.ryanshelby.linea.ui.screens.rules.CallRulesScreen(
+                        onNavigateBack = { settingsSubScreen = null }
+                    )
+                }
                 null -> Unit
             }
         } else {
@@ -132,7 +139,8 @@ fun LineaNavGraph(
                             onNavigateToRecordings = { settingsSubScreen = SettingsSubScreen.RECORDINGS },
                             onNavigateToVoicemail = { settingsSubScreen = SettingsSubScreen.VOICEMAIL },
                             onNavigateToCallForwarding = { settingsSubScreen = SettingsSubScreen.CALL_FORWARDING },
-                            onNavigateToCallBarring = { settingsSubScreen = SettingsSubScreen.CALL_BARRING_FDN }
+                            onNavigateToCallBarring = { settingsSubScreen = SettingsSubScreen.CALL_BARRING_FDN },
+                            onNavigateToCallRules = { settingsSubScreen = SettingsSubScreen.CALL_RULES }
                         )
                     }
                 }
@@ -144,6 +152,36 @@ fun LineaNavGraph(
                 onNavigate = { destination -> currentDestination = destination },
                 unreadMissedCalls = settingsState.unreadMissedCalls,
                 modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+
+        // DIM Mode Floating Banner overlay
+        if (callManager != null) {
+            val floatingCall by callManager.incomingFloatingCall.collectAsState()
+            val context = androidx.compose.ui.platform.LocalContext.current
+
+            com.ryanshelby.linea.ui.components.DontInterruptMeBanner(
+                callInfo = floatingCall,
+                onAnswer = {
+                    callManager.answerCall()
+                    callManager.dismissFloatingCall()
+                    val inCallIntent = android.content.Intent(context, com.ryanshelby.linea.ui.incall.InCallActivity::class.java).apply {
+                        flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                    }
+                    context.startActivity(inCallIntent)
+                },
+                onReject = {
+                    callManager.rejectCall()
+                    callManager.dismissFloatingCall()
+                },
+                onIgnore = {
+                    callManager.silenceRinger()
+                    callManager.dismissFloatingCall()
+                },
+                onMessage = {
+                    callManager.dismissFloatingCall()
+                },
+                modifier = Modifier.align(Alignment.TopCenter)
             )
         }
     }

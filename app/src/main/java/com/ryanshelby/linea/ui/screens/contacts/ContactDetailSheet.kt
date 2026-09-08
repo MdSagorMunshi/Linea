@@ -36,11 +36,17 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +56,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.PushPin
+import com.ryanshelby.linea.data.local.entities.CallNoteEntity
 import com.ryanshelby.linea.data.local.entities.ContactEmailEntity
 import com.ryanshelby.linea.data.local.entities.ContactEntity
 import com.ryanshelby.linea.data.local.entities.ContactNumberEntity
@@ -70,6 +78,9 @@ fun ContactDetailSheet(
     onToggleRuleOverride: (ContactEntity, Boolean) -> Unit,
     onEditContact: (ContactEntity) -> Unit,
     onDeleteContact: (ContactEntity) -> Unit,
+    preCallNote: CallNoteEntity? = null,
+    onSetPreCallNote: ((String) -> Unit)? = null,
+    onClearPreCallNote: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -370,6 +381,140 @@ fun ContactDetailSheet(
                             uncheckedTrackColor = LineaColors.GlassFill
                         )
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Pre-Call Note Section
+            FrostedGlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                borderColor = LineaColors.AccentAmber.copy(alpha = 0.35f)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(LineaColors.AccentAmber.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.PushPin,
+                                    contentDescription = null,
+                                    tint = LineaColors.AccentAmber,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Pre-Call Note",
+                                    style = LineaTypography.titleSmall,
+                                    color = LineaColors.TextPrimary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Shows on-screen when calling this contact",
+                                    style = LineaTypography.bodySmall,
+                                    color = LineaColors.TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        if (preCallNote != null) {
+                            IconButton(
+                                onClick = { onClearPreCallNote?.invoke() },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = "Clear Note",
+                                    tint = LineaColors.TextTertiary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    if (preCallNote != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(LineaColors.SurfaceElevated)
+                                .border(1.dp, LineaColors.AccentAmber.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = preCallNote.noteText,
+                                style = LineaTypography.bodyMedium,
+                                color = LineaColors.TextPrimary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    var preCallInput by remember { mutableStateOf("") }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = preCallInput,
+                            onValueChange = { preCallInput = it },
+                            placeholder = {
+                                Text(
+                                    text = if (preCallNote != null) "Update note..." else "Attach a note before calling...",
+                                    style = LineaTypography.bodySmall,
+                                    color = LineaColors.TextTertiary,
+                                    fontSize = 12.sp
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = LineaColors.AccentAmber,
+                                unfocusedBorderColor = LineaColors.GlassBorder,
+                                focusedTextColor = LineaColors.TextPrimary,
+                                unfocusedTextColor = LineaColors.TextPrimary
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            singleLine = true
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (preCallInput.isNotBlank()) LineaColors.AccentAmber else LineaColors.GlassFill)
+                                .clickable(enabled = preCallInput.isNotBlank()) {
+                                    onSetPreCallNote?.invoke(preCallInput)
+                                    preCallInput = ""
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PushPin,
+                                contentDescription = "Set Pre-Call Note",
+                                tint = if (preCallInput.isNotBlank()) Color.Black else LineaColors.TextTertiary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
 

@@ -70,6 +70,12 @@ interface CallNoteDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNote(note: CallNoteEntity): Long
+
+    @Query("DELETE FROM call_notes WHERE id = :id")
+    suspend fun deleteNote(id: Long)
+
+    @Query("DELETE FROM call_notes WHERE (contactId = :contactId OR phoneNumber = :phoneNumber) AND isPreCallNote = 1")
+    suspend fun clearPreCallNotes(contactId: Long?, phoneNumber: String)
 }
 
 @Dao

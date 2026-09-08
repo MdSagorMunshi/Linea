@@ -85,6 +85,7 @@ class InCallActivity : ComponentActivity() {
                             )
                         } else {
                             val notes by callNoteDao.getNotesForContact(null, call.phoneNumber).collectAsState(initial = emptyList())
+                            val preCallNote = notes.firstOrNull { it.isPreCallNote }?.noteText
 
                             InCallScreen(
                                 callInfo = call,
@@ -93,6 +94,7 @@ class InCallActivity : ComponentActivity() {
                                 recordingDurationSeconds = recordingDuration,
                                 durationWarningActive = durationWarningActive,
                                 existingNotes = notes,
+                                preCallNote = preCallNote,
                                 onDisconnect = { callManager.disconnectCall() },
                                 onToggleMute = { callManager.toggleMute() },
                                 onToggleSpeaker = { callManager.toggleSpeaker() },

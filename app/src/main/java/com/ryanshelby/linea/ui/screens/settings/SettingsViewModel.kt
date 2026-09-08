@@ -20,6 +20,9 @@ data class SettingsUiState(
     val askSimBeforeDial: Boolean = false,
     val callConfirmation: Boolean = false,
     val callCountdownSeconds: Int = 3,
+    val dontInterruptMe: Boolean = false,
+    val repeatCallOverride: Boolean = true,
+    val callRulesCount: Int = 0,
     val proximitySensorEnabled: Boolean = true,
     val dialpadSound: Boolean = true,
     val dialpadVibration: Boolean = true,
@@ -48,6 +51,8 @@ class SettingsViewModel @Inject constructor(
         preferences.askSimBeforeDial,
         preferences.callConfirmationEnabled,
         preferences.callCountdownSeconds,
+        preferences.dontInterruptMe,
+        preferences.repeatCallOverride,
         preferences.proximitySensorEnabled,
         preferences.dialpadSoundEnabled,
         preferences.dialpadVibrationEnabled,
@@ -66,28 +71,33 @@ class SettingsViewModel @Inject constructor(
         val askSim = args[1] as Boolean
         val confirm = args[2] as Boolean
         val countdown = args[3] as Int
-        val prox = args[4] as Boolean
-        val dtmf = args[5] as Boolean
-        val haptic = args[6] as Boolean
-        val callVib = args[7] as Boolean
-        val theme = args[8] as String
-        val cleanup = args[9] as Int
-        val reduceAnim = args[10] as Boolean
-        val blockedList = args[11] as List<*>
-        val rulesList = args[12] as List<*>
-        val missedCount = args[13] as Int
-        val autoRecord = args[14] as Boolean
-        val durationWarn = args[15] as Int
-        val vmNumber = args[16] as String
+        val dim = args[4] as Boolean
+        val repeatOverride = args[5] as Boolean
+        val prox = args[6] as Boolean
+        val dtmf = args[7] as Boolean
+        val haptic = args[8] as Boolean
+        val callVib = args[9] as Boolean
+        val theme = args[10] as String
+        val cleanup = args[11] as Int
+        val reduceAnim = args[12] as Boolean
+        val blockedList = args[13] as List<*>
+        val rulesList = args[14] as List<*>
+        val missedCount = args[15] as Int
+        val autoRecord = args[16] as Boolean
+        val durationWarn = args[17] as Int
+        val vmNumber = args[18] as String
 
         val quietRule = rulesList.filterIsInstance<com.ryanshelby.linea.data.local.entities.CallRuleEntity>()
-            .firstOrNull { it.name.contains("Quiet", ignoreCase = true) }
+            .firstOrNull { it.name.contains("Quiet", ignoreCase = true) || it.name.contains("Night", ignoreCase = true) }
 
         SettingsUiState(
             defaultSim = defaultSim,
             askSimBeforeDial = askSim,
             callConfirmation = confirm,
             callCountdownSeconds = if (countdown == 0) 3 else countdown,
+            dontInterruptMe = dim,
+            repeatCallOverride = repeatOverride,
+            callRulesCount = rulesList.size,
             proximitySensorEnabled = prox,
             dialpadSound = dtmf,
             dialpadVibration = haptic,
@@ -134,6 +144,14 @@ class SettingsViewModel @Inject constructor(
 
     fun setCountdownSeconds(seconds: Int) {
         viewModelScope.launch { preferences.setCountdownSeconds(seconds) }
+    }
+
+    fun setDontInterruptMe(enabled: Boolean) {
+        viewModelScope.launch { preferences.setDontInterruptMe(enabled) }
+    }
+
+    fun setRepeatCallOverride(enabled: Boolean) {
+        viewModelScope.launch { preferences.setRepeatCallOverride(enabled) }
     }
 
     fun setProximitySensor(enabled: Boolean) {

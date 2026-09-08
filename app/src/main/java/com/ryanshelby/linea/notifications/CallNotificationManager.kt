@@ -25,6 +25,7 @@ class CallNotificationManager @Inject constructor(
     companion object {
         const val NOTIFICATION_ID_ONGOING_CALL = 1001
         const val NOTIFICATION_ID_MISSED_CALL = 1002
+        const val NOTIFICATION_ID_INCOMING_HEADS_UP = 1003
     }
 
     @SuppressLint("MissingPermission")
@@ -92,5 +93,72 @@ class CallNotificationManager @Inject constructor(
             .build()
 
         notificationManager.notify(NOTIFICATION_ID_MISSED_CALL, notification)
+    }
+
+    @SuppressLint("MissingPermission")
+    fun showIncomingCallHeadsUpNotification(callerName: String?, phoneNumber: String) {
+        val answerIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = CallActionReceiver.ACTION_ANSWER
+            putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+        }
+        val answerPendingIntent = PendingIntent.getBroadcast(
+            context,
+            10,
+            answerIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val rejectIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = CallActionReceiver.ACTION_REJECT
+            putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+        }
+        val rejectPendingIntent = PendingIntent.getBroadcast(
+            context,
+            11,
+            rejectIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val ignoreIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = CallActionReceiver.ACTION_IGNORE
+            putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+        }
+        val ignorePendingIntent = PendingIntent.getBroadcast(
+            context,
+            12,
+            ignoreIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val messageIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = CallActionReceiver.ACTION_MESSAGE
+            putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+        }
+        val messagePendingIntent = PendingIntent.getBroadcast(
+            context,
+            13,
+            messageIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, LineaApp.CHANNEL_INCOMING_CALLS)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(callerName ?: phoneNumber)
+            .setContentText("Incoming Call")
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .addAction(0, "Answer", answerPendingIntent)
+            .addAction(0, "Decline", rejectPendingIntent)
+            .addAction(0, "Message", messagePendingIntent)
+            .addAction(0, "Ignore", ignorePendingIntent)
+            .build()
+
+        notificationManager.notify(NOTIFICATION_ID_INCOMING_HEADS_UP, notification)
+    }
+
+    fun dismissIncomingCallHeadsUpNotification() {
+        notificationManager.cancel(NOTIFICATION_ID_INCOMING_HEADS_UP)
     }
 }

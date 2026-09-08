@@ -56,6 +56,7 @@ import com.ryanshelby.linea.ui.theme.LineaTypography
 
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhoneForwarded
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Voicemail
 
 @Composable
@@ -70,6 +71,7 @@ fun SettingsScreen(
     onNavigateToVoicemail: () -> Unit = {},
     onNavigateToCallForwarding: () -> Unit = {},
     onNavigateToCallBarring: () -> Unit = {},
+    onNavigateToCallRules: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -128,6 +130,17 @@ fun SettingsScreen(
             subtitle = "${uiState.blockedRulesCount} active rules • Quiet hours ${if (uiState.isQuietHoursActive) "ON" else "OFF"}",
             badge = "${uiState.blockedRulesCount} RULES",
             onClick = onNavigateToBlocking
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Smart Rules & Schedules (Phase 5)
+        SettingsNavCard(
+            icon = Icons.Filled.Schedule,
+            title = "Smart Rules & Schedules",
+            subtitle = "${uiState.callRulesCount} rules configured • Nighttime & workday filters",
+            badge = if (uiState.callRulesCount > 0) "${uiState.callRulesCount} RULES" else null,
+            onClick = onNavigateToCallRules
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -265,6 +278,24 @@ fun SettingsScreen(
                     subtitle = "Turns off screen when held to ear during active calls",
                     checked = uiState.proximitySensorEnabled,
                     onCheckedChange = { viewModel.setProximitySensor(it) }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SettingsToggleRow(
+                    title = "Don't Interrupt Me Mode",
+                    subtitle = "Incoming calls float as unobtrusive top banner instead of taking over full screen",
+                    checked = uiState.dontInterruptMe,
+                    onCheckedChange = { viewModel.setDontInterruptMe(it) }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SettingsToggleRow(
+                    title = "Repeated Call Emergency Override",
+                    subtitle = "3 calls within 5 minutes bypass quiet hours and block rules",
+                    checked = uiState.repeatCallOverride,
+                    onCheckedChange = { viewModel.setRepeatCallOverride(it) }
                 )
             }
         }

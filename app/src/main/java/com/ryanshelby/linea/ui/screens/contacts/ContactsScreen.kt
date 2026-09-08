@@ -41,7 +41,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ryanshelby.linea.data.local.entities.ContactEntity
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.screens.dialpad.CallCountdownDialog
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -71,6 +75,13 @@ fun ContactsScreen(
     val numbersForSelected by viewModel.numbersForSelectedContact.collectAsState()
     val isCreateSheetOpen by viewModel.isCreateSheetOpen.collectAsState()
     val contactToEdit by viewModel.contactToEdit.collectAsState()
+    val preCallNoteForSelected by viewModel.preCallNoteForSelected.collectAsState()
+    val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
+    val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
+
+    var pendingCallNumber by remember { mutableStateOf<String?>(null) }
+    var pendingSimSlot by remember { mutableStateOf<Int?>(null) }
+    var showCountdownDialog by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -262,11 +273,45 @@ fun ContactsScreen(
             numbers = numbersForSelected,
             emails = emptyList(),
             onDismiss = { viewModel.selectContactForDetail(null) },
-            onCallNumber = { num, simSlot -> viewModel.callContact(num, simSlot) },
+            onCallNumber = { num, simSlot ->
+                if (callConfirmationEnabled && callCountdownSeconds > 0) {
+                    pendingCallNumber = num
+                    pendingSimSlot = simSlot
+                    showCountdownDialog = true
+                } else {
+                    viewModel.callContact(num, simSlot)
+                }
+            },
             onToggleFavorite = { viewModel.toggleFavorite(it) },
             onToggleRuleOverride = { contact, override -> viewModel.toggleRuleOverride(contact, override) },
             onEditContact = { contact -> viewModel.openEditSheet(contact) },
-            onDeleteContact = { contact -> viewModel.deleteContact(contact) }
+            onDeleteContact = { contact -> viewModel.deleteContact(contact) },
+            preCallNote = preCallNoteForSelected,
+            onSetPreCallNote = { noteText ->
+                val primaryNum = numbersForSelected.firstOrNull()?.number ?: ""
+                viewModel.setPreCallNote(selected.id, primaryNum, noteText)
+            },
+            onClearPreCallNote = {
+                val primaryNum = numbersForSelected.firstOrNull()?.number ?: ""
+                viewModel.clearPreCallNote(selected.id, primaryNum)
+            }
+        )
+    }
+
+    // Call Countdown Dialog
+    if (showCountdownDialog && pendingCallNumber != null) {
+        CallCountdownDialog(
+            phoneNumber = pendingCallNumber!!,
+            totalSeconds = callCountdownSeconds,
+            onConfirmCall = {
+                showCountdownDialog = false
+                viewModel.callContact(pendingCallNumber!!, pendingSimSlot)
+                pendingCallNumber = null
+            },
+            onCancel = {
+                showCountdownDialog = false
+                pendingCallNumber = null
+            }
         )
     }
 

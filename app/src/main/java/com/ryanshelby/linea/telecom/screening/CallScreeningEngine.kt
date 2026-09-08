@@ -40,7 +40,8 @@ class CallScreeningEngine @Inject constructor(
     private val callRuleDao: CallRuleDao,
     private val contactDao: ContactDao,
     private val callRecordDao: CallRecordDao,
-    private val preferences: LineaPreferences
+    private val preferences: LineaPreferences,
+    private val repeatCallTracker: RepeatCallTracker
 ) {
 
     suspend fun screenCall(
@@ -51,6 +52,11 @@ class CallScreeningEngine @Inject constructor(
     ): ScreeningDecision {
         val rawNumber = phoneNumber?.trim().orEmpty()
         val normalizedNumber = normalize(rawNumber)
+
+        // Record incoming call attempt for sliding window repeated-call tracking
+        if (normalizedNumber.isNotBlank()) {
+            repeatCallTracker.recordAttempt(normalizedNumber, currentTimeMillis)
+        }
 
         // 1. Private or Hidden Caller ID check
         val isHidden = isPrivate || rawNumber.isBlank() || rawNumber.equals("private", ignoreCase = true) || rawNumber.equals("unknown", ignoreCase = true)
@@ -77,13 +83,14 @@ class CallScreeningEngine @Inject constructor(
             return ScreeningDecision.Allow
         }
 
-        // 4. Emergency Repeat-Call Override ("Allow if called twice in 5 minutes")
+        // 4. Emergency Repeat-Call Override ("Allow if called 3 times in 5 minutes")
         val repeatOverridePref = preferences.repeatCallOverride.first()
         if (repeatOverridePref && normalizedNumber.isNotBlank()) {
-            val fiveMinutesAgo = currentTimeMillis - (5 * 60 * 1000)
+            val fiveMinutesAgo = currentTimeMillis - (5 * 60 * 1000L)
             val recentCallsCount = callRecordDao.getRecentCallCountForNumber(normalizedNumber, fiveMinutesAgo)
-            if (recentCallsCount >= 1) {
-                // Caller called previously within 5 minutes -> emergency bypass!
+            val trackedAttempts = repeatCallTracker.getRecentAttemptsCount(normalizedNumber, fiveMinutesAgo)
+            // If caller has called at least twice in the past 5 minutes, this 3rd attempt is allowed!
+            if (recentCallsCount >= 2 || trackedAttempts >= 3) {
                 return ScreeningDecision.Allow
             }
         }
@@ -131,6 +138,11 @@ class CallScreeningEngine @Inject constructor(
         // 9. Evaluate Active Blocked Numbers Rules
         val activeBlockedRules = blockedNumberDao.getActiveBlockedNumbers(currentTimeMillis)
         for (rule in activeBlockedRules) {
+            // Check temporary expiration if rule has expiresAt
+            if (rule.expiresAt != null && rule.expiresAt <= currentTimeMillis) {
+                continue
+            }
+
             if (matchesBlockedRule(rule, rawNumber, normalizedNumber, contact != null)) {
                 return ScreeningDecision.Block(
                     action = rule.blockAction,
@@ -145,22 +157,28 @@ class CallScreeningEngine @Inject constructor(
         val activeCallRules = callRuleDao.getActiveRules()
         for (rule in activeCallRules) {
             if (matchesScheduleRule(rule, currentTimeMillis, simSlot)) {
-                val shouldBlock = when (rule.allowedFilter) {
+                val isAllowed = when (rule.allowedFilter) {
                     RuleAllowedFilter.ALL -> true
-                    RuleAllowedFilter.FAVORITES_ONLY -> contact == null || !contact.isFavorite
-                    RuleAllowedFilter.SPECIFIC_GROUP -> false // extensible for group memberships
+                    RuleAllowedFilter.FAVORITES_ONLY -> contact != null && contact.isFavorite
+                    RuleAllowedFilter.SPECIFIC_GROUP -> {
+                        if (contact == null || rule.allowedGroupId == null) {
+                            false
+                        } else {
+                            contactDao.isContactInGroup(rule.allowedGroupId, contact.id) > 0
+                        }
+                    }
                 }
 
-                if (shouldBlock) {
+                if (!isAllowed) {
                     return ScreeningDecision.Block(
                         action = when (rule.action) {
                             RuleAction.REJECT -> BlockAction.SILENT_REJECT
                             RuleAction.SILENT -> BlockAction.VOICEMAIL
                             RuleAction.ALLOW -> BlockAction.SILENT_REJECT
                         },
-                        reason = "Quiet Hours Active: ${rule.name}",
+                        reason = "Smart Schedule Active: ${rule.name}",
                         matchedRuleId = rule.id,
-                        matchedRuleType = "QUIET_HOURS"
+                        matchedRuleType = "SMART_SCHEDULE"
                     )
                 }
             }

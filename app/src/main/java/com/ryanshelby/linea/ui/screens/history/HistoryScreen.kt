@@ -267,7 +267,8 @@ fun HistoryScreen(
             onCall = { record -> viewModel.callBack(record) },
             onBlockNumber = { number -> viewModel.blockNumber(number) },
             onAddNote = { number, contactId, noteText -> viewModel.addNote(number, contactId, noteText) },
-            onScheduleReminder = { number, name, delayHours -> viewModel.scheduleCallbackReminder(number, name, delayHours) }
+            onScheduleReminder = { number, name, delayHours -> viewModel.scheduleCallbackReminder(number, name, delayHours) },
+            onScheduleReminderMs = { number, name, delayMs -> viewModel.scheduleCallbackReminderMs(number, name, delayMs) }
         )
     }
 }

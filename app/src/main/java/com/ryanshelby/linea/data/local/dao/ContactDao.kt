@@ -63,4 +63,7 @@ interface ContactDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addMemberToGroup(member: ContactGroupMemberEntity)
+
+    @Query("SELECT COUNT(*) FROM contact_group_members WHERE groupId = :groupId AND contactId = :contactId")
+    suspend fun isContactInGroup(groupId: Long, contactId: Long): Int
 }

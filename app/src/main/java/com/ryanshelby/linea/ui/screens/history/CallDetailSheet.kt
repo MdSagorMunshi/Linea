@@ -68,12 +68,14 @@ fun CallDetailSheet(
     onBlockNumber: (String) -> Unit,
     onAddNote: (String, Long?, String) -> Unit,
     onScheduleReminder: (String, String?, Long) -> Unit,
+    onScheduleReminderMs: ((String, String?, Long) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
     var noteInput by remember { mutableStateOf("") }
     var reminderMessage by remember { mutableStateOf<String?>(null) }
+    var showReminderCustomSheet by remember { mutableStateOf(false) }
 
     val totalDuration = item.groupedCalls.sumOf { it.durationSeconds }
     val connectedCalls = item.groupedCalls.count { it.durationSeconds > 0 }
@@ -294,10 +296,10 @@ fun CallDetailSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(
-                    1L to "In 1 hour",
-                    3L to "In 3 hours",
-                    24L to "Tomorrow"
-                ).forEach { (hours, label) ->
+                    10L * 60 * 1000L to "10m",
+                    30L * 60 * 1000L to "30m",
+                    60L * 60 * 1000L to "1h"
+                ).forEach { (delayMs, label) ->
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -305,7 +307,8 @@ fun CallDetailSheet(
                             .background(LineaColors.GlassFill)
                             .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(10.dp))
                             .clickable {
-                                onScheduleReminder(item.primaryRecord.phoneNumber, item.primaryRecord.callerName, hours)
+                                onScheduleReminderMs?.invoke(item.primaryRecord.phoneNumber, item.primaryRecord.callerName, delayMs)
+                                    ?: onScheduleReminder(item.primaryRecord.phoneNumber, item.primaryRecord.callerName, (delayMs / 3600000L).coerceAtLeast(1L))
                                 reminderMessage = "Reminder scheduled for $label"
                             }
                             .padding(vertical = 8.dp),
@@ -318,6 +321,25 @@ fun CallDetailSheet(
                         )
                     }
                 }
+
+                // Custom / More Options
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(LineaColors.TitaniumBlue.copy(alpha = 0.15f))
+                        .border(LineaDimensions.HairlineBorder, LineaColors.TitaniumBlue.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                        .clickable { showReminderCustomSheet = true }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "More...",
+                        style = LineaTypography.labelSmall,
+                        color = LineaColors.TitaniumBlue,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             if (reminderMessage != null) {
@@ -326,6 +348,21 @@ fun CallDetailSheet(
                     style = LineaTypography.bodySmall,
                     color = LineaColors.MutedSageGreen,
                     modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            if (showReminderCustomSheet) {
+                CallbackReminderSheet(
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    phoneNumber = item.primaryRecord.phoneNumber,
+                    callerName = item.primaryRecord.callerName,
+                    onDismiss = { showReminderCustomSheet = false },
+                    onScheduleReminder = { delayMs ->
+                        onScheduleReminderMs?.invoke(item.primaryRecord.phoneNumber, item.primaryRecord.callerName, delayMs)
+                            ?: onScheduleReminder(item.primaryRecord.phoneNumber, item.primaryRecord.callerName, (delayMs / 3600000L).coerceAtLeast(1L))
+                        reminderMessage = "Reminder scheduled"
+                        showReminderCustomSheet = false
+                    }
                 )
             }
 

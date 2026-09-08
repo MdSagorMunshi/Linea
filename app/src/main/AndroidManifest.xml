@@ -114,6 +114,11 @@
             android:name=".notifications.CallbackReminderReceiver"
             android:exported="false" />
 
+        <!-- Floating Heads-Up / DIM Call Action Receiver -->
+        <receiver
+            android:name=".notifications.CallActionReceiver"
+            android:exported="false" />
+
         <!-- File Provider for Sharing Recordings -->
         <provider
             android:name="androidx.core.content.FileProvider"

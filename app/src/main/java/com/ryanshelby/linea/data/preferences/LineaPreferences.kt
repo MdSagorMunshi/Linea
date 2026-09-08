@@ -58,6 +58,7 @@ class LineaPreferences @Inject constructor(
     val callVibrationEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_VIBRATION] ?: true }
     val callConfirmationEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_CONFIRMATION] ?: false }
     val callCountdownSeconds: Flow<Int> = dataStore.data.map { it[KEY_CALL_COUNTDOWN_SECONDS] ?: 0 }
+    val dontInterruptMe: Flow<Boolean> = dataStore.data.map { it[KEY_DONT_INTERRUPT_ME] ?: false }
     val repeatCallOverride: Flow<Boolean> = dataStore.data.map { it[KEY_REPEAT_CALL_OVERRIDE] ?: true }
     val autoRecordCalls: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_CALLS] ?: false }
     val autoRecordContactsOnly: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_CONTACTS_ONLY] ?: false }
@@ -109,6 +110,10 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setRepeatCallOverride(enabled: Boolean) {
         dataStore.edit { it[KEY_REPEAT_CALL_OVERRIDE] = enabled }
+    }
+
+    suspend fun setDontInterruptMe(enabled: Boolean) {
+        dataStore.edit { it[KEY_DONT_INTERRUPT_ME] = enabled }
     }
 
     suspend fun setBlockUnknown(enabled: Boolean) {
