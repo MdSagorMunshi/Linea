@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -38,13 +39,16 @@ import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
 
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+
 @Composable
 fun DialpadKey(
     digit: Char,
     subLetters: String,
     onDigitPress: (Char) -> Unit,
     onLongPress: (() -> Unit)? = null,
-    size: Dp = 72.dp,
+    size: Dp = 68.dp,
     soundEnabled: Boolean = true,
     vibrationEnabled: Boolean = true,
     modifier: Modifier = Modifier
@@ -70,7 +74,7 @@ fun DialpadKey(
     }
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && !reduceAnimations) 0.90f else 1.0f,
+        targetValue = if (isPressed && !reduceAnimations) 0.91f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -78,31 +82,45 @@ fun DialpadKey(
         label = "KeyScale"
     )
 
-    val bgColor by animateColorAsState(
-        targetValue = if (isPressed) {
-            LineaColors.TitaniumBlue.copy(alpha = 0.28f)
-        } else {
-            LineaColors.GlassFill
-        },
-        label = "KeyBg"
-    )
+    val bgBrush = if (isPressed) {
+        Brush.verticalGradient(
+            colors = listOf(
+                LineaColors.TitaniumBlue.copy(alpha = 0.36f),
+                LineaColors.TitaniumBlue.copy(alpha = 0.18f)
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.08f),
+                Color.White.copy(alpha = 0.03f)
+            )
+        )
+    }
 
-    val borderColor by animateColorAsState(
-        targetValue = if (isPressed) {
-            LineaColors.GlassBorderFocused
-        } else {
-            LineaColors.GlassBorder
-        },
-        label = "KeyBorder"
-    )
+    val borderBrush = if (isPressed) {
+        Brush.verticalGradient(
+            colors = listOf(
+                LineaColors.TitaniumBlue,
+                LineaColors.TitaniumBlue.copy(alpha = 0.45f)
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.18f),
+                Color.White.copy(alpha = 0.06f)
+            )
+        )
+    }
 
     Box(
         modifier = modifier
             .size(size)
             .scale(scale)
             .clip(CircleShape)
-            .background(bgColor)
-            .border(LineaDimensions.HairlineBorder, borderColor, CircleShape)
+            .background(bgBrush)
+            .border(LineaDimensions.HairlineBorder, borderBrush, CircleShape)
             .pointerInput(digit) {
                 detectTapGestures(
                     onPress = {
@@ -132,16 +150,17 @@ fun DialpadKey(
         contentAlignment = Alignment.Center
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = digit.toString(),
                 style = LineaTypography.headlineMedium.copy(
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                     fontFeatureSettings = "tnum"
                 ),
-                color = LineaColors.TextPrimary,
-                fontSize = if (size < 70.dp) 22.sp else 26.sp
+                color = if (isPressed) Color.White else LineaColors.TextPrimary,
+                fontSize = if (digit in listOf('*', '#')) 24.sp else 26.sp
             )
 
             if (subLetters.isNotEmpty()) {
@@ -149,10 +168,10 @@ fun DialpadKey(
                 Text(
                     text = subLetters,
                     style = LineaTypography.labelSmall.copy(
-                        letterSpacing = 1.5.sp,
-                        fontWeight = FontWeight.Normal
+                        letterSpacing = 1.8.sp,
+                        fontWeight = FontWeight.Medium
                     ),
-                    color = LineaColors.TextSecondary,
+                    color = if (isPressed) LineaColors.TextPrimary else LineaColors.TextSecondary,
                     fontSize = 9.sp
                 )
             }

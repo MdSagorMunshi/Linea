@@ -2,9 +2,16 @@
 
 package com.ryanshelby.linea.ui.screens.dialpad
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +27,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -29,6 +37,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -42,9 +52,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +68,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.ryanshelby.linea.telecom.SimAccountInfo
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.components.RoleBanner
+import com.ryanshelby.linea.ui.screens.contacts.ContactCreateEditSheet
+import com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -67,8 +81,10 @@ fun DialpadScreen(
     simAccounts: List<SimAccountInfo>,
     onRequestDefaultDialer: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: DialpadViewModel = hiltViewModel()
+    viewModel: DialpadViewModel = hiltViewModel(),
+    contactsViewModel: ContactsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val enteredNumber by viewModel.enteredNumber.collectAsState()
     val t9Matches by viewModel.t9Matches.collectAsState()
     val selectedSimIndex by viewModel.selectedSimIndex.collectAsState()
@@ -84,6 +100,7 @@ fun DialpadScreen(
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
     var showCountdownDialog by remember { mutableStateOf(false) }
     var showSimSelectSheet by remember { mutableStateOf(false) }
+    var showCreateContactSheet by remember { mutableStateOf(false) }
     val simSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val clipboardManager = LocalClipboardManager.current
@@ -111,6 +128,7 @@ fun DialpadScreen(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(horizontal = LineaDimensions.ScreenPadding),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -204,20 +222,75 @@ fun DialpadScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp)
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 8.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .combinedClickable(
+                    onClick = {
+                        if (enteredNumber.isEmpty()) {
+                            val clipText = clipboardManager.getText()?.text?.trim()
+                            if (!clipText.isNullOrEmpty() && clipText.any { it.isDigit() }) {
+                                viewModel.setNumber(clipText.filter { it.isDigit() || it in "+*#" })
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onLongClick = {
+                        if (enteredNumber.isNotEmpty()) {
+                            clipboardManager.setText(AnnotatedString(enteredNumber))
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            Toast.makeText(context, "Copied $enteredNumber", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val clipText = clipboardManager.getText()?.text?.trim()
+                            if (!clipText.isNullOrEmpty() && clipText.any { it.isDigit() }) {
+                                viewModel.setNumber(clipText.filter { it.isDigit() || it in "+*#" })
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = enteredNumber.ifEmpty { " " },
-                style = LineaTypography.displayLarge.copy(
-                    fontFeatureSettings = "tnum",
-                    fontSize = if (enteredNumber.length > 12) 26.sp else 34.sp
-                ),
-                color = LineaColors.TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
+            if (enteredNumber.isEmpty()) {
+                val clipText = clipboardManager.getText()?.text?.trim()
+                if (!clipText.isNullOrEmpty() && clipText.any { it.isDigit() }) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(LineaColors.GlassFill)
+                            .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ContentPaste,
+                            contentDescription = "Paste",
+                            tint = LineaColors.TitaniumBlue,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Paste ${clipText.take(16)}${if (clipText.length > 16) "…" else ""}",
+                            style = LineaTypography.labelSmall,
+                            color = LineaColors.TitaniumBlue
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = enteredNumber,
+                    style = LineaTypography.displayLarge.copy(
+                        fontFeatureSettings = "tnum",
+                        fontSize = if (enteredNumber.length > 12) 26.sp else 34.sp,
+                        letterSpacing = 1.sp
+                    ),
+                    color = LineaColors.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
 
         // Offline Caller ID Badge (Emergency / Toll-Free / Country / Region)
@@ -287,7 +360,7 @@ fun DialpadScreen(
 
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             rows.forEach { row ->
@@ -301,6 +374,7 @@ fun DialpadScreen(
                             subLetters = sub,
                             onDigitPress = { d -> viewModel.appendDigit(d) },
                             onLongPress = longPress,
+                            size = 68.dp,
                             soundEnabled = soundEnabled,
                             vibrationEnabled = vibrationEnabled
                         )
@@ -311,7 +385,7 @@ fun DialpadScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Action Row: Left Spacer / Call Button / Backspace Button
+        // Action Row: Add Contact / Call Button / Backspace Button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -319,10 +393,26 @@ fun DialpadScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Action / Balance Spacer
-            Box(modifier = Modifier.size(54.dp))
+            // Left Action: Add Contact button when number is entered, or balance spacer
+            Box(
+                modifier = Modifier.size(52.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = enteredNumber.isNotEmpty(),
+                    enter = fadeIn() + scaleIn(),
+                    exit = fadeOut() + scaleOut()
+                ) {
+                    AddContactButton(
+                        onClick = {
+                            contactsViewModel.openCreateSheet()
+                            showCreateContactSheet = true
+                        }
+                    )
+                }
+            }
 
-            // Call Button (Titanium Blue, 72dp)
+            // Call Button (Titanium Blue Gradient, 68dp)
             CallButton(
                 onClick = {
                     if (enteredNumber.isNotEmpty()) {
@@ -333,13 +423,13 @@ fun DialpadScreen(
 
             // Backspace / Clear Button
             Box(
-                modifier = Modifier.size(54.dp),
+                modifier = Modifier.size(52.dp),
                 contentAlignment = Alignment.Center
             ) {
                 androidx.compose.animation.AnimatedVisibility(
                     visible = enteredNumber.isNotEmpty(),
-                    enter = fadeIn(),
-                    exit = fadeOut()
+                    enter = fadeIn() + scaleIn(),
+                    exit = fadeOut() + scaleOut()
                 ) {
                     BackspaceButton(
                         onTap = { viewModel.deleteLastDigit() },
@@ -352,7 +442,25 @@ fun DialpadScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(96.dp)) // Space for floating bottom navigation bar
+        Spacer(modifier = Modifier.height(108.dp)) // Comfortable clearance above floating bottom navbar
+    }
+
+    if (showCreateContactSheet) {
+        val availableAccounts by contactsViewModel.availableAccounts.collectAsState()
+        val selectedAccount by contactsViewModel.selectedContactAccount.collectAsState()
+
+        ContactCreateEditSheet(
+            initialNumbers = listOf(enteredNumber to "Mobile"),
+            availableAccounts = availableAccounts,
+            selectedAccount = selectedAccount,
+            onSelectAccount = { contactsViewModel.selectContactAccount(it) },
+            onDismiss = { showCreateContactSheet = false },
+            onSave = { displayName, company, numbers, emails, preferredSimSlot, notes ->
+                contactsViewModel.saveContact(displayName, company, numbers, emails, preferredSimSlot, notes)
+                showCreateContactSheet = false
+                Toast.makeText(context, "Saved $displayName", Toast.LENGTH_SHORT).show()
+            }
+        )
     }
 
     if (showSimSelectSheet) {
@@ -439,14 +547,38 @@ private fun CallButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val reduceAnimations = LocalReduceAnimations.current
 
-    val scale = if (isPressed && !reduceAnimations) 0.90f else 1.0f
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && !reduceAnimations) 0.90f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "CallButtonScale"
+    )
+
+    val callGradient = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFF6E93B3), // Lighter titanium blue top highlight
+            Color(0xFF4A6B88)  // Deep rich titanium blue
+        )
+    )
 
     Box(
         modifier = modifier
             .scale(scale)
-            .size(72.dp)
+            .size(68.dp)
             .clip(CircleShape)
-            .background(LineaColors.TitaniumBlue)
+            .background(callGradient)
+            .border(
+                1.5.dp,
+                Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.35f),
+                        Color.White.copy(alpha = 0.10f)
+                    )
+                ),
+                CircleShape
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -458,7 +590,59 @@ private fun CallButton(
             imageVector = Icons.Filled.Call,
             contentDescription = "Call",
             tint = Color.White,
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(30.dp)
+        )
+    }
+}
+
+@Composable
+private fun AddContactButton(
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val reduceAnimations = LocalReduceAnimations.current
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && !reduceAnimations) 0.88f else 1.0f,
+        label = "AddContactScale"
+    )
+
+    Box(
+        modifier = Modifier
+            .scale(scale)
+            .size(52.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.08f),
+                        Color.White.copy(alpha = 0.03f)
+                    )
+                )
+            )
+            .border(
+                LineaDimensions.HairlineBorder,
+                Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.15f),
+                        Color.White.copy(alpha = 0.05f)
+                    )
+                ),
+                CircleShape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Filled.PersonAdd,
+            contentDescription = "Add to Contacts",
+            tint = LineaColors.TitaniumBlue,
+            modifier = Modifier.size(22.dp)
         )
     }
 }
@@ -473,15 +657,50 @@ private fun BackspaceButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val reduceAnimations = LocalReduceAnimations.current
 
-    val scale = if (isPressed && !reduceAnimations) 0.88f else 1.0f
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && !reduceAnimations) 0.88f else 1.0f,
+        label = "BackspaceScale"
+    )
+
+    val bgBrush = if (isPressed) {
+        Brush.verticalGradient(
+            listOf(
+                LineaColors.MutedBrickRed.copy(alpha = 0.35f),
+                LineaColors.MutedBrickRed.copy(alpha = 0.15f)
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.08f),
+                Color.White.copy(alpha = 0.03f)
+            )
+        )
+    }
+
+    val borderBrush = if (isPressed) {
+        Brush.verticalGradient(
+            listOf(
+                LineaColors.MutedBrickRed.copy(alpha = 0.6f),
+                LineaColors.MutedBrickRed.copy(alpha = 0.2f)
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.15f),
+                Color.White.copy(alpha = 0.05f)
+            )
+        )
+    }
 
     Box(
         modifier = Modifier
             .scale(scale)
-            .size(48.dp)
+            .size(52.dp)
             .clip(CircleShape)
-            .background(LineaColors.GlassFill)
-            .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, CircleShape)
+            .background(bgBrush)
+            .border(LineaDimensions.HairlineBorder, borderBrush, CircleShape)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -493,8 +712,8 @@ private fun BackspaceButton(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.Backspace,
             contentDescription = "Backspace",
-            tint = LineaColors.TextSecondary,
-            modifier = Modifier.size(20.dp)
+            tint = if (isPressed) LineaColors.MutedBrickRed else LineaColors.TextSecondary,
+            modifier = Modifier.size(22.dp)
         )
     }
 }
