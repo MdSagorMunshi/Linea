@@ -58,6 +58,12 @@ interface DialerProfileDao {
 
     @Query("SELECT * FROM dialer_profiles WHERE isDefault = 1 LIMIT 1")
     suspend fun getDefaultProfile(): DialerProfileEntity?
+
+    @Query("SELECT * FROM dialer_profiles WHERE name = :name LIMIT 1")
+    suspend fun getProfileByName(name: String): DialerProfileEntity?
+
+    @Query("UPDATE dialer_profiles SET simSlot = :simSlot, ringtoneUri = :ringtoneUri WHERE name = :name")
+    suspend fun updateProfileSettings(name: String, simSlot: Int, ringtoneUri: String?)
 }
 
 @Dao

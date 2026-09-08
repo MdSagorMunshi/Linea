@@ -42,6 +42,15 @@ interface CallRecordDao {
     @Query("DELETE FROM call_records")
     suspend fun clearAllCallRecords()
 
+    @Query("SELECT * FROM call_records WHERE isPrivateContact = 0 ORDER BY timestamp DESC")
+    fun getPublicCallRecords(): Flow<List<CallRecordEntity>>
+
+    @Query("SELECT * FROM call_records ORDER BY timestamp DESC")
+    suspend fun getAllRecordsOnce(): List<CallRecordEntity>
+
+    @Query("SELECT * FROM call_records WHERE phoneNumber = :number ORDER BY timestamp DESC")
+    suspend fun getCallRecordsForNumberOnce(number: String): List<CallRecordEntity>
+
     @Query("DELETE FROM call_records WHERE timestamp < :cutoffTimestamp AND isPrivateContact = 0")
     suspend fun deleteRecordsOlderThan(cutoffTimestamp: Long): Int
 }

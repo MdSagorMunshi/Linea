@@ -27,7 +27,40 @@ data class DateGroup(
     val items: List<CallHistoryItem>
 )
 
+data class CallSessionItem(
+    val id: String,
+    val phoneNumber: String,
+    val callerName: String?,
+    val callCount: Int,
+    val totalDurationSeconds: Long,
+    val latestTimestamp: Long,
+    val latestCallType: CallDirectionType,
+    val latestSimSlot: Int,
+    val calls: List<CallRecordEntity>,
+    val isExpanded: Boolean = false
+)
+
 object HistoryGrouper {
+
+    fun groupSessions(records: List<CallRecordEntity>): List<CallSessionItem> {
+        return records.groupBy { it.phoneNumber }
+            .map { (number, calls) ->
+                val sorted = calls.sortedByDescending { it.timestamp }
+                val latest = sorted.first()
+                CallSessionItem(
+                    id = "session_$number",
+                    phoneNumber = number,
+                    callerName = latest.callerName,
+                    callCount = calls.size,
+                    totalDurationSeconds = calls.sumOf { it.durationSeconds },
+                    latestTimestamp = latest.timestamp,
+                    latestCallType = latest.callType,
+                    latestSimSlot = latest.simSlot,
+                    calls = sorted
+                )
+            }
+            .sortedByDescending { it.latestTimestamp }
+    }
 
     private val dateFormatter = DateTimeFormatter.ofPattern("EEE, d MMM")
     private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a")

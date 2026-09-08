@@ -35,7 +35,10 @@ enum class SettingsSubScreen {
     VOICEMAIL,
     CALL_FORWARDING,
     CALL_BARRING_FDN,
-    CALL_RULES
+    CALL_RULES,
+    DIAGNOSTICS,
+    STATS,
+    BACKUP
 }
 
 @Composable
@@ -54,12 +57,18 @@ fun LineaNavGraph(
 ) {
     var currentDestination by remember { mutableStateOf(LineaDestination.DIALPAD) }
     var settingsSubScreen by remember { mutableStateOf<SettingsSubScreen?>(null) }
+    var activeContactDashboardId by remember { mutableStateOf<Long?>(null) }
     val reduceAnim = LocalReduceAnimations.current
 
     val settingsState by settingsViewModel.uiState.collectAsState()
 
     Box(modifier = modifier.fillMaxSize()) {
-        if (settingsSubScreen != null) {
+        if (activeContactDashboardId != null) {
+            com.ryanshelby.linea.ui.screens.contacts.ContactDashboardScreen(
+                contactId = activeContactDashboardId!!,
+                onNavigateBack = { activeContactDashboardId = null }
+            )
+        } else if (settingsSubScreen != null) {
             when (settingsSubScreen) {
                 SettingsSubScreen.BLOCKING -> {
                     BlockingScreen(
@@ -106,6 +115,21 @@ fun LineaNavGraph(
                         onNavigateBack = { settingsSubScreen = null }
                     )
                 }
+                SettingsSubScreen.DIAGNOSTICS -> {
+                    com.ryanshelby.linea.ui.screens.diagnostics.CallDiagnosticsScreen(
+                        onNavigateBack = { settingsSubScreen = null }
+                    )
+                }
+                SettingsSubScreen.STATS -> {
+                    com.ryanshelby.linea.ui.screens.stats.CallStatsScreen(
+                        onNavigateBack = { settingsSubScreen = null }
+                    )
+                }
+                SettingsSubScreen.BACKUP -> {
+                    com.ryanshelby.linea.ui.screens.backup.BackupRestoreScreen(
+                        onNavigateBack = { settingsSubScreen = null }
+                    )
+                }
                 null -> Unit
             }
         } else {
@@ -126,7 +150,9 @@ fun LineaNavGraph(
                         HistoryScreen()
                     }
                     LineaDestination.CONTACTS -> {
-                        ContactsScreen()
+                        ContactsScreen(
+                            onContactClick = { contactId -> activeContactDashboardId = contactId }
+                        )
                     }
                     LineaDestination.SETTINGS -> {
                         SettingsScreen(
@@ -140,7 +166,10 @@ fun LineaNavGraph(
                             onNavigateToVoicemail = { settingsSubScreen = SettingsSubScreen.VOICEMAIL },
                             onNavigateToCallForwarding = { settingsSubScreen = SettingsSubScreen.CALL_FORWARDING },
                             onNavigateToCallBarring = { settingsSubScreen = SettingsSubScreen.CALL_BARRING_FDN },
-                            onNavigateToCallRules = { settingsSubScreen = SettingsSubScreen.CALL_RULES }
+                            onNavigateToCallRules = { settingsSubScreen = SettingsSubScreen.CALL_RULES },
+                            onNavigateToDiagnostics = { settingsSubScreen = SettingsSubScreen.DIAGNOSTICS },
+                            onNavigateToStats = { settingsSubScreen = SettingsSubScreen.STATS },
+                            onNavigateToBackup = { settingsSubScreen = SettingsSubScreen.BACKUP }
                         )
                     }
                 }

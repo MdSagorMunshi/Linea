@@ -55,6 +55,9 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val dateGroups by viewModel.dateGroups.collectAsState()
+    val callSessions by viewModel.callSessions.collectAsState()
+    val pinnedContacts by viewModel.pinnedContacts.collectAsState()
+    val historyViewMode by viewModel.historyViewMode.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val selectedItemForDetail by viewModel.selectedItemForDetail.collectAsState()
@@ -69,17 +72,65 @@ fun HistoryScreen(
     ) {
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Title Header
-        Text(
-            text = "Call History",
-            style = LineaTypography.titleLarge,
-            color = LineaColors.TextPrimary
-        )
-        Text(
-            text = "Cellular call logs & sessions",
-            style = LineaTypography.bodySmall,
-            color = LineaColors.TitaniumBlue
-        )
+        // Title Header with Sessions / Feed Toggle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Call History",
+                    style = LineaTypography.titleLarge,
+                    color = LineaColors.TextPrimary
+                )
+                Text(
+                    text = if (historyViewMode == "SESSIONS") "Aggregated Contact Sessions" else "Cellular call logs & sessions",
+                    style = LineaTypography.bodySmall,
+                    color = LineaColors.TitaniumBlue
+                )
+            }
+
+            // View Mode Toggle Pill (Feed vs Sessions)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(LineaColors.GlassFill)
+                    .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(20.dp))
+                    .clickable { viewModel.toggleViewMode() }
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (historyViewMode == "FEED") LineaColors.TitaniumBlue else Color.Transparent)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Feed",
+                            style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (historyViewMode == "FEED") Color.White else LineaColors.TextSecondary
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (historyViewMode == "SESSIONS") LineaColors.TitaniumBlue else Color.Transparent)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Sessions",
+                            style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (historyViewMode == "SESSIONS") Color.White else LineaColors.TextSecondary
+                        )
+                    }
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -127,6 +178,56 @@ fun HistoryScreen(
             )
         )
 
+        // Pinned Contacts Carousel (if present and not searching)
+        if (pinnedContacts.isNotEmpty() && searchQuery.isEmpty()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Pinned",
+                style = LineaTypography.labelSmall,
+                color = LineaColors.TextSecondary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 2.dp)
+            ) {
+                items(pinnedContacts, key = { it.id }) { contact ->
+                    FrostedGlassBox(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { viewModel.onSearchQueryChange(contact.displayName) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(LineaColors.TitaniumBlue.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = contact.displayName.take(1).uppercase(),
+                                    style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    fontSize = 10.sp,
+                                    color = LineaColors.TitaniumBlue
+                                )
+                            }
+                            Text(
+                                text = contact.displayName,
+                                style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                color = LineaColors.TextPrimary,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(10.dp))
 
         // Filter Chips Row
@@ -167,90 +268,161 @@ fun HistoryScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Date-Grouped History List
-        if (dateGroups.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                FrostedGlassBox(
-                    modifier = Modifier.fillMaxWidth(0.9f),
-                    shape = RoundedCornerShape(20.dp)
+        // History Content: SESSIONS vs FEED
+        if (historyViewMode == "SESSIONS") {
+            if (callSessions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(28.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    FrostedGlassBox(
+                        modifier = Modifier.fillMaxWidth(0.9f),
+                        shape = RoundedCornerShape(20.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.History,
-                            contentDescription = null,
-                            tint = LineaColors.TitaniumBlue.copy(alpha = 0.6f),
-                            modifier = Modifier.size(44.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = if (searchQuery.isNotEmpty()) "No matching calls found" else "No call history yet",
-                            style = LineaTypography.titleMedium,
-                            color = LineaColors.TextPrimary
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Calls placed or received on cellular SIMs will appear here grouped by day.",
-                            style = LineaTypography.bodySmall,
-                            color = LineaColors.TextSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.History,
+                                contentDescription = null,
+                                tint = LineaColors.TitaniumBlue.copy(alpha = 0.6f),
+                                modifier = Modifier.size(44.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = if (searchQuery.isNotEmpty()) "No matching sessions" else "No call sessions yet",
+                                style = LineaTypography.titleMedium,
+                                color = LineaColors.TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Calls are automatically grouped by contact into multi-call communication sessions.",
+                                style = LineaTypography.bodySmall,
+                                color = LineaColors.TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 100.dp)
+                ) {
+                    items(callSessions, key = { it.id }) { session ->
+                        CallSessionRow(
+                            session = session,
+                            onClick = {
+                                val primary = session.calls.firstOrNull()
+                                if (primary != null) {
+                                    viewModel.selectItemForDetail(
+                                        CallHistoryItem(
+                                            id = session.id,
+                                            primaryRecord = primary,
+                                            groupedCalls = session.calls,
+                                            callCount = session.callCount
+                                        )
+                                    )
+                                }
+                            },
+                            onCallBack = { record -> viewModel.callBack(record) },
+                            onToggleExpand = { viewModel.toggleSessionExpanded(session.id) }
                         )
                     }
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 100.dp)
-            ) {
-                dateGroups.forEach { dateGroup ->
-                    // Date Header
-                    item(key = "header_${dateGroup.dateHeader}") {
-                        Text(
-                            text = dateGroup.dateHeader,
-                            style = LineaTypography.titleSmall.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = LineaColors.TitaniumBlue,
-                            modifier = Modifier.padding(top = 10.dp, bottom = 4.dp, start = 4.dp)
-                        )
+            // Standard Daily Feed
+            if (dateGroups.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    FrostedGlassBox(
+                        modifier = Modifier.fillMaxWidth(0.9f),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.History,
+                                contentDescription = null,
+                                tint = LineaColors.TitaniumBlue.copy(alpha = 0.6f),
+                                modifier = Modifier.size(44.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = if (searchQuery.isNotEmpty()) "No matching calls found" else "No call history yet",
+                                style = LineaTypography.titleMedium,
+                                color = LineaColors.TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Calls placed or received on cellular SIMs will appear here grouped by day.",
+                                style = LineaTypography.bodySmall,
+                                color = LineaColors.TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 100.dp)
+                ) {
+                    dateGroups.forEach { dateGroup ->
+                        item(key = "header_${dateGroup.dateHeader}") {
+                            Text(
+                                text = dateGroup.dateHeader,
+                                style = LineaTypography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = LineaColors.TitaniumBlue,
+                                modifier = Modifier.padding(top = 10.dp, bottom = 4.dp, start = 4.dp)
+                            )
+                        }
 
-                    // Call History Items
-                    items(dateGroup.items, key = { it.id }) { item ->
-                        HistoryRow(
-                            item = item,
-                            onClick = { viewModel.selectItemForDetail(item) },
-                            onCallBack = { record -> viewModel.callBack(record) },
-                            onToggleExpand = { viewModel.toggleItemExpanded(item.id) },
-                            onAddContact = { number ->
-                                val addIntent = Intent(Intent.ACTION_INSERT).apply {
-                                    type = "vnd.android.cursor.dir/contact"
-                                    putExtra("phone", number)
-                                }
-                                context.startActivity(addIntent)
-                            },
-                            onSendSms = { number ->
-                                val smsIntent = Intent(Intent.ACTION_VIEW).apply {
-                                    data = Uri.parse("sms:$number")
-                                }
-                                context.startActivity(smsIntent)
-                            },
-                            onBlockNumber = { number -> viewModel.blockNumber(number) },
-                            onDelete = { historyItem -> viewModel.deleteGroup(historyItem) }
-                        )
+                        items(dateGroup.items, key = { it.id }) { item ->
+                            HistoryRow(
+                                item = item,
+                                onClick = { viewModel.selectItemForDetail(item) },
+                                onCallBack = { record -> viewModel.callBack(record) },
+                                onToggleExpand = { viewModel.toggleItemExpanded(item.id) },
+                                onAddContact = { number ->
+                                    val addIntent = Intent(Intent.ACTION_INSERT).apply {
+                                        type = "vnd.android.cursor.dir/contact"
+                                        putExtra("phone", number)
+                                    }
+                                    context.startActivity(addIntent)
+                                },
+                                onSendSms = { number ->
+                                    val smsIntent = Intent(Intent.ACTION_VIEW).apply {
+                                        data = Uri.parse("sms:$number")
+                                    }
+                                    context.startActivity(smsIntent)
+                                },
+                                onBlockNumber = { number -> viewModel.blockNumber(number) },
+                                onDelete = { historyItem -> viewModel.deleteGroup(historyItem) }
+                            )
+                        }
                     }
                 }
             }

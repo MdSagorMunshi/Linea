@@ -420,3 +420,217 @@ private fun getInitials(name: String?): String {
         name.take(1).uppercase()
     }
 }
+
+@Composable
+fun CallSessionRow(
+    session: CallSessionItem,
+    onClick: () -> Unit,
+    onCallBack: (CallRecordEntity) -> Unit,
+    onToggleExpand: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FrostedGlassBox(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() }
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Avatar / Initials
+                val initials = getInitials(session.callerName)
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(LineaColors.GlassFill)
+                        .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (initials.isNotEmpty()) {
+                        Text(
+                            text = initials,
+                            style = LineaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = LineaColors.TitaniumBlue
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = null,
+                            tint = LineaColors.TextSecondary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Name & Metadata
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = session.callerName ?: session.phoneNumber,
+                            style = LineaTypography.bodyLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontFeatureSettings = "tnum"
+                            ),
+                            color = LineaColors.TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+
+                        // Call count pill
+                        if (session.callCount > 1) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(LineaColors.TitaniumBlue.copy(alpha = 0.15f))
+                                    .border(0.5.dp, LineaColors.TitaniumBlue.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "×${session.callCount}",
+                                    style = LineaTypography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontFeatureSettings = "tnum"
+                                    ),
+                                    fontSize = 10.sp,
+                                    color = LineaColors.TitaniumBlue
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        CallTypeIcon(session.latestCallType, size = 13.dp)
+
+                        Text(
+                            text = HistoryGrouper.formatRelativeTime(session.latestTimestamp),
+                            style = LineaTypography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                            color = LineaColors.TextSecondary
+                        )
+
+                        Text(text = "•", color = LineaColors.TextTertiary, style = LineaTypography.bodySmall)
+
+                        Text(
+                            text = if (session.totalDurationSeconds > 0) {
+                                HistoryGrouper.formatDuration(session.totalDurationSeconds)
+                            } else {
+                                "0s"
+                            },
+                            style = LineaTypography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                            color = LineaColors.TitaniumBlue
+                        )
+
+                        // SIM Slot
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(LineaColors.GlassFill)
+                                .border(0.5.dp, LineaColors.GlassBorder, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "SIM ${session.latestSimSlot + 1}",
+                                style = LineaTypography.labelSmall,
+                                fontSize = 9.sp,
+                                color = LineaColors.TextTertiary
+                            )
+                        }
+                    }
+                }
+
+                // Actions: Expand & Call
+                if (session.callCount > 1) {
+                    IconButton(
+                        onClick = onToggleExpand,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (session.isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = if (session.isExpanded) "Collapse" else "Expand",
+                            tint = LineaColors.TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                val primaryRecord = session.calls.firstOrNull()
+                if (primaryRecord != null) {
+                    IconButton(
+                        onClick = { onCallBack(primaryRecord) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Call,
+                            contentDescription = "Call",
+                            tint = LineaColors.TitaniumBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // Expandable breakdown
+            AnimatedVisibility(
+                visible = session.isExpanded && session.callCount > 1,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(LineaColors.BackgroundTop.copy(alpha = 0.5f))
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    session.calls.forEach { call ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CallTypeIcon(call.callType, size = 13.dp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${HistoryGrouper.formatRelativeDate(call.timestamp)}, ${HistoryGrouper.formatExactTime(call.timestamp)}",
+                                    style = LineaTypography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                                    color = LineaColors.TextSecondary
+                                )
+                            }
+
+                            Text(
+                                text = if (call.durationSeconds > 0) {
+                                    HistoryGrouper.formatDuration(call.durationSeconds)
+                                } else {
+                                    when (call.callType) {
+                                        CallDirectionType.MISSED -> "Missed"
+                                        CallDirectionType.REJECTED -> "Declined"
+                                        CallDirectionType.BLOCKED -> "Blocked"
+                                        else -> "No answer"
+                                    }
+                                },
+                                style = LineaTypography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                                color = LineaColors.TextTertiary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

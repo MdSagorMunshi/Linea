@@ -6,6 +6,7 @@ import com.ryanshelby.linea.data.local.dao.BlockedNumberDao
 import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.data.local.dao.CallRuleDao
 import com.ryanshelby.linea.data.preferences.LineaPreferences
+import com.ryanshelby.linea.telecom.cleanup.CallHistoryCleanupManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -43,7 +44,8 @@ class SettingsViewModel @Inject constructor(
     private val preferences: LineaPreferences,
     private val blockedNumberDao: BlockedNumberDao,
     private val callRuleDao: CallRuleDao,
-    private val callRecordDao: CallRecordDao
+    private val callRecordDao: CallRecordDao,
+    private val cleanupManager: CallHistoryCleanupManager
 ) : ViewModel() {
 
     val uiState: StateFlow<SettingsUiState> = combine(
@@ -180,6 +182,22 @@ class SettingsViewModel @Inject constructor(
 
     fun setReduceAnimations(enabled: Boolean) {
         viewModelScope.launch { preferences.setReduceAnimations(enabled) }
+    }
+
+    val activeProfile: StateFlow<String> = preferences.activeProfile
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "PERSONAL")
+
+    fun setActiveProfile(profile: String) {
+        viewModelScope.launch {
+            preferences.setActiveProfile(profile)
+        }
+    }
+
+    fun cleanHistoryNow(onResult: ((Int) -> Unit)? = null) {
+        viewModelScope.launch {
+            val deleted = cleanupManager.runCleanupNow()
+            onResult?.invoke(deleted)
+        }
     }
 
     fun clearAllCallHistory() {

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -54,6 +55,18 @@ class DialpadViewModel @Inject constructor(
     val callCountdownSeconds: StateFlow<Int> = preferences.callCountdownSeconds
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 3)
 
+    val activeProfile: StateFlow<String> = preferences.activeProfile
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "PERSONAL")
+
+    val callerIdResult: StateFlow<com.ryanshelby.linea.telecom.screening.CallerIdResult?> = _enteredNumber
+        .map { number ->
+            if (number.length >= 3) {
+                com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber(number)
+            } else {
+                null
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     val t9Matches: StateFlow<List<T9SearchResult>> = combine(
         _enteredNumber,
         _contacts
@@ -68,6 +81,25 @@ class DialpadViewModel @Inject constructor(
     init {
         loadSimAccounts()
         loadContacts()
+    }
+
+    fun switchProfile() {
+        viewModelScope.launch {
+            val next = if (activeProfile.value == "PERSONAL") "WORK" else "PERSONAL"
+            preferences.setActiveProfile(next)
+        }
+    }
+
+    fun onSpeedDialLongPress(digit: Char) {
+        if (digit == '1') {
+            placeCall("123")
+        } else {
+            val contacts = _contacts.value
+            val index = digit.digitToIntOrNull()?.minus(2) ?: -1
+            if (index in contacts.indices) {
+                placeCall(contacts[index].phoneNumber)
+            }
+        }
     }
 
     fun loadSimAccounts() {

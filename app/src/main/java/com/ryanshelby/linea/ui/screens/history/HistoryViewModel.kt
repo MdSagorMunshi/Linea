@@ -30,6 +30,10 @@ import javax.inject.Inject
 import com.ryanshelby.linea.data.local.dao.CallRecordingDao
 import com.ryanshelby.linea.telecom.reminder.CallbackReminderScheduler
 
+import com.ryanshelby.linea.data.local.dao.ContactDao
+import com.ryanshelby.linea.data.local.entities.ContactEntity
+import com.ryanshelby.linea.data.preferences.LineaPreferences
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
@@ -40,7 +44,9 @@ class HistoryViewModel @Inject constructor(
     private val callbackReminderDao: CallbackReminderDao,
     private val blockedNumberDao: BlockedNumberDao,
     private val recordingDao: CallRecordingDao,
-    private val reminderScheduler: CallbackReminderScheduler
+    private val reminderScheduler: CallbackReminderScheduler,
+    private val contactDao: ContactDao,
+    private val preferences: LineaPreferences
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -52,8 +58,17 @@ class HistoryViewModel @Inject constructor(
     private val _expandedItemIds = MutableStateFlow<Set<String>>(emptySet())
     val expandedItemIds: StateFlow<Set<String>> = _expandedItemIds.asStateFlow()
 
+    private val _expandedSessionIds = MutableStateFlow<Set<String>>(emptySet())
+    val expandedSessionIds: StateFlow<Set<String>> = _expandedSessionIds.asStateFlow()
+
     private val _selectedItemForDetail = MutableStateFlow<CallHistoryItem?>(null)
     val selectedItemForDetail: StateFlow<CallHistoryItem?> = _selectedItemForDetail.asStateFlow()
+
+    val pinnedContacts: StateFlow<List<ContactEntity>> = contactDao.getPinnedContacts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val historyViewMode: StateFlow<String> = preferences.historyViewMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "FEED")
 
     val notesForSelectedCall: StateFlow<List<CallNoteEntity>> = _selectedItemForDetail
         .flatMapLatest { item ->
@@ -71,16 +86,27 @@ class HistoryViewModel @Inject constructor(
         recordingDao.getAllRecordings(),
         _searchQuery,
         _selectedFilter,
-        _expandedItemIds
-    ) { records, recordings, query, filter, expandedIds ->
+        _expandedItemIds,
+        preferences.privateModeUnlocked
+    ) { args: Array<Any?> ->
+        @Suppress("UNCHECKED_CAST")
+        val records = args[0] as List<CallRecordEntity>
+        @Suppress("UNCHECKED_CAST")
+        val recordings = args[1] as List<com.ryanshelby.linea.data.local.entities.CallRecordingEntity>
+        val query = args[2] as String
+        val filter = args[3] as HistoryFilter
+        @Suppress("UNCHECKED_CAST")
+        val expandedIds = args[4] as Set<String>
+        val privateUnlocked = args[5] as Boolean
+        val safeRecords = if (privateUnlocked) records else records.filter { !it.isPrivateContact }
         val recordedNumbers = recordings.map { it.phoneNumber.filter { c -> c.isDigit() } }.toSet()
 
         // 1. Filter by category
         val filteredByCategory = when (filter) {
-            HistoryFilter.ALL -> records
-            HistoryFilter.MISSED -> records.filter { it.callType == CallDirectionType.MISSED }
-            HistoryFilter.BLOCKED -> records.filter { it.callType == CallDirectionType.BLOCKED }
-            HistoryFilter.RECORDINGS -> records.filter {
+            HistoryFilter.ALL -> safeRecords
+            HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
+            HistoryFilter.BLOCKED -> safeRecords.filter { it.callType == CallDirectionType.BLOCKED }
+            HistoryFilter.RECORDINGS -> safeRecords.filter {
                 it.notes?.contains("recording", ignoreCase = true) == true ||
                 recordedNumbers.contains(it.phoneNumber.filter { c -> c.isDigit() })
             }
@@ -111,9 +137,56 @@ class HistoryViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val callSessions: StateFlow<List<CallSessionItem>> = combine(
+        rawCallRecords,
+        _searchQuery,
+        _selectedFilter,
+        _expandedSessionIds,
+        preferences.privateModeUnlocked
+    ) { records, query, filter, expandedSessionIds, privateUnlocked ->
+        val safeRecords = if (privateUnlocked) records else records.filter { !it.isPrivateContact }
+        val filteredByCategory = when (filter) {
+            HistoryFilter.ALL -> safeRecords
+            HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
+            HistoryFilter.BLOCKED -> safeRecords.filter { it.callType == CallDirectionType.BLOCKED }
+            HistoryFilter.RECORDINGS -> safeRecords.filter {
+                it.notes?.contains("recording", ignoreCase = true) == true
+            }
+        }
+        val filteredByQuery = if (query.isBlank()) {
+            filteredByCategory
+        } else {
+            val q = query.trim().lowercase()
+            filteredByCategory.filter { rec ->
+                rec.phoneNumber.contains(q) || (rec.callerName?.lowercase()?.contains(q) == true)
+            }
+        }
+        val sessions = HistoryGrouper.groupSessions(filteredByQuery)
+        sessions.map { session ->
+            session.copy(isExpanded = expandedSessionIds.contains(session.id))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     init {
         viewModelScope.launch {
             callLogRepository.syncSystemCallLog()
+        }
+    }
+
+    fun toggleViewMode() {
+        viewModelScope.launch {
+            val current = historyViewMode.value
+            val newMode = if (current == "FEED") "SESSIONS" else "FEED"
+            preferences.setHistoryViewMode(newMode)
+        }
+    }
+
+    fun toggleSessionExpanded(sessionId: String) {
+        val current = _expandedSessionIds.value
+        _expandedSessionIds.value = if (current.contains(sessionId)) {
+            current - sessionId
+        } else {
+            current + sessionId
         }
     }
 

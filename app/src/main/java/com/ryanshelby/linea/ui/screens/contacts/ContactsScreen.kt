@@ -29,6 +29,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -56,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ryanshelby.linea.data.local.entities.ContactEntity
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.PrivatePinDialog
 import com.ryanshelby.linea.ui.screens.dialpad.CallCountdownDialog
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
@@ -65,6 +68,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ContactsScreen(
     modifier: Modifier = Modifier,
+    onContactClick: ((Long) -> Unit)? = null,
     viewModel: ContactsViewModel = hiltViewModel()
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -78,6 +82,9 @@ fun ContactsScreen(
     val preCallNoteForSelected by viewModel.preCallNoteForSelected.collectAsState()
     val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
     val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
+    val isPrivateModeUnlocked by viewModel.isPrivateModeUnlocked.collectAsState()
+    val privatePin by viewModel.privatePin.collectAsState()
+    val isPinDialogOpen by viewModel.isPinDialogOpen.collectAsState()
 
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
     var pendingSimSlot by remember { mutableStateOf<Int?>(null) }
@@ -98,17 +105,51 @@ fun ContactsScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Title Header
-            Text(
-                text = "Contacts",
-                style = LineaTypography.titleLarge,
-                color = LineaColors.TextPrimary
-            )
-            Text(
-                text = "Address book with SIM affinity",
-                style = LineaTypography.bodySmall,
-                color = LineaColors.TitaniumBlue
-            )
+            // Title Header with Private Mode Lock Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Contacts",
+                        style = LineaTypography.titleLarge,
+                        color = LineaColors.TextPrimary
+                    )
+                    Text(
+                        text = if (isPrivateModeUnlocked) "Unlocked: Showing private contacts" else "Address book with SIM affinity",
+                        style = LineaTypography.bodySmall,
+                        color = if (isPrivateModeUnlocked) LineaColors.MutedSageGreen else LineaColors.TitaniumBlue
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        if (isPrivateModeUnlocked) {
+                            viewModel.lockPrivateMode()
+                        } else {
+                            viewModel.openPinDialog()
+                        }
+                    },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (isPrivateModeUnlocked) LineaColors.MutedSageGreen.copy(alpha = 0.15f) else LineaColors.GlassFill)
+                        .border(
+                            LineaDimensions.HairlineBorder,
+                            if (isPrivateModeUnlocked) LineaColors.MutedSageGreen.copy(alpha = 0.4f) else LineaColors.GlassBorder,
+                            CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = if (isPrivateModeUnlocked) Icons.Filled.LockOpen else Icons.Filled.Lock,
+                        contentDescription = "Private Contacts Lock",
+                        tint = if (isPrivateModeUnlocked) LineaColors.MutedSageGreen else LineaColors.TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -173,7 +214,7 @@ fun ContactsScreen(
                     items(pinnedFavorites, key = { "fav_${it.id}" }) { contact ->
                         PinnedContactCard(
                             contact = contact,
-                            onClick = { viewModel.selectContactForDetail(contact) }
+                            onClick = { onContactClick?.invoke(contact.id) ?: viewModel.selectContactForDetail(contact) }
                         )
                     }
                 }
@@ -216,7 +257,7 @@ fun ContactsScreen(
                         items(contactsInLetter, key = { it.id }) { contact ->
                             ContactCardRow(
                                 contact = contact,
-                                onClick = { viewModel.selectContactForDetail(contact) }
+                                onClick = { onContactClick?.invoke(contact.id) ?: viewModel.selectContactForDetail(contact) }
                             )
                         }
                     }
@@ -323,6 +364,15 @@ fun ContactsScreen(
             onSave = { displayName, company, numbers, emails, preferredSimSlot, notes ->
                 viewModel.saveContact(displayName, company, numbers, emails, preferredSimSlot, notes)
             }
+        )
+    }
+
+    // Private Contacts Unlock PIN Dialog
+    if (isPinDialogOpen) {
+        PrivatePinDialog(
+            correctPin = privatePin,
+            onSuccess = { viewModel.unlockPrivateMode() },
+            onDismiss = { viewModel.dismissPinDialog() }
         )
     }
 }

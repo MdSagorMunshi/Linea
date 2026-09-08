@@ -58,6 +58,11 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhoneForwarded
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Voicemail
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Speed
 
 @Composable
 fun SettingsScreen(
@@ -72,9 +77,13 @@ fun SettingsScreen(
     onNavigateToCallForwarding: () -> Unit = {},
     onNavigateToCallBarring: () -> Unit = {},
     onNavigateToCallRules: () -> Unit = {},
+    onNavigateToDiagnostics: () -> Unit = {},
+    onNavigateToStats: () -> Unit = {},
+    onNavigateToBackup: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val activeProfile by viewModel.activeProfile.collectAsState()
     val scrollState = rememberScrollState()
     var showClearHistoryDialog by remember { mutableStateOf(false) }
 
@@ -181,6 +190,75 @@ fun SettingsScreen(
             title = "Call Barring & FDN",
             subtitle = "Network call restrictions & authorized numbers",
             onClick = onNavigateToCallBarring
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Multi-Profile Switcher Panel
+        FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
+                SettingsSectionHeader(icon = Icons.Filled.Person, title = "Dialer Profile")
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Active Environment",
+                    style = LineaTypography.bodyMedium,
+                    color = LineaColors.TextPrimary
+                )
+                Text(
+                    text = "Switch smart routing rules, default SIM affinity, and focus filters",
+                    style = LineaTypography.bodySmall,
+                    color = LineaColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SelectionPill(
+                        label = "Personal",
+                        isSelected = activeProfile == "PERSONAL",
+                        onClick = { viewModel.setActiveProfile("PERSONAL") }
+                    )
+                    SelectionPill(
+                        label = "Work",
+                        isSelected = activeProfile == "WORK",
+                        onClick = { viewModel.setActiveProfile("WORK") }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Cellular Diagnostics
+        SettingsNavCard(
+            icon = Icons.Filled.Speed,
+            title = "Cellular Diagnostics",
+            subtitle = "Signal strength dBm, 5G/LTE radio, VoLTE & VoWiFi telemetry",
+            onClick = onNavigateToDiagnostics
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Call Analytics & Statistics
+        SettingsNavCard(
+            icon = Icons.Filled.BarChart,
+            title = "Call Analytics & Stats",
+            subtitle = "Total talk time, direction metrics, top frequent contacts",
+            onClick = onNavigateToStats
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Backup & Migration
+        SettingsNavCard(
+            icon = Icons.Filled.Backup,
+            title = "Backup & Data Migration",
+            subtitle = "Local JSON export & restore for call logs, contacts, and rules",
+            onClick = onNavigateToBackup
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -422,6 +500,28 @@ fun SettingsScreen(
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedButton(
+                    onClick = { viewModel.cleanHistoryNow() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(LineaDimensions.ButtonCornerRadius),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = LineaColors.TitaniumBlue)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CleaningServices,
+                        contentDescription = null,
+                        tint = LineaColors.TitaniumBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Run History Cleanup Now",
+                        style = LineaTypography.labelLarge,
+                        color = LineaColors.TitaniumBlue
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Button(
                     onClick = { showClearHistoryDialog = true },

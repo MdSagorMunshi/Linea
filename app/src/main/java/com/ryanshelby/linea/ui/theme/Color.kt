@@ -7,6 +7,8 @@ object LineaColors {
     // Background Gradient (vertical from deep graphite to lighter graphite)
     val BackgroundTop = Color(0xFF0D0F12)
     val BackgroundBottom = Color(0xFF1A1D21)
+    val BackgroundDeep = BackgroundTop
+    val BackgroundElevated = BackgroundBottom
     
     val BackgroundGradient = Brush.verticalGradient(
         colors = listOf(BackgroundTop, BackgroundBottom)

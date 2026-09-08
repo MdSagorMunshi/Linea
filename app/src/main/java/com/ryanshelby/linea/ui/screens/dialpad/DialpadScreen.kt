@@ -46,6 +46,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -76,6 +77,8 @@ fun DialpadScreen(
     val askSimBeforeDial by viewModel.askSimBeforeDial.collectAsState()
     val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
     val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
+    val activeProfile by viewModel.activeProfile.collectAsState()
+    val callerIdResult by viewModel.callerIdResult.collectAsState()
 
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
     var showCountdownDialog by remember { mutableStateOf(false) }
@@ -125,13 +128,45 @@ fun DialpadScreen(
                 )
             }
 
-            // SIM Selector Pill
-            if (displayedSims.isNotEmpty()) {
-                SimSelectorPill(
-                    sims = displayedSims,
-                    selectedIndex = selectedSimIndex,
-                    onSelectSim = { viewModel.selectSim(it) }
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Profile Switcher Pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(LineaColors.GlassFill)
+                        .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(16.dp))
+                        .clickable { viewModel.switchProfile() }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(if (activeProfile == "WORK") LineaColors.TitaniumBlue else LineaColors.MutedSageGreen)
+                        )
+                        Text(
+                            text = activeProfile.lowercase().replaceFirstChar { it.uppercase() },
+                            style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = LineaColors.TextPrimary
+                        )
+                    }
+                }
+
+                // SIM Selector Pill
+                if (displayedSims.isNotEmpty()) {
+                    SimSelectorPill(
+                        sims = displayedSims,
+                        selectedIndex = selectedSimIndex,
+                        onSelectSim = { viewModel.selectSim(it) }
+                    )
+                }
             }
         }
 
@@ -162,7 +197,7 @@ fun DialpadScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(60.dp)
                 .padding(horizontal = 8.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -179,13 +214,64 @@ fun DialpadScreen(
             )
         }
 
+        // Offline Caller ID Badge (Emergency / Toll-Free / Country / Region)
+        if (callerIdResult != null) {
+            val cid = callerIdResult!!
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.2f) else LineaColors.GlassFill)
+                    .border(
+                        0.5.dp,
+                        if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.5f) else LineaColors.GlassBorder,
+                        RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Text(
+                        text = cid.badgeLabel,
+                        style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        fontSize = 9.sp,
+                        color = if (cid.isEmergency) LineaColors.Danger else LineaColors.TitaniumBlue
+                    )
+                    Text(
+                        text = "•",
+                        style = LineaTypography.labelSmall,
+                        color = LineaColors.TextTertiary
+                    )
+                    Text(
+                        text = cid.regionOrCountry,
+                        style = LineaTypography.labelSmall,
+                        fontSize = 10.sp,
+                        color = LineaColors.TextSecondary
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
-        // Dialpad Grid (4 rows x 3 columns)
+        // Dialpad Grid (4 rows x 3 columns) with Speed Dial support
         val rows = listOf(
-            listOf(Triple('1', "", null), Triple('2', "A B C", null), Triple('3', "D E F", null)),
-            listOf(Triple('4', "G H I", null), Triple('5', "J K L", null), Triple('6', "M N O", null)),
-            listOf(Triple('7', "P Q R S", null), Triple('8', "T U V", null), Triple('9', "W X Y Z", null)),
+            listOf(
+                Triple('1', "", { viewModel.onSpeedDialLongPress('1') }),
+                Triple('2', "A B C", { viewModel.onSpeedDialLongPress('2') }),
+                Triple('3', "D E F", { viewModel.onSpeedDialLongPress('3') })
+            ),
+            listOf(
+                Triple('4', "G H I", { viewModel.onSpeedDialLongPress('4') }),
+                Triple('5', "J K L", { viewModel.onSpeedDialLongPress('5') }),
+                Triple('6', "M N O", { viewModel.onSpeedDialLongPress('6') })
+            ),
+            listOf(
+                Triple('7', "P Q R S", { viewModel.onSpeedDialLongPress('7') }),
+                Triple('8', "T U V", { viewModel.onSpeedDialLongPress('8') }),
+                Triple('9', "W X Y Z", { viewModel.onSpeedDialLongPress('9') })
+            ),
             listOf(
                 Triple('*', "", null),
                 Triple('0', "+", { viewModel.appendDigit('+') }),

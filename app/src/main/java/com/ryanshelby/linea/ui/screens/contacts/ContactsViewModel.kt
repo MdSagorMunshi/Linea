@@ -12,6 +12,7 @@ import com.ryanshelby.linea.telecom.PhoneAccountManager
 import com.ryanshelby.linea.telecom.T9SearchEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,6 +54,36 @@ class ContactsViewModel @Inject constructor(
     val callConfirmationEnabled: StateFlow<Boolean> = preferences.callConfirmationEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val isPrivateModeUnlocked: StateFlow<Boolean> = preferences.privateModeUnlocked
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val privatePin: StateFlow<String> = preferences.privateModePin
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "1234")
+
+    private val _isPinDialogOpen = MutableStateFlow(false)
+    val isPinDialogOpen: StateFlow<Boolean> = _isPinDialogOpen.asStateFlow()
+
+    fun openPinDialog() {
+        _isPinDialogOpen.value = true
+    }
+
+    fun dismissPinDialog() {
+        _isPinDialogOpen.value = false
+    }
+
+    fun unlockPrivateMode() {
+        viewModelScope.launch {
+            preferences.setPrivateModeUnlocked(true)
+            _isPinDialogOpen.value = false
+        }
+    }
+
+    fun lockPrivateMode() {
+        viewModelScope.launch {
+            preferences.setPrivateModeUnlocked(false)
+        }
+    }
+
     val preCallNoteForSelected: StateFlow<CallNoteEntity?> = _selectedContactForDetail
         .flatMapLatest { contact ->
             if (contact != null) {
@@ -72,7 +103,10 @@ class ContactsViewModel @Inject constructor(
     val pinnedFavorites: StateFlow<List<ContactEntity>> = contactDao.getFavoriteContacts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val rawContacts = contactDao.getAllContacts()
+    val rawContacts: Flow<List<ContactEntity>> = preferences.privateModeUnlocked
+        .flatMapLatest { unlocked ->
+            if (unlocked) contactDao.getAllContactsIncludingPrivate() else contactDao.getAllContacts()
+        }
 
     val filteredContacts: StateFlow<List<ContactEntity>> = combine(
         rawContacts,

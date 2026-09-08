@@ -47,6 +47,11 @@ class LineaPreferences @Inject constructor(
         val KEY_BLOCK_NON_CONTACTS = booleanPreferencesKey("block_non_contacts")
         val KEY_BLOCK_INTERNATIONAL = booleanPreferencesKey("block_international")
         val KEY_ALLOW_LIST_MODE = booleanPreferencesKey("allow_list_mode")
+        val KEY_ACTIVE_PROFILE = stringPreferencesKey("active_profile") // PERSONAL, WORK, CUSTOM
+        val KEY_PRIVATE_MODE_UNLOCKED = booleanPreferencesKey("private_mode_unlocked")
+        val KEY_PRIVATE_MODE_PIN = stringPreferencesKey("private_mode_pin")
+        val KEY_HISTORY_VIEW_MODE = stringPreferencesKey("history_view_mode") // FEED, SESSIONS
+        val KEY_OPT_IN_LOCATION_TAG = booleanPreferencesKey("opt_in_location_tag")
     }
 
     val reduceAnimations: Flow<Boolean> = dataStore.data.map { it[KEY_REDUCE_ANIMATIONS] ?: false }
@@ -71,6 +76,12 @@ class LineaPreferences @Inject constructor(
     val allowListMode: Flow<Boolean> = dataStore.data.map { it[KEY_ALLOW_LIST_MODE] ?: false }
     val themePreference: Flow<String> = dataStore.data.map { it[KEY_THEME] ?: "DARK" }
     val cleanupDays: Flow<Int> = dataStore.data.map { it[KEY_CLEANUP_DAYS] ?: 0 }
+    val compactDialpad: Flow<Boolean> = dataStore.data.map { it[KEY_COMPACT_DIALPAD] ?: false }
+    val activeProfile: Flow<String> = dataStore.data.map { it[KEY_ACTIVE_PROFILE] ?: "PERSONAL" }
+    val privateModeUnlocked: Flow<Boolean> = dataStore.data.map { it[KEY_PRIVATE_MODE_UNLOCKED] ?: false }
+    val privateModePin: Flow<String> = dataStore.data.map { it[KEY_PRIVATE_MODE_PIN] ?: "1234" }
+    val historyViewMode: Flow<String> = dataStore.data.map { it[KEY_HISTORY_VIEW_MODE] ?: "FEED" }
+    val optInLocationTag: Flow<Boolean> = dataStore.data.map { it[KEY_OPT_IN_LOCATION_TAG] ?: false }
 
     suspend fun setReduceAnimations(enabled: Boolean) {
         dataStore.edit { it[KEY_REDUCE_ANIMATIONS] = enabled }
@@ -158,5 +169,29 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setCleanupDays(days: Int) {
         dataStore.edit { it[KEY_CLEANUP_DAYS] = days }
+    }
+
+    suspend fun setCompactDialpad(enabled: Boolean) {
+        dataStore.edit { it[KEY_COMPACT_DIALPAD] = enabled }
+    }
+
+    suspend fun setActiveProfile(profile: String) {
+        dataStore.edit { it[KEY_ACTIVE_PROFILE] = profile }
+    }
+
+    suspend fun setPrivateModeUnlocked(unlocked: Boolean) {
+        dataStore.edit { it[KEY_PRIVATE_MODE_UNLOCKED] = unlocked }
+    }
+
+    suspend fun setPrivateModePin(pin: String) {
+        dataStore.edit { it[KEY_PRIVATE_MODE_PIN] = pin }
+    }
+
+    suspend fun setHistoryViewMode(mode: String) {
+        dataStore.edit { it[KEY_HISTORY_VIEW_MODE] = mode }
+    }
+
+    suspend fun setOptInLocationTag(enabled: Boolean) {
+        dataStore.edit { it[KEY_OPT_IN_LOCATION_TAG] = enabled }
     }
 }
