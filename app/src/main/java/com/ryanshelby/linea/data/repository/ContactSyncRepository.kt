@@ -188,6 +188,11 @@ class ContactSyncRepository @Inject constructor(
                 contactDao.getContactByName(grouped.displayName)
             }
 
+            // CRITICAL: If an existing contact is in the Private Safe, never overwrite or link it from external Android ContactsContract
+            if (existing != null && existing.isPrivate) {
+                continue
+            }
+
             val targetContactId: Long
             if (existing != null) {
                 targetContactId = existing.id
@@ -223,13 +228,13 @@ class ContactSyncRepository @Inject constructor(
             }
         }
 
-        // 3. Clean up any leftover duplicate contacts in the Room database
+        // 3. Clean up any leftover duplicate contacts in the Room database (excluding private contacts)
         deduplicateLocalContacts()
     }
 
     suspend fun deduplicateLocalContacts() = withContext(Dispatchers.IO) {
         try {
-            val allContacts = contactDao.getAllContactsOnce()
+            val allContacts = contactDao.getAllContactsOnce().filter { !it.isPrivate }
             // Group by trimmed lowercase display name or androidContactId
             val groupedByName = allContacts.groupBy { it.displayName.trim().lowercase() }
             for ((_, list) in groupedByName) {
@@ -310,21 +315,17 @@ class ContactSyncRepository @Inject constructor(
         })
     }
 
-    suspend fun createContact(
+    suspend fun createContactInSystem(
         displayName: String,
         company: String? = null,
         numbers: List<Pair<String, String>>, // (Number, Label)
         emails: List<String> = emptyList(),
-        preferredSimSlot: Int? = null,
         notes: String? = null,
         accountName: String? = null,
         accountType: String? = null,
-        photoUri: String? = null,
         photoBytes: ByteArray? = null
-    ): Long = withContext(Dispatchers.IO) {
+    ): Long? = withContext(Dispatchers.IO) {
         var rawContactId: Long? = null
-
-        // 1. Dual-write to Android's ContactsContract
         try {
             val ops = ArrayList<android.content.ContentProviderOperation>()
             val rawContactInsertIndex = ops.size
@@ -364,6 +365,31 @@ class ContactSyncRepository @Inject constructor(
                 }
             }
 
+            // Emails
+            for (email in emails) {
+                if (email.isNotBlank()) {
+                    ops.add(
+                        android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                            .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawContactInsertIndex)
+                            .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                            .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
+                            .withValue(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_WORK)
+                            .build()
+                    )
+                }
+            }
+
+            // Notes
+            if (!notes.isNullOrBlank()) {
+                ops.add(
+                    android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawContactInsertIndex)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Note.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Note.NOTE, notes)
+                        .build()
+                )
+            }
+
             // Photo if provided
             if (photoBytes != null && photoBytes.isNotEmpty()) {
                 ops.add(
@@ -382,6 +408,90 @@ class ContactSyncRepository @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
         }
+        rawContactId
+    }
+
+    suspend fun createPrivateContact(
+        displayName: String,
+        company: String? = null,
+        numbers: List<Pair<String, String>>, // (Number, Label)
+        emails: List<String> = emptyList(),
+        preferredSimSlot: Int? = null,
+        notes: String? = null,
+        photoUri: String? = null
+    ): Long = withContext(Dispatchers.IO) {
+        // Strictly save locally in Room: androidContactId = null, isPrivate = true
+        val contactEntity = ContactEntity(
+            androidContactId = null,
+            displayName = displayName,
+            company = company,
+            preferredSimSlot = preferredSimSlot,
+            notes = notes,
+            photoUri = photoUri,
+            isPrivate = true
+        )
+        val contactId = contactDao.insertContact(contactEntity)
+
+        val numberEntities = numbers.mapIndexed { idx, (num, label) ->
+            ContactNumberEntity(
+                contactId = contactId,
+                number = num,
+                normalizedNumber = num.filter { it.isDigit() || it == '+' },
+                label = label,
+                isPrimary = idx == 0
+            )
+        }
+        contactDao.insertNumbers(numberEntities)
+
+        val emailEntities = emails.filter { it.isNotBlank() }.map { email ->
+            com.ryanshelby.linea.data.local.entities.ContactEmailEntity(
+                contactId = contactId,
+                email = email,
+                label = "Home"
+            )
+        }
+        if (emailEntities.isNotEmpty()) {
+            contactDao.insertEmails(emailEntities)
+        }
+
+        contactId
+    }
+
+    suspend fun deleteContactFromSystemOnly(androidContactId: Long) = withContext(Dispatchers.IO) {
+        try {
+            val rawUri = android.content.ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, androidContactId)
+            context.contentResolver.delete(rawUri, null, null)
+
+            val contactUri = android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, androidContactId)
+            context.contentResolver.delete(contactUri, null, null)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        loadContacts()
+    }
+
+    suspend fun createContact(
+        displayName: String,
+        company: String? = null,
+        numbers: List<Pair<String, String>>, // (Number, Label)
+        emails: List<String> = emptyList(),
+        preferredSimSlot: Int? = null,
+        notes: String? = null,
+        accountName: String? = null,
+        accountType: String? = null,
+        photoUri: String? = null,
+        photoBytes: ByteArray? = null
+    ): Long = withContext(Dispatchers.IO) {
+        val rawContactId = createContactInSystem(
+            displayName = displayName,
+            company = company,
+            numbers = numbers,
+            emails = emails,
+            notes = notes,
+            accountName = accountName,
+            accountType = accountType,
+            photoBytes = photoBytes
+        )
 
         // 2. Insert into LINEA local Room database
         val contactEntity = ContactEntity(
@@ -390,7 +500,8 @@ class ContactSyncRepository @Inject constructor(
             company = company,
             preferredSimSlot = preferredSimSlot,
             notes = notes,
-            photoUri = photoUri
+            photoUri = photoUri,
+            isPrivate = false
         )
         val contactId = contactDao.insertContact(contactEntity)
 

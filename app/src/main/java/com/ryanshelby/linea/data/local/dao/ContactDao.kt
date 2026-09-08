@@ -108,4 +108,10 @@ interface ContactDao {
 
     @Query("UPDATE contact_numbers SET contactId = :newContactId WHERE contactId = :oldContactId")
     suspend fun reassignNumbersContact(oldContactId: Long, newContactId: Long)
+
+    @Query("SELECT * FROM contact_emails WHERE contactId = :contactId")
+    fun getEmailsForContact(contactId: Long): Flow<List<ContactEmailEntity>>
+
+    @Query("SELECT * FROM contact_emails WHERE contactId = :contactId")
+    suspend fun getEmailsForContactOnce(contactId: Long): List<ContactEmailEntity>
 }

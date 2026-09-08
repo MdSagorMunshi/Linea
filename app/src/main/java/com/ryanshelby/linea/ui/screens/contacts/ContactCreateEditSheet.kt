@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -93,6 +94,7 @@ fun ContactCreateEditSheet(
         photoUri: String?,
         photoBytes: ByteArray?
     ) -> Unit,
+    isPrivate: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -392,8 +394,51 @@ fun ContactCreateEditSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Account Selector (Save destination for new contacts)
-            if (contactToEdit == null) {
+            // Account Selector / Safe Destination Indicator
+            if (isPrivate) {
+                FrostedGlassBox(
+                    shape = RoundedCornerShape(14.dp),
+                    borderColor = LineaColors.MutedSageGreen.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(LineaColors.MutedSageGreen.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Security,
+                                contentDescription = null,
+                                tint = LineaColors.MutedSageGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column {
+                            Text(
+                                text = "Saving to Private Safe",
+                                style = LineaTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = LineaColors.MutedSageGreen
+                            )
+                            Text(
+                                text = "Saved in local app data only • Never synced to Google",
+                                style = LineaTypography.bodySmall,
+                                color = LineaColors.TextSecondary
+                            )
+                        }
+                    }
+                }
+            } else if (contactToEdit == null) {
                 var expanded by remember { mutableStateOf(false) }
 
                 FrostedGlassBox(

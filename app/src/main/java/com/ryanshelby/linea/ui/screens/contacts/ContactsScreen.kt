@@ -91,6 +91,7 @@ fun ContactsScreen(
     val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
     val isPrivateModeUnlocked by viewModel.isPrivateModeUnlocked.collectAsState()
     val isPinDialogOpen by viewModel.isPinDialogOpen.collectAsState()
+    val createAsPrivate by viewModel.createAsPrivate.collectAsState()
 
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
     var pendingSimSlot by remember { mutableStateOf<Int?>(null) }
@@ -457,6 +458,7 @@ fun ContactsScreen(
             contactToEdit = contactToEdit,
             availableAccounts = availableAccounts,
             selectedAccount = selectedContactAccount,
+            isPrivate = createAsPrivate,
             onSelectAccount = { viewModel.selectContactAccount(it) },
             onDismiss = { viewModel.dismissCreateOrEditSheet() },
             onSave = { displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes ->

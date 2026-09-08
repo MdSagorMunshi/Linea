@@ -54,8 +54,8 @@ class BackupRestoreManager @Inject constructor(
         }
         root.put("callRecords", callsArray)
 
-        // 2. Contacts & Numbers
-        val contacts = contactDao.getAllContactsIncludingPrivate().first()
+        // 2. Contacts & Numbers (Regular contacts only; private contacts use encrypted .linea export)
+        val contacts = contactDao.getAllContacts().first()
         val contactsArray = JSONArray()
         for (contact in contacts) {
             val contactObj = JSONObject().apply {

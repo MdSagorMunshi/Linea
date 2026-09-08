@@ -68,6 +68,9 @@ class PrivateVaultSecurityManager(
 
     // In-memory master key: wiped on lock
     private var activeMasterKey: ByteArray? = null
+    private var activeSessionPin: String? = null
+
+    fun getActiveSessionPin(): String? = activeSessionPin
 
     private val _isVaultUnlocked = MutableStateFlow(false)
     val isVaultUnlocked: StateFlow<Boolean> = _isVaultUnlocked.asStateFlow()
@@ -142,6 +145,7 @@ class PrivateVaultSecurityManager(
 
             // Cache active master key and unlock
             activeMasterKey = masterKey
+            activeSessionPin = pin
             _isVaultUnlocked.value = true
             preferences.setPrivateModeUnlocked(true)
 
@@ -192,6 +196,7 @@ class PrivateVaultSecurityManager(
         val decryptedMaster = decryptWithKey(encryptedMasterBytes, pinKek)
 
         activeMasterKey = decryptedMaster
+        activeSessionPin = pin
         _isVaultUnlocked.value = true
         preferences.setPrivateModeUnlocked(true)
 
@@ -249,6 +254,7 @@ class PrivateVaultSecurityManager(
         )
 
         activeMasterKey = masterKey
+        activeSessionPin = newPin
         _isVaultUnlocked.value = true
         preferences.setPrivateModeUnlocked(true)
 
@@ -283,6 +289,7 @@ class PrivateVaultSecurityManager(
                 masterKeyEncrypted = toBase64(newEncryptedMasterWithPin)
             )
 
+            activeSessionPin = newPin
             return Result.success(Unit)
         } catch (e: Exception) {
             return Result.failure(e)
@@ -324,6 +331,7 @@ class PrivateVaultSecurityManager(
     fun lockVault() {
         activeMasterKey?.let { Arrays.fill(it, 0.toByte()) }
         activeMasterKey = null
+        activeSessionPin = null
         _isVaultUnlocked.value = false
         scope.launch {
             preferences.setPrivateModeUnlocked(false)

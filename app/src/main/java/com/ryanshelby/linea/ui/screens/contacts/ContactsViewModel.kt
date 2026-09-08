@@ -39,7 +39,8 @@ class ContactsViewModel @Inject constructor(
     private val phoneAccountManager: PhoneAccountManager,
     private val callNoteDao: CallNoteDao,
     private val preferences: LineaPreferences,
-    val vaultSecurityManager: com.ryanshelby.linea.security.PrivateVaultSecurityManager
+    val vaultSecurityManager: com.ryanshelby.linea.security.PrivateVaultSecurityManager,
+    private val vaultExportImportManager: com.ryanshelby.linea.security.PrivateVaultExportImportManager
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -95,8 +96,72 @@ class ContactsViewModel @Inject constructor(
     }
 
     fun setContactPrivate(contactId: Long, isPrivate: Boolean) {
+        if (isPrivate) {
+            moveContactToPrivateSafe(contactId)
+        } else {
+            viewModelScope.launch {
+                contactDao.setContactPrivate(contactId, false)
+            }
+        }
+    }
+
+    fun moveContactToPrivateSafe(contactId: Long) {
         viewModelScope.launch {
-            contactDao.setContactPrivate(contactId, isPrivate)
+            val contact = contactDao.getContactById(contactId) ?: return@launch
+            val sysId = contact.androidContactId
+            if (sysId != null && sysId > 0) {
+                contactSyncRepository.deleteContactFromSystemOnly(sysId)
+            }
+            contactDao.updateContact(
+                contact.copy(
+                    isPrivate = true,
+                    androidContactId = null,
+                    lookupKey = null
+                )
+            )
+            contactSyncRepository.loadContacts()
+        }
+    }
+
+    fun moveContactToPublicStorage(contactId: Long, accountName: String?, accountType: String?) {
+        viewModelScope.launch {
+            val contact = contactDao.getContactById(contactId) ?: return@launch
+            val numbers = contactDao.getNumbersForContact(contactId).first()
+            val emails = contactDao.getEmailsForContact(contactId).first()
+
+            val newRawId = contactSyncRepository.createContactInSystem(
+                displayName = contact.displayName,
+                company = contact.company,
+                numbers = numbers.map { it.number to it.label },
+                emails = emails.map { it.email },
+                notes = contact.notes,
+                accountName = accountName,
+                accountType = accountType
+            )
+
+            contactDao.updateContact(
+                contact.copy(
+                    isPrivate = false,
+                    androidContactId = newRawId
+                )
+            )
+            contactSyncRepository.loadContacts()
+        }
+    }
+
+    suspend fun exportPrivateSafe(key: String): ByteArray {
+        val dtos = vaultExportImportManager.getPrivateContactsForExport()
+        return vaultExportImportManager.exportToEncryptedLineaBytes(dtos, key)
+    }
+
+    suspend fun importPrivateSafe(fileBytes: ByteArray, key: String): Result<Int> {
+        val parseResult = vaultExportImportManager.decryptAndParseLineaBytes(fileBytes, key)
+        return if (parseResult.isSuccess) {
+            val contacts = parseResult.getOrThrow()
+            val count = vaultExportImportManager.importContactsIntoVault(contacts)
+            Result.success(count)
+        } else {
+            Result.failure(parseResult.exceptionOrNull() ?: Exception("Failed to decrypt .linea file"))
         }
     }
 
@@ -129,10 +194,7 @@ class ContactsViewModel @Inject constructor(
     val pinnedFavorites: StateFlow<List<ContactEntity>> = contactDao.getFavoriteContacts()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    val rawContacts: Flow<List<ContactEntity>> = preferences.privateModeUnlocked
-        .flatMapLatest { unlocked ->
-            if (unlocked) contactDao.getAllContactsIncludingPrivate() else contactDao.getAllContacts()
-        }
+    val rawContacts: Flow<List<ContactEntity>> = contactDao.getAllContacts()
 
     val filteredContacts: StateFlow<List<ContactEntity>> = combine(
         rawContacts,
@@ -265,25 +327,33 @@ class ContactsViewModel @Inject constructor(
                 )
                 _selectedContactForDetail.value = updated
             } else {
-                // Create new
-                val acc = _selectedContactAccount.value
-                val accName = if (acc != null && !acc.isDevice) acc.name else null
-                val accType = acc?.type
-                val createdId = contactSyncRepository.createContact(
-                    displayName = displayName,
-                    company = company,
-                    numbers = numbers,
-                    emails = emails,
-                    preferredSimSlot = preferredSimSlot,
-                    notes = notes,
-                    accountName = accName,
-                    accountType = accType,
-                    photoUri = photoUri,
-                    photoBytes = photoBytes
-                )
                 if (_createAsPrivate.value) {
-                    contactDao.setContactPrivate(createdId, true)
+                    contactSyncRepository.createPrivateContact(
+                        displayName = displayName,
+                        company = company,
+                        numbers = numbers,
+                        emails = emails,
+                        preferredSimSlot = preferredSimSlot,
+                        notes = notes,
+                        photoUri = photoUri
+                    )
                     _createAsPrivate.value = false
+                } else {
+                    val acc = _selectedContactAccount.value
+                    val accName = if (acc != null && !acc.isDevice) acc.name else null
+                    val accType = acc?.type
+                    contactSyncRepository.createContact(
+                        displayName = displayName,
+                        company = company,
+                        numbers = numbers,
+                        emails = emails,
+                        preferredSimSlot = preferredSimSlot,
+                        notes = notes,
+                        accountName = accName,
+                        accountType = accType,
+                        photoUri = photoUri,
+                        photoBytes = photoBytes
+                    )
                 }
             }
             dismissCreateOrEditSheet()
