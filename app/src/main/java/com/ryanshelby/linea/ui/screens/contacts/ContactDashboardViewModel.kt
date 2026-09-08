@@ -274,4 +274,48 @@ class ContactDashboardViewModel @Inject constructor(
             _state.value = _state.value.copy(contact = updated)
         }
     }
+
+    fun updateContact(
+        displayName: String,
+        company: String?,
+        numbers: List<Pair<String, String>>,
+        emails: List<String>,
+        preferredSimSlot: Int?,
+        notes: String?,
+        photoUri: String?,
+        photoBytes: ByteArray?
+    ) {
+        val current = _state.value.contact ?: return
+        viewModelScope.launch {
+            val photoChanged = (photoUri != current.photoUri) || (photoBytes != null)
+            val updated = current.copy(
+                displayName = displayName,
+                company = company,
+                preferredSimSlot = preferredSimSlot,
+                notes = notes,
+                photoUri = if (photoChanged) photoUri else current.photoUri
+            )
+            contactSyncRepository.updateContact(
+                updated,
+                photoBytes = photoBytes,
+                hasPhotoChanged = photoChanged
+            )
+
+            val validNumbers = numbers.filter { it.first.isNotBlank() }
+            if (validNumbers.isNotEmpty()) {
+                contactDao.deleteNumbersForContact(current.id)
+                contactDao.insertNumbers(validNumbers.mapIndexed { idx, (num, label) ->
+                    ContactNumberEntity(
+                        contactId = current.id,
+                        number = num,
+                        normalizedNumber = num.filter { it.isDigit() || it == '+' },
+                        label = label,
+                        isPrimary = idx == 0
+                    )
+                })
+            }
+
+            loadContactData(current.id)
+        }
+    }
 }

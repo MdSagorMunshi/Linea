@@ -16,20 +16,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.core.content.ContextCompat
 import com.ryanshelby.linea.ui.components.ContactAvatar
-import com.ryanshelby.linea.util.ContactPhotoHelper
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,49 +55,9 @@ fun ContactDashboardScreen(
 
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     var noteInput by remember { mutableStateOf("") }
     var isEditingNote by remember { mutableStateOf(false) }
-
-    var showPhotoDialog by remember { mutableStateOf(false) }
     var isEditingContact by remember { mutableStateOf(false) }
-    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success && tempCameraUri != null) {
-            coroutineScope.launch {
-                val (savedUri, bytes) = ContactPhotoHelper.saveUriToInternal(context, tempCameraUri!!)
-                if (savedUri.isNotBlank()) {
-                    viewModel.updateContactPhoto(savedUri, bytes)
-                }
-            }
-        }
-    }
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            val (uri, _) = ContactPhotoHelper.createTempCameraUri(context)
-            tempCameraUri = uri
-            cameraLauncher.launch(uri)
-        }
-    }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            coroutineScope.launch {
-                val (savedUri, bytes) = ContactPhotoHelper.saveUriToInternal(context, uri)
-                if (savedUri.isNotBlank()) {
-                    viewModel.updateContactPhoto(savedUri, bytes)
-                }
-            }
-        }
-    }
 
     LaunchedEffect(state.preCallNote) {
         if (state.preCallNote != null) {
@@ -224,39 +176,14 @@ fun ContactDashboardScreen(
                                 .padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .clip(CircleShape)
-                                    .clickable { showPhotoDialog = true },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                ContactAvatar(
-                                    photoUri = contact.photoUri,
-                                    displayName = contact.displayName,
-                                    size = 80.dp,
-                                    initialsTextSize = 30.sp,
-                                    borderWidth = 2.dp,
-                                    borderColor = LineaColors.TitaniumBlue
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .size(26.dp)
-                                        .align(Alignment.BottomEnd)
-                                        .clip(CircleShape)
-                                        .background(LineaColors.TitaniumBlue)
-                                        .border(1.5.dp, LineaColors.BackgroundDeep, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.PhotoCamera,
-                                        contentDescription = "Change Photo",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
+                            ContactAvatar(
+                                photoUri = contact.photoUri,
+                                displayName = contact.displayName,
+                                size = 80.dp,
+                                initialsTextSize = 30.sp,
+                                borderWidth = 2.dp,
+                                borderColor = LineaColors.TitaniumBlue
+                            )
 
                             Spacer(modifier = Modifier.height(12.dp))
 
@@ -778,119 +705,6 @@ fun ContactDashboardScreen(
             }
         }
 
-        if (showPhotoDialog) {
-            AlertDialog(
-                onDismissRequest = { showPhotoDialog = false },
-                title = {
-                    Text(
-                        text = "Contact Photo",
-                        style = LineaTypography.titleMedium,
-                        color = LineaColors.TextPrimary
-                    )
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .clickable {
-                                    showPhotoDialog = false
-                                    val hasCam = ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.CAMERA
-                                    ) == PackageManager.PERMISSION_GRANTED
-                                    if (hasCam) {
-                                        val (uri, _) = ContactPhotoHelper.createTempCameraUri(context)
-                                        tempCameraUri = uri
-                                        cameraLauncher.launch(uri)
-                                    } else {
-                                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                    }
-                                }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.PhotoCamera,
-                                contentDescription = null,
-                                tint = LineaColors.TitaniumBlue,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Text(
-                                text = "Take Photo",
-                                style = LineaTypography.bodyMedium,
-                                color = LineaColors.TextPrimary
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .clickable {
-                                    showPhotoDialog = false
-                                    galleryLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.PhotoLibrary,
-                                contentDescription = null,
-                                tint = LineaColors.TitaniumBlue,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Text(
-                                text = "Choose from Gallery",
-                                style = LineaTypography.bodyMedium,
-                                color = LineaColors.TextPrimary
-                            )
-                        }
-
-                        if (!contact?.photoUri.isNullOrBlank()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .clickable {
-                                        showPhotoDialog = false
-                                        viewModel.updateContactPhoto(null, null)
-                                    }
-                                    .padding(vertical = 12.dp, horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Delete,
-                                    contentDescription = null,
-                                    tint = LineaColors.Danger,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text = "Remove Photo",
-                                    style = LineaTypography.bodyMedium,
-                                    color = LineaColors.Danger
-                                )
-                            }
-                        }
-                    }
-                },
-                confirmButton = {},
-                dismissButton = {
-                    TextButton(onClick = { showPhotoDialog = false }) {
-                        Text("Cancel", color = LineaColors.TextSecondary)
-                    }
-                },
-                containerColor = LineaColors.BackgroundTop,
-                shape = RoundedCornerShape(20.dp)
-            )
-        }
-
         if (isEditingContact && contact != null) {
             val contactNumbers = state.numbers.map { it.number to it.label }
             ContactCreateEditSheet(
@@ -898,9 +712,8 @@ fun ContactDashboardScreen(
                 initialNumbers = if (contactNumbers.isNotEmpty()) contactNumbers else listOf("" to "Mobile"),
                 onDismiss = { isEditingContact = false },
                 onSave = { displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes ->
-                    viewModel.updateContactPhoto(photoUri, photoBytes)
+                    viewModel.updateContact(displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes)
                     isEditingContact = false
-                    viewModel.loadContactData(contactId)
                 }
             )
         }
