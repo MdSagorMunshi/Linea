@@ -34,9 +34,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallMerge
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
-import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FiberManualRecord
@@ -47,8 +49,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SwapCalls
-import androidx.compose.material.icons.filled.VolumeDown
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.WarningAmber
 import com.ryanshelby.linea.ui.components.ContactAvatar
 import androidx.compose.material3.Button
@@ -86,6 +86,10 @@ import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
 fun InCallScreen(
     callInfo: ActiveCallInfo,
     secondaryCall: ActiveCallInfo? = null,
+    isMuted: Boolean = callInfo.isMuted,
+    audioRoute: LineaAudioRoute = callInfo.audioRoute,
+    canAddCall: Boolean? = null,
+    canMerge: Boolean? = null,
     isRecording: Boolean = false,
     recordingDurationSeconds: Long = 0L,
     durationWarningActive: Boolean = false,
@@ -110,6 +114,29 @@ fun InCallScreen(
     val reduceAnimations = LocalReduceAnimations.current
     var showKeypad by remember { mutableStateOf(false) }
     var showNoteSheet by remember { mutableStateOf(false) }
+
+    val details = callInfo.call.details
+    val capabilities = details?.callCapabilities ?: 0
+    val supportsHold = details != null && (
+        details.can(android.telecom.Call.Details.CAPABILITY_HOLD) ||
+        details.can(android.telecom.Call.Details.CAPABILITY_SUPPORT_HOLD) ||
+        (capabilities and android.telecom.Call.Details.CAPABILITY_HOLD) != 0 ||
+        (capabilities and android.telecom.Call.Details.CAPABILITY_SUPPORT_HOLD) != 0
+    )
+    val resolvedCanAddCall = canAddCall ?: (
+        supportsHold &&
+        secondaryCall == null &&
+        (callInfo.state == LineaCallState.ACTIVE || callInfo.state == LineaCallState.HOLDING)
+    )
+
+    val resolvedCanMerge = canMerge ?: (
+        secondaryCall != null && (
+            details?.can(android.telecom.Call.Details.CAPABILITY_MERGE_CONFERENCE) == true ||
+            secondaryCall.call.details?.can(android.telecom.Call.Details.CAPABILITY_MERGE_CONFERENCE) == true ||
+            ((capabilities and android.telecom.Call.Details.CAPABILITY_MERGE_CONFERENCE) != 0) ||
+            (secondaryCall.state == LineaCallState.ACTIVE || secondaryCall.state == LineaCallState.HOLDING)
+        )
+    )
 
     val stateLabel = when (callInfo.state) {
         LineaCallState.DIALING -> "Dialing..."
@@ -425,7 +452,7 @@ fun InCallScreen(
                                         contentColor = LineaColors.AccentGreen
                                     )
                                 ) {
-                                    Icon(Icons.Filled.CallMerge, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.AutoMirrored.Filled.CallMerge, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("Merge Conference", style = LineaTypography.bodySmall)
                                 }
@@ -515,9 +542,9 @@ fun InCallScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         InCallActionButton(
-                            icon = if (callInfo.isMuted) Icons.Filled.MicOff else Icons.Filled.Mic,
-                            label = if (callInfo.isMuted) "Unmute" else "Mute",
-                            isActive = callInfo.isMuted,
+                            icon = if (isMuted) Icons.Filled.MicOff else Icons.Filled.Mic,
+                            label = if (isMuted) "Unmute" else "Mute",
+                            isActive = isMuted,
                             activeColor = LineaColors.Danger,
                             onClick = onToggleMute
                         )
@@ -530,10 +557,10 @@ fun InCallScreen(
                             onClick = { showKeypad = !showKeypad }
                         )
 
-                        val isSpeakerOn = callInfo.audioRoute == LineaAudioRoute.SPEAKER
+                        val isSpeakerOn = audioRoute == LineaAudioRoute.SPEAKER
                         InCallActionButton(
-                            icon = if (isSpeakerOn) Icons.Filled.VolumeUp else Icons.Filled.VolumeDown,
-                            label = "Speaker",
+                            icon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown,
+                            label = if (isSpeakerOn) "Speaker On" else "Speaker",
                             isActive = isSpeakerOn,
                             activeColor = LineaColors.TitaniumBlue,
                             onClick = onToggleSpeaker
@@ -549,7 +576,7 @@ fun InCallScreen(
                         )
                     }
 
-                    // Row 2: Record, Notes, Add Call, Swap/Merge
+                    // Row 2: Record, Notes, Add Call (if supported), Swap / Merge (if available)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
@@ -570,12 +597,15 @@ fun InCallScreen(
                             onClick = { showNoteSheet = true }
                         )
 
-                        InCallActionButton(
-                            icon = Icons.Filled.PersonAdd,
-                            label = "Add Call",
-                            isActive = false,
-                            onClick = onAddCall
-                        )
+                        if (resolvedCanAddCall) {
+                            InCallActionButton(
+                                icon = Icons.Filled.PersonAdd,
+                                label = "Add Call",
+                                isActive = false,
+                                activeColor = LineaColors.TitaniumBlue,
+                                onClick = onAddCall
+                            )
+                        }
 
                         if (secondaryCall != null) {
                             InCallActionButton(
@@ -585,13 +615,15 @@ fun InCallScreen(
                                 activeColor = LineaColors.TitaniumBlue,
                                 onClick = onSwapCalls
                             )
-                        } else {
+                        }
+
+                        if (resolvedCanMerge) {
                             InCallActionButton(
-                                icon = Icons.Filled.CallMerge,
+                                icon = Icons.AutoMirrored.Filled.CallMerge,
                                 label = "Merge",
                                 isActive = false,
-                                activeColor = LineaColors.TextTertiary,
-                                onClick = {}
+                                activeColor = LineaColors.TitaniumBlue,
+                                onClick = onMergeConference
                             )
                         }
                     }

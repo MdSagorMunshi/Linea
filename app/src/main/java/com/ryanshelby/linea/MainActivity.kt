@@ -1,6 +1,7 @@
 package com.ryanshelby.linea
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -58,6 +59,7 @@ class MainActivity : ComponentActivity() {
 
         checkRoleAndAccounts()
         requestAllPermissionsUpfront()
+        handleCallIntent(intent)
 
         setContent {
             val reduceAnimations by lineaPreferences.reduceAnimations.collectAsState(initial = false)
@@ -81,6 +83,23 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         checkRoleAndAccounts()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleCallIntent(intent)
+    }
+
+    private fun handleCallIntent(intent: Intent?) {
+        if (intent == null) return
+        val action = intent.action
+        if (action == Intent.ACTION_CALL) {
+            val number = intent.data?.schemeSpecificPart
+            if (!number.isNullOrBlank()) {
+                callManager.placeCall(number)
+            }
+        }
     }
 
     private fun checkRoleAndAccounts() {

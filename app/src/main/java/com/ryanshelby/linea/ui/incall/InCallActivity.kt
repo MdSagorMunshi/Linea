@@ -2,6 +2,8 @@ package com.ryanshelby.linea.ui.incall
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.content.Intent
+import com.ryanshelby.linea.MainActivity
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -65,6 +67,8 @@ class InCallActivity : ComponentActivity() {
             val reduceAnimations by lineaPreferences.reduceAnimations.collectAsState(initial = false)
             val currentCall by callManager.currentCall.collectAsState()
             val secondaryCall by callManager.secondaryCall.collectAsState()
+            val isMuted by callManager.isMuted.collectAsState()
+            val audioRoute by callManager.audioRoute.collectAsState()
             val isRecording by callManager.isRecording.collectAsState()
             val recordingDuration by callManager.recordingDurationSeconds.collectAsState()
             val durationWarningActive by callManager.durationWarningActive.collectAsState()
@@ -103,6 +107,8 @@ class InCallActivity : ComponentActivity() {
                             InCallScreen(
                                 callInfo = call,
                                 secondaryCall = secondaryCall,
+                                isMuted = isMuted,
+                                audioRoute = audioRoute,
                                 isRecording = isRecording,
                                 recordingDurationSeconds = recordingDuration,
                                 durationWarningActive = durationWarningActive,
@@ -121,8 +127,10 @@ class InCallActivity : ComponentActivity() {
                                 onDtmfPress = { digit -> callManager.playDtmfTone(digit) },
                                 onDtmfRelease = { callManager.stopDtmfTone() },
                                 onAddCall = {
-                                    // Allow user to return to dialer to initiate second call
-                                    moveTaskToBack(true)
+                                    val intent = Intent(this@InCallActivity, MainActivity::class.java).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                    }
+                                    startActivity(intent)
                                 },
                                 onToggleRecord = { callManager.toggleRecording() },
                                 onSaveNote = { noteText ->

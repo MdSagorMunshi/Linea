@@ -3,6 +3,7 @@ package com.ryanshelby.linea.telecom
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.telecom.Call
@@ -80,6 +81,10 @@ class CallManager @Inject constructor(
 ) {
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
+
+    private val audioManager by lazy {
+        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
 
     private val _currentCall = MutableStateFlow<ActiveCallInfo?>(null)
     val currentCall: StateFlow<ActiveCallInfo?> = _currentCall.asStateFlow()
@@ -306,6 +311,8 @@ class CallManager @Inject constructor(
             else -> LineaAudioRoute.EARPIECE
         }
         _audioRoute.value = route
+        _currentCall.value = _currentCall.value?.copy(isMuted = audioState.isMuted, audioRoute = route)
+        _secondaryCall.value = _secondaryCall.value?.copy(isMuted = audioState.isMuted, audioRoute = route)
 
         val isSpeaker = route == LineaAudioRoute.SPEAKER
         val isCallActive = _currentCall.value?.state == LineaCallState.ACTIVE
@@ -517,11 +524,13 @@ class CallManager @Inject constructor(
 
     fun holdCall() {
         _currentCall.value?.call?.hold()
+        _currentCall.value = _currentCall.value?.copy(state = LineaCallState.HOLDING, isHeld = true)
         refreshOngoingCallNotification()
     }
 
     fun unholdCall() {
         _currentCall.value?.call?.unhold()
+        _currentCall.value = _currentCall.value?.copy(state = LineaCallState.ACTIVE, isHeld = false)
         refreshOngoingCallNotification()
     }
 
@@ -556,18 +565,33 @@ class CallManager @Inject constructor(
 
     fun toggleMute() {
         val newMute = !_isMuted.value
-        inCallService?.setMuted(newMute)
         _isMuted.value = newMute
+        inCallService?.setMuted(newMute)
+        try {
+            audioManager.isMicrophoneMute = newMute
+        } catch (_: Exception) {}
+        _currentCall.value = _currentCall.value?.copy(isMuted = newMute)
+        _secondaryCall.value = _secondaryCall.value?.copy(isMuted = newMute)
         refreshOngoingCallNotification()
     }
 
     fun toggleSpeaker() {
-        val newRoute = if (_audioRoute.value == LineaAudioRoute.SPEAKER) {
-            CallAudioState.ROUTE_EARPIECE
-        } else {
+        val willBeSpeaker = _audioRoute.value != LineaAudioRoute.SPEAKER
+        val newRoute = if (willBeSpeaker) {
             CallAudioState.ROUTE_SPEAKER
+        } else {
+            CallAudioState.ROUTE_EARPIECE
         }
+        val routeEnum = if (willBeSpeaker) LineaAudioRoute.SPEAKER else LineaAudioRoute.EARPIECE
+        _audioRoute.value = routeEnum
         inCallService?.setAudioRoute(newRoute)
+        try {
+            audioManager.isSpeakerphoneOn = willBeSpeaker
+        } catch (_: Exception) {}
+        _currentCall.value = _currentCall.value?.copy(audioRoute = routeEnum)
+        _secondaryCall.value = _secondaryCall.value?.copy(audioRoute = routeEnum)
+        val isCallActive = _currentCall.value?.state == LineaCallState.ACTIVE
+        proximitySensorManager.onCallStateOrAudioChanged(isCallActive, willBeSpeaker)
         refreshOngoingCallNotification()
     }
 
@@ -593,7 +617,10 @@ class CallManager @Inject constructor(
     }
 
     fun setBluetoothAudio() {
+        _audioRoute.value = LineaAudioRoute.BLUETOOTH
         inCallService?.setAudioRoute(CallAudioState.ROUTE_BLUETOOTH)
+        _currentCall.value = _currentCall.value?.copy(audioRoute = LineaAudioRoute.BLUETOOTH)
+        _secondaryCall.value = _secondaryCall.value?.copy(audioRoute = LineaAudioRoute.BLUETOOTH)
     }
 
     fun answerWaitingCallAndHoldActive() {
