@@ -31,7 +31,7 @@ class LineaApp : Application() {
     lateinit var vaultSecurityManager: com.ryanshelby.linea.security.PrivateVaultSecurityManager
 
     companion object {
-        const val CHANNEL_ONGOING_CALLS = "linea_ongoing_calls"
+        const val CHANNEL_ONGOING_CALLS = "linea_ongoing_calls_v2"
         const val CHANNEL_INCOMING_CALLS = "linea_incoming_calls"
         const val CHANNEL_MISSED_CALLS = "linea_missed_calls"
         const val CHANNEL_VOICEMAIL = "linea_voicemail"
@@ -113,12 +113,19 @@ class LineaApp : Application() {
                 enableVibration(true)
             }
 
+            try {
+                notificationManager.deleteNotificationChannel("linea_ongoing_calls")
+            } catch (_: Exception) {}
+
             val ongoingCallChannel = NotificationChannel(
                 CHANNEL_ONGOING_CALLS,
                 "Ongoing Calls",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Shows notifications for active cellular calls"
+                description = "Dedicated Telecom notification for active cellular calls"
+                setSound(null, null)
+                enableVibration(false)
+                setShowBadge(false)
             }
 
             val missedCallChannel = NotificationChannel(

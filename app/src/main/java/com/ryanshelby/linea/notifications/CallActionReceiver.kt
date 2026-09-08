@@ -21,6 +21,9 @@ class CallActionReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_ANSWER = "com.ryanshelby.linea.ACTION_ANSWER"
         const val ACTION_REJECT = "com.ryanshelby.linea.ACTION_REJECT"
+        const val ACTION_HANG_UP = "com.ryanshelby.linea.ACTION_HANG_UP"
+        const val ACTION_TOGGLE_MUTE = "com.ryanshelby.linea.ACTION_TOGGLE_MUTE"
+        const val ACTION_TOGGLE_SPEAKER = "com.ryanshelby.linea.ACTION_TOGGLE_SPEAKER"
         const val ACTION_IGNORE = "com.ryanshelby.linea.ACTION_IGNORE"
         const val ACTION_MESSAGE = "com.ryanshelby.linea.ACTION_MESSAGE"
         const val EXTRA_PHONE_NUMBER = "extra_phone_number"
@@ -45,6 +48,16 @@ class CallActionReceiver : BroadcastReceiver() {
                 callManager.rejectCall()
                 callManager.dismissFloatingCall()
                 notificationManager.dismissIncomingCallHeadsUpNotification()
+            }
+            ACTION_HANG_UP -> {
+                callManager.disconnectCall()
+                notificationManager.dismissOngoingCallNotification()
+            }
+            ACTION_TOGGLE_MUTE -> {
+                callManager.toggleMute()
+            }
+            ACTION_TOGGLE_SPEAKER -> {
+                callManager.toggleSpeaker()
             }
             ACTION_IGNORE -> {
                 // Silences ringer but leaves call ringing in background

@@ -310,6 +310,7 @@ class CallManager @Inject constructor(
         val isSpeaker = route == LineaAudioRoute.SPEAKER
         val isCallActive = _currentCall.value?.state == LineaCallState.ACTIVE
         proximitySensorManager.onCallStateOrAudioChanged(isCallActive, isSpeaker)
+        refreshOngoingCallNotification()
     }
 
     private fun updateCallState(
@@ -399,13 +400,31 @@ class CallManager @Inject constructor(
             notificationManager.showOngoingCallNotification(
                 callerName = callerName,
                 phoneNumber = number,
-                stateText = "In call"
+                stateText = "In call",
+                connectTimeMillis = connectTime,
+                isMuted = _isMuted.value,
+                isSpeakerOn = _audioRoute.value == LineaAudioRoute.SPEAKER,
+                photoUri = photoUri
             )
         } else if (state == LineaCallState.DIALING) {
             notificationManager.showOngoingCallNotification(
                 callerName = callerName,
                 phoneNumber = number,
-                stateText = "Dialing..."
+                stateText = "Dialing...",
+                connectTimeMillis = 0L,
+                isMuted = _isMuted.value,
+                isSpeakerOn = _audioRoute.value == LineaAudioRoute.SPEAKER,
+                photoUri = photoUri
+            )
+        } else if (state == LineaCallState.HOLDING) {
+            notificationManager.showOngoingCallNotification(
+                callerName = callerName,
+                phoneNumber = number,
+                stateText = "On hold",
+                connectTimeMillis = 0L,
+                isMuted = _isMuted.value,
+                isSpeakerOn = _audioRoute.value == LineaAudioRoute.SPEAKER,
+                photoUri = photoUri
             )
         }
     }
@@ -498,10 +517,12 @@ class CallManager @Inject constructor(
 
     fun holdCall() {
         _currentCall.value?.call?.hold()
+        refreshOngoingCallNotification()
     }
 
     fun unholdCall() {
         _currentCall.value?.call?.unhold()
+        refreshOngoingCallNotification()
     }
 
     fun swapCalls() {
@@ -512,6 +533,7 @@ class CallManager @Inject constructor(
             secondary.call.unhold()
             _currentCall.value = secondary
             _secondaryCall.value = active
+            refreshOngoingCallNotification()
         }
     }
 
@@ -520,6 +542,7 @@ class CallManager @Inject constructor(
         val secondary = _secondaryCall.value
         if (active != null && secondary != null) {
             active.call.conference(secondary.call)
+            refreshOngoingCallNotification()
         }
     }
 
@@ -535,6 +558,7 @@ class CallManager @Inject constructor(
         val newMute = !_isMuted.value
         inCallService?.setMuted(newMute)
         _isMuted.value = newMute
+        refreshOngoingCallNotification()
     }
 
     fun toggleSpeaker() {
@@ -544,6 +568,28 @@ class CallManager @Inject constructor(
             CallAudioState.ROUTE_SPEAKER
         }
         inCallService?.setAudioRoute(newRoute)
+        refreshOngoingCallNotification()
+    }
+
+    fun refreshOngoingCallNotification() {
+        val current = _currentCall.value ?: return
+        if (current.state == LineaCallState.ACTIVE || current.state == LineaCallState.DIALING || current.state == LineaCallState.HOLDING) {
+            val stateText = when (current.state) {
+                LineaCallState.ACTIVE -> "In call"
+                LineaCallState.DIALING -> "Dialing..."
+                LineaCallState.HOLDING -> "On hold"
+                else -> "Active call"
+            }
+            notificationManager.showOngoingCallNotification(
+                callerName = current.displayName,
+                phoneNumber = current.phoneNumber,
+                stateText = stateText,
+                connectTimeMillis = if (current.state == LineaCallState.ACTIVE) current.connectTimeMillis else 0L,
+                isMuted = _isMuted.value,
+                isSpeakerOn = _audioRoute.value == LineaAudioRoute.SPEAKER,
+                photoUri = current.photoUri
+            )
+        }
     }
 
     fun setBluetoothAudio() {

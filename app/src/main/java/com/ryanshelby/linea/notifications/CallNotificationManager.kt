@@ -31,7 +31,48 @@ class CallNotificationManager @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    fun showOngoingCallNotification(callerName: String?, phoneNumber: String, stateText: String) {
+    fun showOngoingCallNotification(
+        callerName: String?,
+        phoneNumber: String,
+        stateText: String,
+        connectTimeMillis: Long = 0L,
+        isMuted: Boolean = false,
+        isSpeakerOn: Boolean = false,
+        photoUri: String? = null
+    ) {
+        val displayName = when {
+            !callerName.isNullOrBlank() -> callerName
+            phoneNumber.isNotBlank() -> phoneNumber
+            else -> "Unknown Caller"
+        }
+        val personBuilder = Person.Builder()
+            .setName(displayName)
+            .setImportant(true)
+
+        if (phoneNumber.isNotBlank()) {
+            personBuilder.setUri("tel:$phoneNumber")
+        }
+
+        if (!photoUri.isNullOrBlank()) {
+            try {
+                personBuilder.setIcon(IconCompat.createWithContentUri(photoUri))
+            } catch (_: Exception) {}
+        }
+        val callerPerson = personBuilder.build()
+
+        // 1. Dedicated Telecom Hang Up Action (prominent red button)
+        val hangUpIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = CallActionReceiver.ACTION_HANG_UP
+            putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+        }
+        val hangUpPendingIntent = PendingIntent.getBroadcast(
+            context,
+            20,
+            hangUpIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // 2. Full Screen / Tap Intent: returns to InCallActivity
         val fullScreenIntent = Intent(context, InCallActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -42,17 +83,67 @@ class CallNotificationManager @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, LineaApp.CHANNEL_ONGOING_CALLS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(callerName ?: phoneNumber)
+        // 3. Native Android Telecom CallStyle for ongoing calls
+        val callStyle = NotificationCompat.CallStyle.forOngoingCall(
+            callerPerson,
+            hangUpPendingIntent
+        )
+
+        // 4. In-notification Quick Controls: Mute & Speaker
+        val muteIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = CallActionReceiver.ACTION_TOGGLE_MUTE
+            putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+        }
+        val mutePendingIntent = PendingIntent.getBroadcast(
+            context,
+            21,
+            muteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val speakerIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = CallActionReceiver.ACTION_TOGGLE_SPEAKER
+            putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+        }
+        val speakerPendingIntent = PendingIntent.getBroadcast(
+            context,
+            22,
+            speakerIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notificationBuilder = NotificationCompat.Builder(context, LineaApp.CHANNEL_ONGOING_CALLS)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setStyle(callStyle)
+            .addPerson(callerPerson)
+            .setContentTitle(displayName)
             .setContentText(stateText)
             .setContentIntent(contentPendingIntent)
+            .setFullScreenIntent(contentPendingIntent, false)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .build()
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setColor(0xFF537193.toInt())
+            .setOnlyAlertOnce(true)
+            .addAction(
+                R.drawable.ic_mic_off,
+                if (isMuted) "Unmute" else "Mute",
+                mutePendingIntent
+            )
+            .addAction(
+                R.drawable.ic_volume_up,
+                if (isSpeakerOn) "Earpiece" else "Speaker",
+                speakerPendingIntent
+            )
 
-        notificationManager.notify(NOTIFICATION_ID_ONGOING_CALL, notification)
+        if (connectTimeMillis > 0L) {
+            notificationBuilder.setWhen(connectTimeMillis)
+            notificationBuilder.setUsesChronometer(true)
+            notificationBuilder.setShowWhen(true)
+        }
+
+        notificationManager.notify(NOTIFICATION_ID_ONGOING_CALL, notificationBuilder.build())
     }
 
     fun dismissOngoingCallNotification() {
@@ -103,10 +194,18 @@ class CallNotificationManager @Inject constructor(
         phoneNumber: String,
         photoUri: String? = null
     ) {
+        val displayName = when {
+            !callerName.isNullOrBlank() -> callerName
+            phoneNumber.isNotBlank() -> phoneNumber
+            else -> "Unknown Caller"
+        }
         val personBuilder = Person.Builder()
-            .setName(callerName ?: phoneNumber)
-            .setUri("tel:$phoneNumber")
+            .setName(displayName)
             .setImportant(true)
+
+        if (phoneNumber.isNotBlank()) {
+            personBuilder.setUri("tel:$phoneNumber")
+        }
 
         if (!photoUri.isNullOrBlank()) {
             try {
@@ -171,10 +270,10 @@ class CallNotificationManager @Inject constructor(
         )
 
         val notification = NotificationCompat.Builder(context, LineaApp.CHANNEL_INCOMING_CALLS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_call)
             .setStyle(callStyle)
             .addPerson(callerPerson)
-            .setContentTitle(callerName ?: phoneNumber)
+            .setContentTitle(displayName)
             .setContentText("Incoming Call")
             .setContentIntent(fullScreenPendingIntent)
             .setFullScreenIntent(fullScreenPendingIntent, true)
