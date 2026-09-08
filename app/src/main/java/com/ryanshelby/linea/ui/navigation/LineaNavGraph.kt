@@ -30,7 +30,11 @@ import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
 enum class SettingsSubScreen {
     BLOCKING,
     DUAL_SIM,
-    PERMISSIONS
+    PERMISSIONS,
+    RECORDINGS,
+    VOICEMAIL,
+    CALL_FORWARDING,
+    CALL_BARRING_FDN
 }
 
 @Composable
@@ -75,6 +79,26 @@ fun LineaNavGraph(
                         onNavigateBack = { settingsSubScreen = null }
                     )
                 }
+                SettingsSubScreen.RECORDINGS -> {
+                    com.ryanshelby.linea.ui.screens.recordings.RecordingsScreen(
+                        onNavigateBack = { settingsSubScreen = null }
+                    )
+                }
+                SettingsSubScreen.VOICEMAIL -> {
+                    com.ryanshelby.linea.ui.screens.voicemail.VoicemailScreen(
+                        onNavigateBack = { settingsSubScreen = null }
+                    )
+                }
+                SettingsSubScreen.CALL_FORWARDING -> {
+                    com.ryanshelby.linea.ui.screens.settings.telecom.CallForwardingScreen(
+                        onNavigateBack = { settingsSubScreen = null }
+                    )
+                }
+                SettingsSubScreen.CALL_BARRING_FDN -> {
+                    com.ryanshelby.linea.ui.screens.settings.telecom.CallBarringFdnScreen(
+                        onNavigateBack = { settingsSubScreen = null }
+                    )
+                }
                 null -> Unit
             }
         } else {
@@ -104,7 +128,11 @@ fun LineaNavGraph(
                             onRequestDefaultDialer = onRequestDefaultDialer,
                             onNavigateToBlocking = { settingsSubScreen = SettingsSubScreen.BLOCKING },
                             onNavigateToDualSim = { settingsSubScreen = SettingsSubScreen.DUAL_SIM },
-                            onNavigateToPermissions = { settingsSubScreen = SettingsSubScreen.PERMISSIONS }
+                            onNavigateToPermissions = { settingsSubScreen = SettingsSubScreen.PERMISSIONS },
+                            onNavigateToRecordings = { settingsSubScreen = SettingsSubScreen.RECORDINGS },
+                            onNavigateToVoicemail = { settingsSubScreen = SettingsSubScreen.VOICEMAIL },
+                            onNavigateToCallForwarding = { settingsSubScreen = SettingsSubScreen.CALL_FORWARDING },
+                            onNavigateToCallBarring = { settingsSubScreen = SettingsSubScreen.CALL_BARRING_FDN }
                         )
                     }
                 }

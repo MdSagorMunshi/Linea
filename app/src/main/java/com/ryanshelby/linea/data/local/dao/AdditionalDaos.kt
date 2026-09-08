@@ -20,6 +20,12 @@ interface CallRecordingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecording(recording: CallRecordingEntity): Long
 
+    @Query("UPDATE call_recordings SET isPinned = :isPinned WHERE id = :id")
+    suspend fun updatePinned(id: Long, isPinned: Boolean)
+
+    @Query("SELECT * FROM call_recordings WHERE id = :id LIMIT 1")
+    suspend fun getRecordingById(id: Long): CallRecordingEntity?
+
     @Query("DELETE FROM call_recordings WHERE id = :id")
     suspend fun deleteRecordingById(id: Long)
 }

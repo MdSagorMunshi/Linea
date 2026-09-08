@@ -29,7 +29,10 @@ data class SettingsUiState(
     val reduceAnimations: Boolean = false,
     val blockedRulesCount: Int = 0,
     val isQuietHoursActive: Boolean = false,
-    val unreadMissedCalls: Int = 0
+    val unreadMissedCalls: Int = 0,
+    val autoRecordCalls: Boolean = false,
+    val callDurationWarningMinutes: Int = 0,
+    val voicemailNumber: String = "123"
 )
 
 @HiltViewModel
@@ -54,7 +57,10 @@ class SettingsViewModel @Inject constructor(
         preferences.reduceAnimations,
         blockedNumberDao.getAllBlockedNumbers(),
         callRuleDao.getAllRules(),
-        callRecordDao.getUnreadMissedCallCount()
+        callRecordDao.getUnreadMissedCallCount(),
+        preferences.autoRecordCalls,
+        preferences.callDurationWarningMinutes,
+        preferences.voicemailNumber
     ) { args ->
         val defaultSim = args[0] as Int
         val askSim = args[1] as Boolean
@@ -70,6 +76,9 @@ class SettingsViewModel @Inject constructor(
         val blockedList = args[11] as List<*>
         val rulesList = args[12] as List<*>
         val missedCount = args[13] as Int
+        val autoRecord = args[14] as Boolean
+        val durationWarn = args[15] as Int
+        val vmNumber = args[16] as String
 
         val quietRule = rulesList.filterIsInstance<com.ryanshelby.linea.data.local.entities.CallRuleEntity>()
             .firstOrNull { it.name.contains("Quiet", ignoreCase = true) }
@@ -88,13 +97,28 @@ class SettingsViewModel @Inject constructor(
             reduceAnimations = reduceAnim,
             blockedRulesCount = blockedList.size,
             isQuietHoursActive = quietRule?.isEnabled ?: false,
-            unreadMissedCalls = missedCount
+            unreadMissedCalls = missedCount,
+            autoRecordCalls = autoRecord,
+            callDurationWarningMinutes = durationWarn,
+            voicemailNumber = vmNumber
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = SettingsUiState()
     )
+
+    fun setAutoRecordCalls(enabled: Boolean) {
+        viewModelScope.launch { preferences.setAutoRecordCalls(enabled) }
+    }
+
+    fun setCallDurationWarningMinutes(minutes: Int) {
+        viewModelScope.launch { preferences.setCallDurationWarningMinutes(minutes) }
+    }
+
+    fun setVoicemailNumber(number: String) {
+        viewModelScope.launch { preferences.setVoicemailNumber(number) }
+    }
 
     fun setDefaultSim(sim: Int) {
         viewModelScope.launch { preferences.setDefaultSim(sim) }

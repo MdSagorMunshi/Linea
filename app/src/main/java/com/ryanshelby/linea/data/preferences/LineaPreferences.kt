@@ -38,6 +38,8 @@ class LineaPreferences @Inject constructor(
         val KEY_REPEAT_CALL_OVERRIDE = booleanPreferencesKey("repeat_call_override")
         val KEY_AUTO_RECORD_CALLS = booleanPreferencesKey("auto_record_calls")
         val KEY_AUTO_RECORD_CONTACTS_ONLY = booleanPreferencesKey("auto_record_contacts_only")
+        val KEY_CALL_DURATION_WARNING_MINUTES = intPreferencesKey("call_duration_warning_minutes") // 0 = off, 5, 10, 15, 30
+        val KEY_VOICEMAIL_NUMBER = stringPreferencesKey("voicemail_number")
         val KEY_COMPACT_DIALPAD = booleanPreferencesKey("compact_dialpad")
         val KEY_CLEANUP_DAYS = intPreferencesKey("cleanup_days") // 0, 30, 90, 180
         val KEY_BLOCK_UNKNOWN = booleanPreferencesKey("block_unknown")
@@ -57,6 +59,10 @@ class LineaPreferences @Inject constructor(
     val callConfirmationEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_CONFIRMATION] ?: false }
     val callCountdownSeconds: Flow<Int> = dataStore.data.map { it[KEY_CALL_COUNTDOWN_SECONDS] ?: 0 }
     val repeatCallOverride: Flow<Boolean> = dataStore.data.map { it[KEY_REPEAT_CALL_OVERRIDE] ?: true }
+    val autoRecordCalls: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_CALLS] ?: false }
+    val autoRecordContactsOnly: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_CONTACTS_ONLY] ?: false }
+    val callDurationWarningMinutes: Flow<Int> = dataStore.data.map { it[KEY_CALL_DURATION_WARNING_MINUTES] ?: 0 }
+    val voicemailNumber: Flow<String> = dataStore.data.map { it[KEY_VOICEMAIL_NUMBER] ?: "123" }
     val blockUnknown: Flow<Boolean> = dataStore.data.map { it[KEY_BLOCK_UNKNOWN] ?: false }
     val blockPrivate: Flow<Boolean> = dataStore.data.map { it[KEY_BLOCK_PRIVATE] ?: false }
     val blockNonContacts: Flow<Boolean> = dataStore.data.map { it[KEY_BLOCK_NON_CONTACTS] ?: false }
@@ -127,6 +133,22 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setThemePreference(theme: String) {
         dataStore.edit { it[KEY_THEME] = theme }
+    }
+
+    suspend fun setAutoRecordCalls(enabled: Boolean) {
+        dataStore.edit { it[KEY_AUTO_RECORD_CALLS] = enabled }
+    }
+
+    suspend fun setAutoRecordContactsOnly(enabled: Boolean) {
+        dataStore.edit { it[KEY_AUTO_RECORD_CONTACTS_ONLY] = enabled }
+    }
+
+    suspend fun setCallDurationWarningMinutes(minutes: Int) {
+        dataStore.edit { it[KEY_CALL_DURATION_WARNING_MINUTES] = minutes }
+    }
+
+    suspend fun setVoicemailNumber(number: String) {
+        dataStore.edit { it[KEY_VOICEMAIL_NUMBER] = number }
     }
 
     suspend fun setCleanupDays(days: Int) {

@@ -54,6 +54,10 @@ import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PhoneForwarded
+import androidx.compose.material.icons.filled.Voicemail
+
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
@@ -62,6 +66,10 @@ fun SettingsScreen(
     onNavigateToBlocking: () -> Unit,
     onNavigateToDualSim: () -> Unit,
     onNavigateToPermissions: () -> Unit,
+    onNavigateToRecordings: () -> Unit = {},
+    onNavigateToVoicemail: () -> Unit = {},
+    onNavigateToCallForwarding: () -> Unit = {},
+    onNavigateToCallBarring: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -122,12 +130,100 @@ fun SettingsScreen(
             onClick = onNavigateToBlocking
         )
 
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Call Recordings Link
+        SettingsNavCard(
+            icon = Icons.Filled.Mic,
+            title = "Call Recordings",
+            subtitle = "Local audio recordings with playback & export",
+            onClick = onNavigateToRecordings
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Visual Voicemail Link
+        SettingsNavCard(
+            icon = Icons.Filled.Voicemail,
+            title = "Visual Voicemail",
+            subtitle = "On-device inbox with transcription previews",
+            onClick = onNavigateToVoicemail
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Call Forwarding Link
+        SettingsNavCard(
+            icon = Icons.Filled.PhoneForwarded,
+            title = "Call Forwarding",
+            subtitle = "Carrier unconditional & conditional divert rules",
+            onClick = onNavigateToCallForwarding
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Call Barring & FDN Link
+        SettingsNavCard(
+            icon = Icons.Filled.Security,
+            title = "Call Barring & FDN",
+            subtitle = "Network call restrictions & authorized numbers",
+            onClick = onNavigateToCallBarring
+        )
+
         Spacer(modifier = Modifier.height(14.dp))
 
         // Calling Preferences Panel
         FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
                 SettingsSectionHeader(icon = Icons.Filled.Phone, title = "Calling Preferences")
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SettingsToggleRow(
+                    title = "Auto-Record All Calls",
+                    subtitle = "Automatically record cellular calls to private storage",
+                    checked = uiState.autoRecordCalls,
+                    onCheckedChange = { viewModel.setAutoRecordCalls(it) }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Call Duration Warning",
+                    style = LineaTypography.titleSmall,
+                    color = LineaColors.TextPrimary
+                )
+                Text(
+                    text = "Vibrates and alerts when active call exceeds threshold",
+                    style = LineaTypography.bodySmall,
+                    color = LineaColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SelectionPill(
+                        label = "Off",
+                        isSelected = uiState.callDurationWarningMinutes == 0,
+                        onClick = { viewModel.setCallDurationWarningMinutes(0) }
+                    )
+                    SelectionPill(
+                        label = "5 Min",
+                        isSelected = uiState.callDurationWarningMinutes == 5,
+                        onClick = { viewModel.setCallDurationWarningMinutes(5) }
+                    )
+                    SelectionPill(
+                        label = "10 Min",
+                        isSelected = uiState.callDurationWarningMinutes == 10,
+                        onClick = { viewModel.setCallDurationWarningMinutes(10) }
+                    )
+                    SelectionPill(
+                        label = "15 Min",
+                        isSelected = uiState.callDurationWarningMinutes == 15,
+                        onClick = { viewModel.setCallDurationWarningMinutes(15) }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 

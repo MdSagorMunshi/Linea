@@ -8,6 +8,8 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -29,6 +31,9 @@ class InCallActivity : ComponentActivity() {
 
     @Inject
     lateinit var lineaPreferences: LineaPreferences
+
+    @Inject
+    lateinit var callNoteDao: com.ryanshelby.linea.data.local.dao.CallNoteDao
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,6 +58,10 @@ class InCallActivity : ComponentActivity() {
         setContent {
             val reduceAnimations by lineaPreferences.reduceAnimations.collectAsState(initial = false)
             val currentCall by callManager.currentCall.collectAsState()
+            val secondaryCall by callManager.secondaryCall.collectAsState()
+            val isRecording by callManager.isRecording.collectAsState()
+            val recordingDuration by callManager.recordingDurationSeconds.collectAsState()
+            val durationWarningActive by callManager.durationWarningActive.collectAsState()
 
             LaunchedEffect(currentCall?.state) {
                 val state = currentCall?.state
@@ -75,8 +84,15 @@ class InCallActivity : ComponentActivity() {
                                 onQuickSms = { msg -> callManager.rejectCall(rejectWithMessage = true, textMessage = msg) }
                             )
                         } else {
+                            val notes by callNoteDao.getNotesForContact(null, call.phoneNumber).collectAsState(initial = emptyList())
+
                             InCallScreen(
                                 callInfo = call,
+                                secondaryCall = secondaryCall,
+                                isRecording = isRecording,
+                                recordingDurationSeconds = recordingDuration,
+                                durationWarningActive = durationWarningActive,
+                                existingNotes = notes,
                                 onDisconnect = { callManager.disconnectCall() },
                                 onToggleMute = { callManager.toggleMute() },
                                 onToggleSpeaker = { callManager.toggleSpeaker() },
@@ -92,7 +108,24 @@ class InCallActivity : ComponentActivity() {
                                 onAddCall = {
                                     // Allow user to return to dialer to initiate second call
                                     moveTaskToBack(true)
-                                }
+                                },
+                                onToggleRecord = { callManager.toggleRecording() },
+                                onSaveNote = { noteText ->
+                                    this@InCallActivity.lifecycleScope.launch {
+                                        callNoteDao.insertNote(
+                                            com.ryanshelby.linea.data.local.entities.CallNoteEntity(
+                                                phoneNumber = call.phoneNumber,
+                                                noteText = noteText,
+                                                timestamp = System.currentTimeMillis()
+                                            )
+                                        )
+                                    }
+                                },
+                                onAnswerWaitingHold = { callManager.answerWaitingCallAndHoldActive() },
+                                onAnswerWaitingEnd = { callManager.answerWaitingCallAndEndActive() },
+                                onRejectWaiting = { callManager.rejectWaitingCall() },
+                                onSwapCalls = { callManager.swapCalls() },
+                                onMergeConference = { callManager.mergeConference() }
                             )
                         }
                     }

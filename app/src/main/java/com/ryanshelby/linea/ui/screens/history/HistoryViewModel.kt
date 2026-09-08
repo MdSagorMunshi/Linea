@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.ryanshelby.linea.data.local.dao.CallRecordingDao
+import com.ryanshelby.linea.telecom.reminder.CallbackReminderScheduler
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
@@ -35,7 +38,9 @@ class HistoryViewModel @Inject constructor(
     private val phoneAccountManager: PhoneAccountManager,
     private val callNoteDao: CallNoteDao,
     private val callbackReminderDao: CallbackReminderDao,
-    private val blockedNumberDao: BlockedNumberDao
+    private val blockedNumberDao: BlockedNumberDao,
+    private val recordingDao: CallRecordingDao,
+    private val reminderScheduler: CallbackReminderScheduler
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -63,16 +68,22 @@ class HistoryViewModel @Inject constructor(
 
     val dateGroups: StateFlow<List<DateGroup>> = combine(
         rawCallRecords,
+        recordingDao.getAllRecordings(),
         _searchQuery,
         _selectedFilter,
         _expandedItemIds
-    ) { records, query, filter, expandedIds ->
+    ) { records, recordings, query, filter, expandedIds ->
+        val recordedNumbers = recordings.map { it.phoneNumber.filter { c -> c.isDigit() } }.toSet()
+
         // 1. Filter by category
         val filteredByCategory = when (filter) {
             HistoryFilter.ALL -> records
             HistoryFilter.MISSED -> records.filter { it.callType == CallDirectionType.MISSED }
             HistoryFilter.BLOCKED -> records.filter { it.callType == CallDirectionType.BLOCKED }
-            HistoryFilter.RECORDINGS -> records.filter { it.notes?.contains("recording") == true }
+            HistoryFilter.RECORDINGS -> records.filter {
+                it.notes?.contains("recording", ignoreCase = true) == true ||
+                recordedNumbers.contains(it.phoneNumber.filter { c -> c.isDigit() })
+            }
         }
 
         // 2. Filter by search query (name, number, or date)
@@ -177,14 +188,11 @@ class HistoryViewModel @Inject constructor(
 
     fun scheduleCallbackReminder(phoneNumber: String, callerName: String?, delayHours: Long) {
         viewModelScope.launch {
-            val reminderTime = System.currentTimeMillis() + (delayHours * 3600 * 1000)
-            callbackReminderDao.insertReminder(
-                CallbackReminderEntity(
-                    contactId = null,
-                    phoneNumber = phoneNumber,
-                    callerName = callerName,
-                    reminderTime = reminderTime
-                )
+            val delayMs = delayHours * 3600 * 1000
+            reminderScheduler.scheduleReminder(
+                phoneNumber = phoneNumber,
+                callerName = callerName,
+                delayMs = delayMs
             )
         }
     }

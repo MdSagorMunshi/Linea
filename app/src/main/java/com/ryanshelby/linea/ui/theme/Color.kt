@@ -30,6 +30,9 @@ object LineaColors {
     val Warning = MutedRust
     val Success = MutedSageGreen
     val CarmineRed = MutedBrickRed
+    val AccentGreen = MutedSageGreen
+    val AccentAmber = MutedRust
+    val SurfaceElevated = Color(0xFF16191D)
 
     // Text hierarchy
     val TextPrimary = Color(0xFFE8EAED)       // Off-white

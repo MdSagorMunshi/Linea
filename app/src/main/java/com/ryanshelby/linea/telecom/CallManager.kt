@@ -8,12 +8,14 @@ import android.os.Bundle
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.TelecomManager
+import com.ryanshelby.linea.data.local.dao.ContactDao
 import com.ryanshelby.linea.data.local.entities.CallDirectionType
 import com.ryanshelby.linea.data.repository.CallLogRepository
 import com.ryanshelby.linea.notifications.CallNotificationManager
 import com.ryanshelby.linea.ui.incall.InCallActivity
 import com.ryanshelby.linea.telecom.screening.CallScreeningEngine
 import com.ryanshelby.linea.telecom.screening.ScreeningDecision
+import com.ryanshelby.linea.telecom.recorder.CallAudioRecorder
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -67,7 +69,9 @@ class CallManager @Inject constructor(
     private val notificationManager: CallNotificationManager,
     private val proximitySensorManager: ProximitySensorManager,
     private val screeningEngine: CallScreeningEngine,
-    private val preferences: LineaPreferences
+    private val preferences: LineaPreferences,
+    private val audioRecorder: CallAudioRecorder,
+    private val contactDao: ContactDao
 ) {
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -83,6 +87,12 @@ class CallManager @Inject constructor(
 
     private val _isMuted = MutableStateFlow(false)
     val isMuted: StateFlow<Boolean> = _isMuted.asStateFlow()
+
+    val isRecording: StateFlow<Boolean> = audioRecorder.isRecording
+    val recordingDurationSeconds: StateFlow<Long> = audioRecorder.recordingDurationSeconds
+
+    private val _durationWarningActive = MutableStateFlow(false)
+    val durationWarningActive: StateFlow<Boolean> = _durationWarningActive.asStateFlow()
 
     private var inCallService: LineaInCallService? = null
     private var timerJob: Job? = null
@@ -204,6 +214,10 @@ class CallManager @Inject constructor(
                 }
             }
 
+            if (audioRecorder.isCurrentlyRecording()) {
+                audioRecorder.stopRecording()
+            }
+
             _currentCall.value = active.copy(state = LineaCallState.DISCONNECTED)
             _currentCall.value = null
 
@@ -271,6 +285,11 @@ class CallManager @Inject constructor(
                 if (preferences.callVibrationEnabled.first()) {
                     vibrateFeedback(longArrayOf(0, 80))
                 }
+                val normalized = number.filter { it.isDigit() }
+                val isContact = contactDao.findNumberByNormalized(normalized) != null
+                if (audioRecorder.shouldAutoRecord(isContact)) {
+                    audioRecorder.startRecording(number)
+                }
             }
         } else if (previousCallState == LineaCallState.ACTIVE && state == LineaCallState.DISCONNECTED) {
             scope.launch {
@@ -322,12 +341,25 @@ class CallManager @Inject constructor(
     private fun startDurationTimer(connectTime: Long) {
         if (timerJob != null) return
         val baseTime = if (connectTime > 0) connectTime else System.currentTimeMillis()
+        var warningFired = false
+
         timerJob = scope.launch {
+            val warningMinutes = preferences.callDurationWarningMinutes.first()
             while (isActive) {
                 val current = _currentCall.value
                 if (current != null && current.state == LineaCallState.ACTIVE) {
                     val secs = (System.currentTimeMillis() - baseTime) / 1000
                     _currentCall.value = current.copy(durationSeconds = secs)
+
+                    if (warningMinutes > 0 && secs >= (warningMinutes * 60) && !warningFired) {
+                        warningFired = true
+                        _durationWarningActive.value = true
+                        vibrateFeedback(longArrayOf(0, 150, 100, 150))
+                        scope.launch {
+                            delay(6000)
+                            _durationWarningActive.value = false
+                        }
+                    }
                 }
                 delay(1000)
             }
@@ -417,5 +449,46 @@ class CallManager @Inject constructor(
 
     fun setBluetoothAudio() {
         inCallService?.setAudioRoute(CallAudioState.ROUTE_BLUETOOTH)
+    }
+
+    fun answerWaitingCallAndHoldActive() {
+        val secondary = _secondaryCall.value ?: return
+        val active = _currentCall.value
+        active?.call?.hold()
+        secondary.call.answer(0)
+        _currentCall.value = secondary.copy(state = LineaCallState.ACTIVE)
+        if (active != null) {
+            _secondaryCall.value = active.copy(state = LineaCallState.HOLDING)
+        } else {
+            _secondaryCall.value = null
+        }
+    }
+
+    fun answerWaitingCallAndEndActive() {
+        val secondary = _secondaryCall.value ?: return
+        val active = _currentCall.value
+        active?.call?.disconnect()
+        secondary.call.answer(0)
+        _currentCall.value = secondary.copy(state = LineaCallState.ACTIVE)
+        _secondaryCall.value = null
+    }
+
+    fun rejectWaitingCall() {
+        val secondary = _secondaryCall.value ?: return
+        try {
+            secondary.call.reject(Call.REJECT_REASON_DECLINED)
+        } catch (_: Exception) {
+            secondary.call.disconnect()
+        }
+        _secondaryCall.value = null
+    }
+
+    fun toggleRecording() {
+        if (audioRecorder.isCurrentlyRecording()) {
+            audioRecorder.stopRecording()
+        } else {
+            val phone = _currentCall.value?.phoneNumber ?: return
+            audioRecorder.startRecording(phone)
+        }
     }
 }
