@@ -32,21 +32,26 @@ class CallLogRepository @Inject constructor(
         simDisplayName: String? = null,
         networkType: String = "VoLTE"
     ) = withContext(Dispatchers.IO) {
-        // 1. Insert into LINEA local Room database
-        val record = CallRecordEntity(
-            phoneNumber = phoneNumber,
-            formattedNumber = formattedNumber,
-            callerName = callerName,
-            photoUri = photoUri,
-            callType = direction,
-            timestamp = timestamp,
-            durationSeconds = durationSeconds,
-            simSlot = simSlot,
-            simDisplayName = simDisplayName,
-            networkType = networkType,
-            sessionGroupId = "session_${phoneNumber.filter { it.isDigit() }}"
-        )
-        callRecordDao.insertCallRecord(record)
+        if (phoneNumber.isBlank()) return@withContext
+
+        // Check if this call was already logged to prevent duplicates
+        if (callRecordDao.hasRecordNearTimestamp(phoneNumber, timestamp) == 0) {
+            // 1. Insert into LINEA local Room database
+            val record = CallRecordEntity(
+                phoneNumber = phoneNumber,
+                formattedNumber = formattedNumber,
+                callerName = callerName,
+                photoUri = photoUri,
+                callType = direction,
+                timestamp = timestamp,
+                durationSeconds = durationSeconds,
+                simSlot = simSlot,
+                simDisplayName = simDisplayName,
+                networkType = networkType,
+                sessionGroupId = "session_${phoneNumber.filter { it.isDigit() }}"
+            )
+            callRecordDao.insertCallRecord(record)
+        }
 
         // 2. Insert into Android System CallLog Provider
         try {
@@ -90,6 +95,13 @@ class CallLogRepository @Inject constructor(
 
     @SuppressLint("Range")
     suspend fun syncSystemCallLog() = withContext(Dispatchers.IO) {
+        // 1. Purge any duplicate records already accumulated in the Room DB
+        try {
+            callRecordDao.deduplicateRecords()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         val projection = arrayOf(
             CallLog.Calls._ID,
             CallLog.Calls.NUMBER,
@@ -132,18 +144,21 @@ class CallLogRepository @Inject constructor(
                     }
 
                     if (number.isNotBlank()) {
-                        val record = CallRecordEntity(
-                            phoneNumber = number,
-                            formattedNumber = number,
-                            callerName = name,
-                            callType = direction,
-                            timestamp = timestamp,
-                            durationSeconds = duration,
-                            simSlot = 0,
-                            simDisplayName = "SIM 1",
-                            sessionGroupId = "session_${number.filter { c -> c.isDigit() }}"
-                        )
-                        callRecordDao.insertCallRecord(record)
+                        // Prevent inserting duplicates during system sync
+                        if (callRecordDao.hasRecordNearTimestamp(number, timestamp) == 0) {
+                            val record = CallRecordEntity(
+                                phoneNumber = number,
+                                formattedNumber = number,
+                                callerName = name,
+                                callType = direction,
+                                timestamp = timestamp,
+                                durationSeconds = duration,
+                                simSlot = 0,
+                                simDisplayName = "SIM 1",
+                                sessionGroupId = "session_${number.filter { c -> c.isDigit() }}"
+                            )
+                            callRecordDao.insertCallRecord(record)
+                        }
                     }
                 }
             }

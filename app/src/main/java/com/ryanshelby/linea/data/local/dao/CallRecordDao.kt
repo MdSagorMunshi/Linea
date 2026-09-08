@@ -53,4 +53,21 @@ interface CallRecordDao {
 
     @Query("DELETE FROM call_records WHERE timestamp < :cutoffTimestamp AND isPrivateContact = 0")
     suspend fun deleteRecordsOlderThan(cutoffTimestamp: Long): Int
+
+    @Query("""
+        SELECT COUNT(*) FROM call_records 
+        WHERE (phoneNumber = :number OR REPLACE(REPLACE(REPLACE(phoneNumber, '+', ''), '-', ''), ' ', '') = REPLACE(REPLACE(REPLACE(:number, '+', ''), '-', ''), ' ', ''))
+        AND ABS(timestamp - :timestamp) <= 5000
+    """)
+    suspend fun hasRecordNearTimestamp(number: String, timestamp: Long): Int
+
+    @Query("""
+        DELETE FROM call_records 
+        WHERE id NOT IN (
+            SELECT MIN(id) 
+            FROM call_records 
+            GROUP BY REPLACE(REPLACE(REPLACE(phoneNumber, '+', ''), '-', ''), ' ', ''), timestamp, callType
+        )
+    """)
+    suspend fun deduplicateRecords(): Int
 }
