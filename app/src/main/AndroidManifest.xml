@@ -50,6 +50,13 @@
             </intent-filter>
 
             <!-- Default Dialer Action Filters -->
+            <!-- 1. Mandatory for ROLE_DIALER: DIAL without data scheme -->
+            <intent-filter>
+                <action android:name="android.intent.action.DIAL" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- 2. Mandatory for ROLE_DIALER: DIAL with tel & voicemail schemes -->
             <intent-filter>
                 <action android:name="android.intent.action.DIAL" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -70,6 +77,11 @@
                 <action android:name="android.intent.action.CALL" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="tel" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.CALL_BUTTON" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
