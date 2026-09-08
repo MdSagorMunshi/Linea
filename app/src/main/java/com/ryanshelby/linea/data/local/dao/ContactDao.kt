@@ -90,4 +90,22 @@ interface ContactDao {
         alwaysRing: Boolean,
         ringtoneUri: String?
     )
+
+    @Query("SELECT * FROM contacts WHERE androidContactId = :androidContactId LIMIT 1")
+    suspend fun getContactByAndroidId(androidContactId: Long): ContactEntity?
+
+    @Query("SELECT * FROM contacts WHERE displayName = :displayName LIMIT 1")
+    suspend fun getContactByName(displayName: String): ContactEntity?
+
+    @Query("SELECT * FROM contacts")
+    suspend fun getAllContactsOnce(): List<ContactEntity>
+
+    @Query("DELETE FROM contact_numbers WHERE contactId = :contactId")
+    suspend fun deleteNumbersForContact(contactId: Long)
+
+    @Query("SELECT * FROM contact_numbers WHERE contactId = :contactId")
+    suspend fun getNumbersForContactOnce(contactId: Long): List<ContactNumberEntity>
+
+    @Query("UPDATE contact_numbers SET contactId = :newContactId WHERE contactId = :oldContactId")
+    suspend fun reassignNumbersContact(oldContactId: Long, newContactId: Long)
 }

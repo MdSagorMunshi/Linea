@@ -41,7 +41,8 @@ class CallScreeningEngine @Inject constructor(
     private val contactDao: ContactDao,
     private val callRecordDao: CallRecordDao,
     private val preferences: LineaPreferences,
-    private val repeatCallTracker: RepeatCallTracker
+    private val repeatCallTracker: RepeatCallTracker,
+    private val contactLookupHelper: com.ryanshelby.linea.telecom.ContactLookupHelper
 ) {
 
     suspend fun screenCall(
@@ -58,92 +59,34 @@ class CallScreeningEngine @Inject constructor(
             repeatCallTracker.recordAttempt(normalizedNumber, currentTimeMillis)
         }
 
-        // 1. Private or Hidden Caller ID check
-        val isHidden = isPrivate || rawNumber.isBlank() || rawNumber.equals("private", ignoreCase = true) || rawNumber.equals("unknown", ignoreCase = true)
-        val blockPrivatePref = preferences.blockPrivate.first()
-        if (isHidden && blockPrivatePref) {
-            return ScreeningDecision.Block(
-                action = BlockAction.SILENT_REJECT,
-                reason = "Private/Hidden Caller ID Blocked",
-                matchedRuleType = "PRIVATE"
-            )
-        }
-
-        // 2. Lookup Contact (if number present)
+        // 1. Resolve Contact identity (checks both system ContactsContract and local Room DB)
         val contactNumber = if (normalizedNumber.isNotBlank()) {
             contactDao.findNumberByNormalized(normalizedNumber)
         } else null
 
-        val contact = if (contactNumber != null) {
+        val localContact = if (contactNumber != null) {
             contactDao.getContactById(contactNumber.contactId)
         } else null
 
-        // 3. Contact Override: Always allow calls through if rule override is enabled
-        if (contact != null && (contact.allowDuringRestrictedHours || contact.alwaysRing)) {
+        val systemContactLookup = if (rawNumber.isNotBlank()) {
+            contactLookupHelper.lookupContact(rawNumber)
+        } else null
+
+        val isKnownContact = localContact != null || systemContactLookup?.displayName != null
+
+        // 2. Contact Override: If contact has VIP rules, always allow immediately
+        if (localContact != null && (localContact.allowDuringRestrictedHours || localContact.alwaysRing)) {
             return ScreeningDecision.Allow
         }
 
-        // 4. Emergency Repeat-Call Override ("Allow if called 3 times in 5 minutes")
-        val repeatOverridePref = preferences.repeatCallOverride.first()
-        if (repeatOverridePref && normalizedNumber.isNotBlank()) {
-            val fiveMinutesAgo = currentTimeMillis - (5 * 60 * 1000L)
-            val recentCallsCount = callRecordDao.getRecentCallCountForNumber(normalizedNumber, fiveMinutesAgo)
-            val trackedAttempts = repeatCallTracker.getRecentAttemptsCount(normalizedNumber, fiveMinutesAgo)
-            // If caller has called at least twice in the past 5 minutes, this 3rd attempt is allowed!
-            if (recentCallsCount >= 2 || trackedAttempts >= 3) {
-                return ScreeningDecision.Allow
-            }
-        }
-
-        // 5. Allow-List Mode Check (Only allowed if contact exists)
-        val allowListMode = preferences.allowListMode.first()
-        if (allowListMode && contact == null) {
-            return ScreeningDecision.Block(
-                action = BlockAction.SILENT_REJECT,
-                reason = "Allow-List Mode Active (Non-Contact)",
-                matchedRuleType = "ALLOW_LIST"
-            )
-        }
-
-        // 6. Block Non-Contacts Preference
-        val blockNonContactsPref = preferences.blockNonContacts.first()
-        if (blockNonContactsPref && contact == null && !isHidden) {
-            return ScreeningDecision.Block(
-                action = BlockAction.SILENT_REJECT,
-                reason = "Non-Contact Callers Blocked",
-                matchedRuleType = "NON_CONTACT"
-            )
-        }
-
-        // 7. Block Unknown / Empty Number Preference
-        val blockUnknownPref = preferences.blockUnknown.first()
-        if (blockUnknownPref && isHidden) {
-            return ScreeningDecision.Block(
-                action = BlockAction.SILENT_REJECT,
-                reason = "Unknown Caller ID Blocked",
-                matchedRuleType = "UNKNOWN"
-            )
-        }
-
-        // 8. Block International Calls Preference
-        val blockInternationalPref = preferences.blockInternational.first()
-        if (blockInternationalPref && isInternationalNumber(rawNumber)) {
-            return ScreeningDecision.Block(
-                action = BlockAction.SILENT_REJECT,
-                reason = "International Numbers Blocked",
-                matchedRuleType = "INTERNATIONAL"
-            )
-        }
-
-        // 9. Evaluate Active Blocked Numbers Rules
+        // 3. Evaluate Active Blocked Numbers Rules (Explicit user manual blacklist)
         val activeBlockedRules = blockedNumberDao.getActiveBlockedNumbers(currentTimeMillis)
         for (rule in activeBlockedRules) {
-            // Check temporary expiration if rule has expiresAt
             if (rule.expiresAt != null && rule.expiresAt <= currentTimeMillis) {
                 continue
             }
 
-            if (matchesBlockedRule(rule, rawNumber, normalizedNumber, contact != null)) {
+            if (matchesBlockedRule(rule, rawNumber, normalizedNumber, isKnownContact)) {
                 return ScreeningDecision.Block(
                     action = rule.blockAction,
                     reason = rule.reason ?: "Blocked via Rule #${rule.id}",
@@ -153,18 +96,96 @@ class CallScreeningEngine @Inject constructor(
             }
         }
 
-        // 10. Evaluate Scheduled Quiet Hours & Call Rules
+        // 4. Default: Zero Call Blocking Logic unless explicitly configured in Settings
+        val callBlockingMasterPref = preferences.callBlockingEnabled.first()
+        val blockPrivatePref = preferences.blockPrivate.first()
+        val allowListMode = preferences.allowListMode.first()
+        val blockNonContactsPref = preferences.blockNonContacts.first()
+        val blockUnknownPref = preferences.blockUnknown.first()
+        val blockInternationalPref = preferences.blockInternational.first()
         val activeCallRules = callRuleDao.getActiveRules()
+
+        val hasActiveScreeningFeature = callBlockingMasterPref ||
+                blockPrivatePref ||
+                allowListMode ||
+                blockNonContactsPref ||
+                blockUnknownPref ||
+                blockInternationalPref ||
+                activeCallRules.isNotEmpty()
+
+        if (!hasActiveScreeningFeature) {
+            // Default mode: no rules configured -> always allow all incoming calls!
+            return ScreeningDecision.Allow
+        }
+
+        // 5. Emergency Repeat-Call Override ("Allow if called 3 times in 5 minutes")
+        val repeatOverridePref = preferences.repeatCallOverride.first()
+        if (repeatOverridePref && normalizedNumber.isNotBlank()) {
+            val fiveMinutesAgo = currentTimeMillis - (5 * 60 * 1000L)
+            val recentCallsCount = callRecordDao.getRecentCallCountForNumber(normalizedNumber, fiveMinutesAgo)
+            val trackedAttempts = repeatCallTracker.getRecentAttemptsCount(normalizedNumber, fiveMinutesAgo)
+            if (recentCallsCount >= 2 || trackedAttempts >= 3) {
+                return ScreeningDecision.Allow
+            }
+        }
+
+        // 6. Private or Hidden Caller ID check
+        val isHidden = isPrivate || rawNumber.isBlank() || rawNumber.equals("private", ignoreCase = true) || rawNumber.equals("unknown", ignoreCase = true)
+        if (isHidden && blockPrivatePref) {
+            return ScreeningDecision.Block(
+                action = BlockAction.SILENT_REJECT,
+                reason = "Private/Hidden Caller ID Blocked",
+                matchedRuleType = "PRIVATE"
+            )
+        }
+
+        // 7. Allow-List Mode Check (Only allowed if contact exists)
+        if (allowListMode && !isKnownContact) {
+            return ScreeningDecision.Block(
+                action = BlockAction.SILENT_REJECT,
+                reason = "Allow-List Mode Active (Non-Contact)",
+                matchedRuleType = "ALLOW_LIST"
+            )
+        }
+
+        // 8. Block Non-Contacts Preference
+        if (blockNonContactsPref && !isKnownContact && !isHidden) {
+            return ScreeningDecision.Block(
+                action = BlockAction.SILENT_REJECT,
+                reason = "Non-Contact Callers Blocked",
+                matchedRuleType = "NON_CONTACT"
+            )
+        }
+
+        // 9. Block Unknown / Empty Number Preference
+        if (blockUnknownPref && isHidden) {
+            return ScreeningDecision.Block(
+                action = BlockAction.SILENT_REJECT,
+                reason = "Unknown Caller ID Blocked",
+                matchedRuleType = "UNKNOWN"
+            )
+        }
+
+        // 10. Block International Calls Preference
+        if (blockInternationalPref && isInternationalNumber(rawNumber)) {
+            return ScreeningDecision.Block(
+                action = BlockAction.SILENT_REJECT,
+                reason = "International Numbers Blocked",
+                matchedRuleType = "INTERNATIONAL"
+            )
+        }
+
+        // 11. Evaluate Scheduled Quiet Hours & Call Rules (Only if rules are active)
         for (rule in activeCallRules) {
             if (matchesScheduleRule(rule, currentTimeMillis, simSlot)) {
                 val isAllowed = when (rule.allowedFilter) {
                     RuleAllowedFilter.ALL -> true
-                    RuleAllowedFilter.FAVORITES_ONLY -> contact != null && contact.isFavorite
+                    RuleAllowedFilter.FAVORITES_ONLY -> localContact?.isFavorite == true
                     RuleAllowedFilter.SPECIFIC_GROUP -> {
-                        if (contact == null || rule.allowedGroupId == null) {
+                        if (localContact == null || rule.allowedGroupId == null) {
                             false
                         } else {
-                            contactDao.isContactInGroup(rule.allowedGroupId, contact.id) > 0
+                            contactDao.isContactInGroup(rule.allowedGroupId, localContact.id) > 0
                         }
                     }
                 }
@@ -227,6 +248,18 @@ class CallScreeningEngine @Inject constructor(
     }
 
     fun normalize(number: String): String = ScreeningRuleMatcher.normalize(number)
+
+    suspend fun purgeLegacySeededRules() {
+        try {
+            val rules = callRuleDao.getActiveRules()
+            val dummyNames = setOf("Nighttime Favorites Only", "Workday Priority Only")
+            for (rule in rules) {
+                if (rule.name in dummyNames) {
+                    callRuleDao.deleteRuleById(rule.id)
+                }
+            }
+        } catch (_: Exception) {}
+    }
 }
 
 object ScreeningRuleMatcher {

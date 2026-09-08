@@ -5,7 +5,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import com.ryanshelby.linea.telecom.PhoneAccountManager
+import com.ryanshelby.linea.telecom.screening.CallScreeningEngine
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -13,6 +17,9 @@ class LineaApp : Application() {
 
     @Inject
     lateinit var phoneAccountManager: PhoneAccountManager
+
+    @Inject
+    lateinit var screeningEngine: CallScreeningEngine
 
     companion object {
         const val CHANNEL_ONGOING_CALLS = "linea_ongoing_calls"
@@ -32,6 +39,15 @@ class LineaApp : Application() {
         setupLifecycleTracking()
         createNotificationChannels()
         registerPhoneAccounts()
+        purgeLegacyRules()
+    }
+
+    private fun purgeLegacyRules() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                screeningEngine.purgeLegacySeededRules()
+            } catch (_: Exception) {}
+        }
     }
 
     private fun setupLifecycleTracking() {

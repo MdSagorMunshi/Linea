@@ -51,6 +51,7 @@ class LineaPreferences @Inject constructor(
         val KEY_PRIVATE_MODE_UNLOCKED = booleanPreferencesKey("private_mode_unlocked")
         val KEY_PRIVATE_MODE_PIN = stringPreferencesKey("private_mode_pin")
         val KEY_HISTORY_VIEW_MODE = stringPreferencesKey("history_view_mode") // FEED, SESSIONS
+        val KEY_CALL_BLOCKING_ENABLED = booleanPreferencesKey("call_blocking_enabled")
         val KEY_OPT_IN_LOCATION_TAG = booleanPreferencesKey("opt_in_location_tag")
     }
 
@@ -81,6 +82,7 @@ class LineaPreferences @Inject constructor(
     val privateModeUnlocked: Flow<Boolean> = dataStore.data.map { it[KEY_PRIVATE_MODE_UNLOCKED] ?: false }
     val privateModePin: Flow<String> = dataStore.data.map { it[KEY_PRIVATE_MODE_PIN] ?: "1234" }
     val historyViewMode: Flow<String> = dataStore.data.map { it[KEY_HISTORY_VIEW_MODE] ?: "FEED" }
+    val callBlockingEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_BLOCKING_ENABLED] ?: false }
     val optInLocationTag: Flow<Boolean> = dataStore.data.map { it[KEY_OPT_IN_LOCATION_TAG] ?: false }
 
     suspend fun setReduceAnimations(enabled: Boolean) {
@@ -189,6 +191,10 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setHistoryViewMode(mode: String) {
         dataStore.edit { it[KEY_HISTORY_VIEW_MODE] = mode }
+    }
+
+    suspend fun setCallBlockingEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_CALL_BLOCKING_ENABLED] = enabled }
     }
 
     suspend fun setOptInLocationTag(enabled: Boolean) {

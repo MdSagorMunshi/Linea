@@ -14,6 +14,8 @@ import com.ryanshelby.linea.telecom.CallManager
 import com.ryanshelby.linea.telecom.PhoneAccountManager
 import com.ryanshelby.linea.telecom.logic.AvailabilityInsight
 import com.ryanshelby.linea.telecom.logic.AvailabilityInsightEngine
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +47,7 @@ data class ContactDashboardState(
 
 @HiltViewModel
 class ContactDashboardViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val contactDao: ContactDao,
     private val callRecordDao: CallRecordDao,
     private val callNoteDao: CallNoteDao,
@@ -68,7 +71,51 @@ class ContactDashboardViewModel @Inject constructor(
 
         viewModelScope.launch {
             val contact = contactDao.getContactById(targetId) ?: return@launch
-            val numbers = contactDao.getNumbersForContact(targetId).first()
+            var numbers = contactDao.getNumbersForContact(targetId).first()
+
+            if (numbers.isEmpty() && contact.androidContactId != null && contact.androidContactId > 0) {
+                val fetchedNumbers = mutableListOf<ContactNumberEntity>()
+                try {
+                    val cursor = context.contentResolver.query(
+                        android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        arrayOf(
+                            android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER,
+                            android.provider.ContactsContract.CommonDataKinds.Phone.TYPE
+                        ),
+                        "${android.provider.ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                        arrayOf(contact.androidContactId.toString()),
+                        null
+                    )
+                    cursor?.use {
+                        val numIdx = it.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER)
+                        val typeIdx = it.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.TYPE)
+                        while (it.moveToNext()) {
+                            val numStr = if (numIdx >= 0) it.getString(numIdx) ?: "" else ""
+                            val typeInt = if (typeIdx >= 0) it.getInt(typeIdx) else 0
+                            val label = when (typeInt) {
+                                android.provider.ContactsContract.CommonDataKinds.Phone.TYPE_HOME -> "Home"
+                                android.provider.ContactsContract.CommonDataKinds.Phone.TYPE_WORK -> "Work"
+                                else -> "Mobile"
+                            }
+                            if (numStr.isNotBlank() && fetchedNumbers.none { fn -> fn.number == numStr }) {
+                                fetchedNumbers.add(
+                                    ContactNumberEntity(
+                                        contactId = targetId,
+                                        number = numStr,
+                                        normalizedNumber = numStr.filter { ch -> ch.isDigit() || ch == '+' },
+                                        label = label,
+                                        isPrimary = fetchedNumbers.isEmpty()
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    if (fetchedNumbers.isNotEmpty()) {
+                        contactDao.insertNumbers(fetchedNumbers)
+                        numbers = fetchedNumbers
+                    }
+                } catch (_: Exception) {}
+            }
 
             // Fetch call records for all numbers belonging to this contact
             val allRecords = mutableListOf<CallRecordEntity>()

@@ -1,10 +1,16 @@
 package com.ryanshelby.linea.ui.screens.contacts
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,7 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -32,6 +40,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ContactDashboardScreen(
     contactId: Long,
@@ -222,6 +231,130 @@ fun ContactDashboardScreen(
                                         context.startActivity(Intent.createChooser(shareIntent, "Share Contact"))
                                     }
                                 )
+                            }
+                        }
+                    }
+                }
+
+                // Phone Numbers Card with 1-second hold-to-copy
+                item {
+                    val haptic = LocalHapticFeedback.current
+                    FrostedGlassBox(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Phone Numbers",
+                                    style = LineaTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = LineaColors.TextPrimary
+                                )
+                                Text(
+                                    text = "Hold 1s to copy",
+                                    style = LineaTypography.labelSmall,
+                                    color = LineaColors.TextTertiary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            if (state.numbers.isEmpty()) {
+                                Text(
+                                    text = "No phone numbers added",
+                                    style = LineaTypography.bodyMedium,
+                                    color = LineaColors.TextTertiary
+                                )
+                            } else {
+                                state.numbers.forEachIndexed { index, numEntity ->
+                                    if (index > 0) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(vertical = 8.dp),
+                                            color = LineaColors.GlassBorder.copy(alpha = 0.4f)
+                                        )
+                                    }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .combinedClickable(
+                                                onClick = {
+                                                    viewModel.placeCall(numEntity.number)
+                                                },
+                                                onLongClick = {
+                                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                    val clip = ClipData.newPlainText("Phone Number", numEntity.number)
+                                                    clipboard.setPrimaryClip(clip)
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    Toast.makeText(context, "Copied ${numEntity.number} to clipboard", Toast.LENGTH_SHORT).show()
+                                                }
+                                            )
+                                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = numEntity.number,
+                                                style = LineaTypography.bodyLarge.copy(
+                                                    fontFeatureSettings = "tnum",
+                                                    fontWeight = FontWeight.SemiBold
+                                                ),
+                                                color = LineaColors.TextPrimary
+                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = numEntity.label,
+                                                    style = LineaTypography.bodySmall,
+                                                    color = LineaColors.TextSecondary
+                                                )
+                                                if (state.preferredSimSlot != null) {
+                                                    Text(
+                                                        text = " • SIM ${state.preferredSimSlot!! + 1}",
+                                                        style = LineaTypography.bodySmall,
+                                                        color = LineaColors.TitaniumBlue
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(
+                                                onClick = {
+                                                    val smsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("sms:${numEntity.number}"))
+                                                    context.startActivity(smsIntent)
+                                                },
+                                                modifier = Modifier.size(38.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Message,
+                                                    contentDescription = "SMS",
+                                                    tint = LineaColors.TextSecondary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { viewModel.placeCall(numEntity.number) },
+                                                modifier = Modifier.size(38.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Call,
+                                                    contentDescription = "Call",
+                                                    tint = LineaColors.Success,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

@@ -1,10 +1,16 @@
 package com.ryanshelby.linea.ui.screens.contacts
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +26,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
@@ -66,7 +74,7 @@ import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ContactDetailSheet(
     contact: ContactEntity,
@@ -241,11 +249,22 @@ fun ContactDetailSheet(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text(
-                        text = "Phone Numbers",
-                        style = LineaTypography.labelSmall,
-                        color = LineaColors.TextSecondary
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Phone Numbers",
+                            style = LineaTypography.labelSmall,
+                            color = LineaColors.TextSecondary
+                        )
+                        Text(
+                            text = "Hold 1s to copy",
+                            style = LineaTypography.labelSmall,
+                            color = LineaColors.TextTertiary
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
 
                     if (numbers.isEmpty()) {
@@ -255,15 +274,27 @@ fun ContactDetailSheet(
                             color = LineaColors.TextTertiary
                         )
                     } else {
+                        val haptic = LocalHapticFeedback.current
                         numbers.forEach { numEntity ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .combinedClickable(
+                                        onClick = { onCallNumber(numEntity.number, contact.preferredSimSlot) },
+                                        onLongClick = {
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            val clip = ClipData.newPlainText("Phone Number", numEntity.number)
+                                            clipboard.setPrimaryClip(clip)
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            Toast.makeText(context, "Copied ${numEntity.number} to clipboard", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                    .padding(vertical = 6.dp, horizontal = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = numEntity.number,
                                         style = LineaTypography.bodyLarge.copy(
