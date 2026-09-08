@@ -116,16 +116,36 @@ fun SettingsScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "Settings",
-            style = LineaTypography.headlineLarge,
-            color = LineaColors.TextPrimary
-        )
-        Text(
-            text = "Telecom configuration & on-device security",
-            style = LineaTypography.bodyMedium,
-            color = LineaColors.TextSecondary
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = com.ryanshelby.linea.R.drawable.ic_linea_logo),
+                contentDescription = "Linea Logo",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(
+                        LineaDimensions.HairlineBorder,
+                        LineaColors.GlassBorder,
+                        RoundedCornerShape(12.dp)
+                    )
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column {
+                Text(
+                    text = "Settings",
+                    style = LineaTypography.headlineLarge,
+                    color = LineaColors.TextPrimary
+                )
+                Text(
+                    text = "Telecom configuration & on-device security",
+                    style = LineaTypography.bodyMedium,
+                    color = LineaColors.TextSecondary
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -619,6 +639,47 @@ fun SettingsScreen(
             badge = "VIEW STATUS",
             onClick = onNavigateToPermissions
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // About Linea Card
+        FrostedGlassBox(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = com.ryanshelby.linea.R.drawable.ic_linea_logo),
+                    contentDescription = "Linea",
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Linea Dialer",
+                    style = LineaTypography.titleLarge,
+                    color = LineaColors.TextPrimary
+                )
+                Text(
+                    text = "Version 1.0.0 • Post-Quantum Secure",
+                    style = LineaTypography.labelSmall,
+                    color = LineaColors.TitaniumBlue
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "On-device SQLite • AES-256-GCM Vault • Zero-telemetry",
+                    style = LineaTypography.bodySmall,
+                    color = LineaColors.TextTertiary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(110.dp))
     }
