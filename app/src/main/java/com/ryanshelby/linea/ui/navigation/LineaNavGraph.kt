@@ -3,8 +3,12 @@ package com.ryanshelby.linea.ui.navigation
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -63,6 +67,13 @@ fun LineaNavGraph(
 
     val settingsState by settingsViewModel.uiState.collectAsState()
 
+    // Hoisted scroll states to preserve exact positions across sub-screen visits and tab switches
+    // Resets cleanly only when the app process is closed (cold restart)
+    val contactsListState = rememberLazyListState()
+    val settingsScrollState = rememberScrollState()
+    val historySessionsListState = rememberLazyListState()
+    val historyFeedListState = rememberLazyListState()
+
     // Handle system back gestures seamlessly across all sub-screens
     BackHandler(enabled = activeContactDashboardId != null) {
         activeContactDashboardId = null
@@ -77,127 +88,157 @@ fun LineaNavGraph(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        if (activeContactDashboardId != null) {
-            com.ryanshelby.linea.ui.screens.contacts.ContactDashboardScreen(
-                contactId = activeContactDashboardId!!,
-                onNavigateBack = { activeContactDashboardId = null }
-            )
-        } else if (settingsSubScreen != null) {
-            when (settingsSubScreen) {
-                SettingsSubScreen.BLOCKING -> {
-                    BlockingScreen(
-                        viewModel = blockingViewModel,
-                        onNavigateBack = { settingsSubScreen = null }
+        // Base screens (kept in composition so scroll position and UI states are preserved smoothly)
+        Crossfade(
+            targetState = currentDestination,
+            animationSpec = tween(durationMillis = if (reduceAnim) 120 else 220),
+            label = "screen_crossfade"
+        ) { destination ->
+            when (destination) {
+                LineaDestination.DIALPAD -> {
+                    DialpadScreen(
+                        isDefaultDialer = isDefaultDialer,
+                        simAccounts = simAccounts,
+                        onRequestDefaultDialer = onRequestDefaultDialer
                     )
                 }
-                SettingsSubScreen.DUAL_SIM -> {
-                    DualSimScreen(
-                        phoneAccountManager = phoneAccountManager,
-                        preferences = lineaPreferences,
-                        onNavigateBack = { settingsSubScreen = null }
+                LineaDestination.HISTORY -> {
+                    HistoryScreen(
+                        sessionsListState = historySessionsListState,
+                        feedListState = historyFeedListState
                     )
                 }
-                SettingsSubScreen.PERMISSIONS -> {
-                    PermissionsScreen(
+                LineaDestination.CONTACTS -> {
+                    ContactsScreen(
+                        listState = contactsListState,
+                        onContactClick = { contactId -> activeContactDashboardId = contactId }
+                    )
+                }
+                LineaDestination.SETTINGS -> {
+                    SettingsScreen(
+                        viewModel = settingsViewModel,
                         isDefaultDialer = isDefaultDialer,
                         onRequestDefaultDialer = onRequestDefaultDialer,
-                        onNavigateBack = { settingsSubScreen = null }
+                        scrollState = settingsScrollState,
+                        onNavigateToBlocking = { settingsSubScreen = SettingsSubScreen.BLOCKING },
+                        onNavigateToDualSim = { settingsSubScreen = SettingsSubScreen.DUAL_SIM },
+                        onNavigateToPermissions = { settingsSubScreen = SettingsSubScreen.PERMISSIONS },
+                        onNavigateToRecordings = { settingsSubScreen = SettingsSubScreen.RECORDINGS },
+                        onNavigateToVoicemail = { settingsSubScreen = SettingsSubScreen.VOICEMAIL },
+                        onNavigateToCallForwarding = { settingsSubScreen = SettingsSubScreen.CALL_FORWARDING },
+                        onNavigateToCallBarring = { settingsSubScreen = SettingsSubScreen.CALL_BARRING_FDN },
+                        onNavigateToCallRules = { settingsSubScreen = SettingsSubScreen.CALL_RULES },
+                        onNavigateToDiagnostics = { settingsSubScreen = SettingsSubScreen.DIAGNOSTICS },
+                        onNavigateToStats = { settingsSubScreen = SettingsSubScreen.STATS },
+                        onNavigateToBackup = { settingsSubScreen = SettingsSubScreen.BACKUP }
                     )
-                }
-                SettingsSubScreen.RECORDINGS -> {
-                    com.ryanshelby.linea.ui.screens.recordings.RecordingsScreen(
-                        onNavigateBack = { settingsSubScreen = null }
-                    )
-                }
-                SettingsSubScreen.VOICEMAIL -> {
-                    com.ryanshelby.linea.ui.screens.voicemail.VoicemailScreen(
-                        onNavigateBack = { settingsSubScreen = null }
-                    )
-                }
-                SettingsSubScreen.CALL_FORWARDING -> {
-                    com.ryanshelby.linea.ui.screens.settings.telecom.CallForwardingScreen(
-                        simAccounts = simAccounts,
-                        onNavigateBack = { settingsSubScreen = null }
-                    )
-                }
-                SettingsSubScreen.CALL_BARRING_FDN -> {
-                    com.ryanshelby.linea.ui.screens.settings.telecom.CallBarringFdnScreen(
-                        simAccounts = simAccounts,
-                        onNavigateBack = { settingsSubScreen = null }
-                    )
-                }
-                SettingsSubScreen.CALL_RULES -> {
-                    com.ryanshelby.linea.ui.screens.rules.CallRulesScreen(
-                        onNavigateBack = { settingsSubScreen = null }
-                    )
-                }
-                SettingsSubScreen.DIAGNOSTICS -> {
-                    com.ryanshelby.linea.ui.screens.diagnostics.CallDiagnosticsScreen(
-                        onNavigateBack = { settingsSubScreen = null }
-                    )
-                }
-                SettingsSubScreen.STATS -> {
-                    com.ryanshelby.linea.ui.screens.stats.CallStatsScreen(
-                        onNavigateBack = { settingsSubScreen = null }
-                    )
-                }
-                SettingsSubScreen.BACKUP -> {
-                    com.ryanshelby.linea.ui.screens.backup.BackupRestoreScreen(
-                        onNavigateBack = { settingsSubScreen = null }
-                    )
-                }
-                null -> Unit
-            }
-        } else {
-            Crossfade(
-                targetState = currentDestination,
-                animationSpec = tween(durationMillis = if (reduceAnim) 120 else 220),
-                label = "screen_crossfade"
-            ) { destination ->
-                when (destination) {
-                    LineaDestination.DIALPAD -> {
-                        DialpadScreen(
-                            isDefaultDialer = isDefaultDialer,
-                            simAccounts = simAccounts,
-                            onRequestDefaultDialer = onRequestDefaultDialer
-                        )
-                    }
-                    LineaDestination.HISTORY -> {
-                        HistoryScreen()
-                    }
-                    LineaDestination.CONTACTS -> {
-                        ContactsScreen(
-                            onContactClick = { contactId -> activeContactDashboardId = contactId }
-                        )
-                    }
-                    LineaDestination.SETTINGS -> {
-                        SettingsScreen(
-                            viewModel = settingsViewModel,
-                            isDefaultDialer = isDefaultDialer,
-                            onRequestDefaultDialer = onRequestDefaultDialer,
-                            onNavigateToBlocking = { settingsSubScreen = SettingsSubScreen.BLOCKING },
-                            onNavigateToDualSim = { settingsSubScreen = SettingsSubScreen.DUAL_SIM },
-                            onNavigateToPermissions = { settingsSubScreen = SettingsSubScreen.PERMISSIONS },
-                            onNavigateToRecordings = { settingsSubScreen = SettingsSubScreen.RECORDINGS },
-                            onNavigateToVoicemail = { settingsSubScreen = SettingsSubScreen.VOICEMAIL },
-                            onNavigateToCallForwarding = { settingsSubScreen = SettingsSubScreen.CALL_FORWARDING },
-                            onNavigateToCallBarring = { settingsSubScreen = SettingsSubScreen.CALL_BARRING_FDN },
-                            onNavigateToCallRules = { settingsSubScreen = SettingsSubScreen.CALL_RULES },
-                            onNavigateToDiagnostics = { settingsSubScreen = SettingsSubScreen.DIAGNOSTICS },
-                            onNavigateToStats = { settingsSubScreen = SettingsSubScreen.STATS },
-                            onNavigateToBackup = { settingsSubScreen = SettingsSubScreen.BACKUP }
-                        )
-                    }
                 }
             }
+        }
 
-            // Floating Glass Bottom Navigation Bar with unread missed calls badge
+        // Floating Glass Bottom Navigation Bar with unread missed calls badge
+        if (activeContactDashboardId == null && settingsSubScreen == null) {
             FloatingGlassNavBar(
                 currentDestination = currentDestination,
                 onNavigate = { destination -> currentDestination = destination },
                 unreadMissedCalls = settingsState.unreadMissedCalls,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
+        }
+
+        // Contact Dashboard Full-screen Overlay (when viewing contact details)
+        if (activeContactDashboardId != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {}
+            ) {
+                com.ryanshelby.linea.ui.screens.contacts.ContactDashboardScreen(
+                    contactId = activeContactDashboardId!!,
+                    onNavigateBack = { activeContactDashboardId = null }
+                )
+            }
+        }
+
+        // Settings Sub-Screen Full-screen Overlay (when viewing settings subpages)
+        if (settingsSubScreen != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {}
+            ) {
+                when (settingsSubScreen) {
+                    SettingsSubScreen.BLOCKING -> {
+                        BlockingScreen(
+                            viewModel = blockingViewModel,
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.DUAL_SIM -> {
+                        DualSimScreen(
+                            phoneAccountManager = phoneAccountManager,
+                            preferences = lineaPreferences,
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.PERMISSIONS -> {
+                        PermissionsScreen(
+                            isDefaultDialer = isDefaultDialer,
+                            onRequestDefaultDialer = onRequestDefaultDialer,
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.RECORDINGS -> {
+                        com.ryanshelby.linea.ui.screens.recordings.RecordingsScreen(
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.VOICEMAIL -> {
+                        com.ryanshelby.linea.ui.screens.voicemail.VoicemailScreen(
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.CALL_FORWARDING -> {
+                        com.ryanshelby.linea.ui.screens.settings.telecom.CallForwardingScreen(
+                            simAccounts = simAccounts,
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.CALL_BARRING_FDN -> {
+                        com.ryanshelby.linea.ui.screens.settings.telecom.CallBarringFdnScreen(
+                            simAccounts = simAccounts,
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.CALL_RULES -> {
+                        com.ryanshelby.linea.ui.screens.rules.CallRulesScreen(
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.DIAGNOSTICS -> {
+                        com.ryanshelby.linea.ui.screens.diagnostics.CallDiagnosticsScreen(
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.STATS -> {
+                        com.ryanshelby.linea.ui.screens.stats.CallStatsScreen(
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.BACKUP -> {
+                        com.ryanshelby.linea.ui.screens.backup.BackupRestoreScreen(
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    null -> Unit
+                }
+            }
         }
 
         // DIM Mode Floating Banner overlay (fallback inside app when system overlay permission is not granted)

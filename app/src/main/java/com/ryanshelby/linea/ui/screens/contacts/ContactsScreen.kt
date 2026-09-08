@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -70,7 +71,8 @@ import kotlinx.coroutines.launch
 fun ContactsScreen(
     modifier: Modifier = Modifier,
     onContactClick: ((Long) -> Unit)? = null,
-    viewModel: ContactsViewModel = hiltViewModel()
+    viewModel: ContactsViewModel = hiltViewModel(),
+    listState: LazyListState = rememberLazyListState()
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val activeLetter by viewModel.activeLetter.collectAsState()
@@ -93,7 +95,6 @@ fun ContactsScreen(
     var pendingSimSlot by remember { mutableStateOf<Int?>(null) }
     var showCountdownDialog by remember { mutableStateOf(false) }
 
-    val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
     Box(

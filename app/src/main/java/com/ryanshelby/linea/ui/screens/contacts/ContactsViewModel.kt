@@ -109,7 +109,7 @@ class ContactsViewModel @Inject constructor(
     val selectedContactAccount: StateFlow<ContactAccount?> = _selectedContactAccount.asStateFlow()
 
     val pinnedFavorites: StateFlow<List<ContactEntity>> = contactDao.getFavoriteContacts()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val rawContacts: Flow<List<ContactEntity>> = preferences.privateModeUnlocked
         .flatMapLatest { unlocked ->
@@ -136,7 +136,7 @@ class ContactsViewModel @Inject constructor(
                 }
             }.sortedBy { it.displayName.lowercase() }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val groupedContacts: StateFlow<Map<Char, List<ContactEntity>>> = filteredContacts.combine(
         MutableStateFlow(Unit)
@@ -145,7 +145,7 @@ class ContactsViewModel @Inject constructor(
             val first = contact.displayName.firstOrNull()?.uppercaseChar() ?: '#'
             if (first in 'A'..'Z') first else '#'
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     val numbersForSelectedContact: StateFlow<List<ContactNumberEntity>> = _selectedContactForDetail
         .flatMapLatest { contact ->
