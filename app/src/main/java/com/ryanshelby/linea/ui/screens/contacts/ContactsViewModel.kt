@@ -38,7 +38,8 @@ class ContactsViewModel @Inject constructor(
     private val callManager: CallManager,
     private val phoneAccountManager: PhoneAccountManager,
     private val callNoteDao: CallNoteDao,
-    private val preferences: LineaPreferences
+    private val preferences: LineaPreferences,
+    val vaultSecurityManager: com.ryanshelby.linea.security.PrivateVaultSecurityManager
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -57,10 +58,19 @@ class ContactsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val isPrivateModeUnlocked: StateFlow<Boolean> = preferences.privateModeUnlocked
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        .stateIn(viewModelScope, SharingStarted.Lazily, false)
 
-    val privatePin: StateFlow<String> = preferences.privateModePin
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "1234")
+    val isVaultPinSet: StateFlow<Boolean> = preferences.isVaultPinSet
+        .stateIn(viewModelScope, SharingStarted.Lazily, false)
+
+    val privateContacts: StateFlow<List<ContactEntity>> = contactDao.getPrivateContacts()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    val regularContacts: StateFlow<List<ContactEntity>> = contactDao.getAllContacts()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    private val _createAsPrivate = MutableStateFlow(false)
+    val createAsPrivate: StateFlow<Boolean> = _createAsPrivate.asStateFlow()
 
     private val _isPinDialogOpen = MutableStateFlow(false)
     val isPinDialogOpen: StateFlow<Boolean> = _isPinDialogOpen.asStateFlow()
@@ -81,9 +91,17 @@ class ContactsViewModel @Inject constructor(
     }
 
     fun lockPrivateMode() {
+        vaultSecurityManager.lockVault()
+    }
+
+    fun setContactPrivate(contactId: Long, isPrivate: Boolean) {
         viewModelScope.launch {
-            preferences.setPrivateModeUnlocked(false)
+            contactDao.setContactPrivate(contactId, isPrivate)
         }
+    }
+
+    suspend fun getNumbersForContactDirect(contactId: Long): List<ContactNumberEntity> {
+        return contactDao.getNumbersForContact(contactId).first()
     }
 
     val preCallNoteForSelected: StateFlow<CallNoteEntity?> = _selectedContactForDetail
@@ -201,9 +219,10 @@ class ContactsViewModel @Inject constructor(
         _selectedContactForDetail.value = contact
     }
 
-    fun openCreateSheet() {
+    fun openCreateSheet(isPrivate: Boolean = false) {
         _contactToEdit.value = null
         loadAccounts()
+        _createAsPrivate.value = isPrivate
         _isCreateSheetOpen.value = true
     }
 
@@ -250,7 +269,7 @@ class ContactsViewModel @Inject constructor(
                 val acc = _selectedContactAccount.value
                 val accName = if (acc != null && !acc.isDevice) acc.name else null
                 val accType = acc?.type
-                contactSyncRepository.createContact(
+                val createdId = contactSyncRepository.createContact(
                     displayName = displayName,
                     company = company,
                     numbers = numbers,
@@ -262,6 +281,10 @@ class ContactsViewModel @Inject constructor(
                     photoUri = photoUri,
                     photoBytes = photoBytes
                 )
+                if (_createAsPrivate.value) {
+                    contactDao.setContactPrivate(createdId, true)
+                    _createAsPrivate.value = false
+                }
             }
             dismissCreateOrEditSheet()
         }

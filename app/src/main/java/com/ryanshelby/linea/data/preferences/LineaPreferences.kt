@@ -6,11 +6,13 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.ryanshelby.linea.security.VaultPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +21,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "li
 @Singleton
 class LineaPreferences @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : VaultPreferences {
     private val dataStore = context.dataStore
 
     companion object {
@@ -55,6 +57,18 @@ class LineaPreferences @Inject constructor(
         val KEY_LAST_CONTACT_ACCOUNT_NAME = stringPreferencesKey("last_contact_account_name")
         val KEY_LAST_CONTACT_ACCOUNT_TYPE = stringPreferencesKey("last_contact_account_type")
         val KEY_OPT_IN_LOCATION_TAG = booleanPreferencesKey("opt_in_location_tag")
+
+        // Quantum Vault & Anti-Brute-Force Keys
+        val KEY_VAULT_HAS_PIN = booleanPreferencesKey("vault_has_pin")
+        val KEY_VAULT_PIN_HASH = stringPreferencesKey("vault_pin_hash")
+        val KEY_VAULT_SALT = stringPreferencesKey("vault_salt")
+        val KEY_VAULT_MASTER_KEY_ENC = stringPreferencesKey("vault_master_key_enc")
+        val KEY_VAULT_RECOVERY_QUESTION = stringPreferencesKey("vault_recovery_question")
+        val KEY_VAULT_RECOVERY_SALT = stringPreferencesKey("vault_recovery_salt")
+        val KEY_VAULT_RECOVERY_HASH = stringPreferencesKey("vault_recovery_hash")
+        val KEY_VAULT_RECOVERY_MASTER_KEY_ENC = stringPreferencesKey("vault_recovery_master_key_enc")
+        val KEY_VAULT_FAILED_ATTEMPTS = intPreferencesKey("vault_failed_attempts")
+        val KEY_VAULT_LOCKOUT_UNTIL = longPreferencesKey("vault_lockout_until")
     }
 
     val reduceAnimations: Flow<Boolean> = dataStore.data.map { it[KEY_REDUCE_ANIMATIONS] ?: false }
@@ -82,12 +96,24 @@ class LineaPreferences @Inject constructor(
     val compactDialpad: Flow<Boolean> = dataStore.data.map { it[KEY_COMPACT_DIALPAD] ?: false }
     val activeProfile: Flow<String> = dataStore.data.map { it[KEY_ACTIVE_PROFILE] ?: "PERSONAL" }
     val privateModeUnlocked: Flow<Boolean> = dataStore.data.map { it[KEY_PRIVATE_MODE_UNLOCKED] ?: false }
-    val privateModePin: Flow<String> = dataStore.data.map { it[KEY_PRIVATE_MODE_PIN] ?: "1234" }
+    val privateModePin: Flow<String> = dataStore.data.map { it[KEY_PRIVATE_MODE_PIN] ?: "" }
     val historyViewMode: Flow<String> = dataStore.data.map { it[KEY_HISTORY_VIEW_MODE] ?: "FEED" }
     val callBlockingEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_BLOCKING_ENABLED] ?: false }
     val lastContactAccountName: Flow<String?> = dataStore.data.map { it[KEY_LAST_CONTACT_ACCOUNT_NAME] }
     val lastContactAccountType: Flow<String?> = dataStore.data.map { it[KEY_LAST_CONTACT_ACCOUNT_TYPE] }
     val optInLocationTag: Flow<Boolean> = dataStore.data.map { it[KEY_OPT_IN_LOCATION_TAG] ?: false }
+
+    // Vault DataStore Flows
+    override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
+    override val vaultPinHash: Flow<String?> = dataStore.data.map { it[KEY_VAULT_PIN_HASH] }
+    override val vaultPinSalt: Flow<String?> = dataStore.data.map { it[KEY_VAULT_SALT] }
+    override val vaultMasterKeyEncrypted: Flow<String?> = dataStore.data.map { it[KEY_VAULT_MASTER_KEY_ENC] }
+    override val vaultRecoveryQuestion: Flow<String?> = dataStore.data.map { it[KEY_VAULT_RECOVERY_QUESTION] }
+    override val vaultRecoverySalt: Flow<String?> = dataStore.data.map { it[KEY_VAULT_RECOVERY_SALT] }
+    override val vaultRecoveryHash: Flow<String?> = dataStore.data.map { it[KEY_VAULT_RECOVERY_HASH] }
+    override val vaultRecoveryMasterKeyEncrypted: Flow<String?> = dataStore.data.map { it[KEY_VAULT_RECOVERY_MASTER_KEY_ENC] }
+    override val vaultFailedAttempts: Flow<Int> = dataStore.data.map { it[KEY_VAULT_FAILED_ATTEMPTS] ?: 0 }
+    override val vaultLockoutUntil: Flow<Long> = dataStore.data.map { it[KEY_VAULT_LOCKOUT_UNTIL] ?: 0L }
 
     suspend fun setReduceAnimations(enabled: Boolean) {
         dataStore.edit { it[KEY_REDUCE_ANIMATIONS] = enabled }
@@ -185,7 +211,7 @@ class LineaPreferences @Inject constructor(
         dataStore.edit { it[KEY_ACTIVE_PROFILE] = profile }
     }
 
-    suspend fun setPrivateModeUnlocked(unlocked: Boolean) {
+    override suspend fun setPrivateModeUnlocked(unlocked: Boolean) {
         dataStore.edit { it[KEY_PRIVATE_MODE_UNLOCKED] = unlocked }
     }
 
@@ -210,5 +236,71 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setOptInLocationTag(enabled: Boolean) {
         dataStore.edit { it[KEY_OPT_IN_LOCATION_TAG] = enabled }
+    }
+
+    override suspend fun saveVaultConfig(
+        pinHash: String,
+        pinSalt: String,
+        masterKeyEncrypted: String,
+        recoveryQuestion: String,
+        recoverySalt: String,
+        recoveryHash: String,
+        recoveryMasterKeyEncrypted: String
+    ) {
+        dataStore.edit {
+            it[KEY_VAULT_HAS_PIN] = true
+            it[KEY_VAULT_PIN_HASH] = pinHash
+            it[KEY_VAULT_SALT] = pinSalt
+            it[KEY_VAULT_MASTER_KEY_ENC] = masterKeyEncrypted
+            it[KEY_VAULT_RECOVERY_QUESTION] = recoveryQuestion
+            it[KEY_VAULT_RECOVERY_SALT] = recoverySalt
+            it[KEY_VAULT_RECOVERY_HASH] = recoveryHash
+            it[KEY_VAULT_RECOVERY_MASTER_KEY_ENC] = recoveryMasterKeyEncrypted
+            it[KEY_VAULT_FAILED_ATTEMPTS] = 0
+            it[KEY_VAULT_LOCKOUT_UNTIL] = 0L
+        }
+    }
+
+    override suspend fun updatePinCredentials(
+        pinHash: String,
+        pinSalt: String,
+        masterKeyEncrypted: String
+    ) {
+        dataStore.edit {
+            it[KEY_VAULT_HAS_PIN] = true
+            it[KEY_VAULT_PIN_HASH] = pinHash
+            it[KEY_VAULT_SALT] = pinSalt
+            it[KEY_VAULT_MASTER_KEY_ENC] = masterKeyEncrypted
+            it[KEY_VAULT_FAILED_ATTEMPTS] = 0
+            it[KEY_VAULT_LOCKOUT_UNTIL] = 0L
+        }
+    }
+
+    override suspend fun updateRecoveryCredentials(
+        question: String,
+        salt: String,
+        hash: String,
+        masterKeyEnc: String
+    ) {
+        dataStore.edit {
+            it[KEY_VAULT_RECOVERY_QUESTION] = question
+            it[KEY_VAULT_RECOVERY_SALT] = salt
+            it[KEY_VAULT_RECOVERY_HASH] = hash
+            it[KEY_VAULT_RECOVERY_MASTER_KEY_ENC] = masterKeyEnc
+        }
+    }
+
+    override suspend fun recordFailedVaultAttempt(failedAttempts: Int, lockoutUntil: Long) {
+        dataStore.edit {
+            it[KEY_VAULT_FAILED_ATTEMPTS] = failedAttempts
+            it[KEY_VAULT_LOCKOUT_UNTIL] = lockoutUntil
+        }
+    }
+
+    override suspend fun resetVaultLockout() {
+        dataStore.edit {
+            it[KEY_VAULT_FAILED_ATTEMPTS] = 0
+            it[KEY_VAULT_LOCKOUT_UNTIL] = 0L
+        }
     }
 }

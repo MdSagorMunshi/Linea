@@ -22,6 +22,7 @@ import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.telecom.PhoneAccountManager
 import com.ryanshelby.linea.telecom.SimAccountInfo
 import com.ryanshelby.linea.ui.screens.contacts.ContactsScreen
+import com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel
 import com.ryanshelby.linea.ui.screens.dialpad.DialpadScreen
 import com.ryanshelby.linea.ui.screens.history.HistoryScreen
 import com.ryanshelby.linea.ui.screens.settings.SettingsScreen
@@ -58,11 +59,13 @@ fun LineaNavGraph(
     modifier: Modifier = Modifier,
     callManager: com.ryanshelby.linea.telecom.CallManager? = null,
     settingsViewModel: SettingsViewModel = hiltViewModel(),
-    blockingViewModel: BlockingViewModel = hiltViewModel()
+    blockingViewModel: BlockingViewModel = hiltViewModel(),
+    contactsViewModel: ContactsViewModel = hiltViewModel()
 ) {
     var currentDestination by remember { mutableStateOf(LineaDestination.DIALPAD) }
     var settingsSubScreen by remember { mutableStateOf<SettingsSubScreen?>(null) }
     var activeContactDashboardId by remember { mutableStateOf<Long?>(null) }
+    var isPrivateSafeOpen by remember { mutableStateOf(false) }
     val reduceAnim = LocalReduceAnimations.current
 
     val settingsState by settingsViewModel.uiState.collectAsState()
@@ -79,11 +82,15 @@ fun LineaNavGraph(
         activeContactDashboardId = null
     }
 
-    BackHandler(enabled = activeContactDashboardId == null && settingsSubScreen != null) {
+    BackHandler(enabled = activeContactDashboardId == null && isPrivateSafeOpen) {
+        isPrivateSafeOpen = false
+    }
+
+    BackHandler(enabled = activeContactDashboardId == null && !isPrivateSafeOpen && settingsSubScreen != null) {
         settingsSubScreen = null
     }
 
-    BackHandler(enabled = activeContactDashboardId == null && settingsSubScreen == null && currentDestination != LineaDestination.DIALPAD) {
+    BackHandler(enabled = activeContactDashboardId == null && !isPrivateSafeOpen && settingsSubScreen == null && currentDestination != LineaDestination.DIALPAD) {
         currentDestination = LineaDestination.DIALPAD
     }
 
@@ -111,7 +118,9 @@ fun LineaNavGraph(
                 LineaDestination.CONTACTS -> {
                     ContactsScreen(
                         listState = contactsListState,
-                        onContactClick = { contactId -> activeContactDashboardId = contactId }
+                        viewModel = contactsViewModel,
+                        onContactClick = { contactId -> activeContactDashboardId = contactId },
+                        onOpenPrivateSafe = { isPrivateSafeOpen = true }
                     )
                 }
                 LineaDestination.SETTINGS -> {
@@ -137,7 +146,7 @@ fun LineaNavGraph(
         }
 
         // Floating Glass Bottom Navigation Bar with unread missed calls badge
-        if (activeContactDashboardId == null && settingsSubScreen == null) {
+        if (activeContactDashboardId == null && settingsSubScreen == null && !isPrivateSafeOpen) {
             FloatingGlassNavBar(
                 currentDestination = currentDestination,
                 onNavigate = { destination -> currentDestination = destination },
@@ -159,6 +168,25 @@ fun LineaNavGraph(
                 com.ryanshelby.linea.ui.screens.contacts.ContactDashboardScreen(
                     contactId = activeContactDashboardId!!,
                     onNavigateBack = { activeContactDashboardId = null }
+                )
+            }
+        }
+
+        // Private Safe Full-screen Overlay
+        if (isPrivateSafeOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {}
+            ) {
+                com.ryanshelby.linea.ui.screens.contacts.PrivateSafeScreen(
+                    onNavigateBack = { isPrivateSafeOpen = false },
+                    onContactClick = { contactId -> activeContactDashboardId = contactId },
+                    viewModel = contactsViewModel,
+                    vaultSecurityManager = contactsViewModel.vaultSecurityManager
                 )
             }
         }

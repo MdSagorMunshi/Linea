@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -71,6 +72,7 @@ import kotlinx.coroutines.launch
 fun ContactsScreen(
     modifier: Modifier = Modifier,
     onContactClick: ((Long) -> Unit)? = null,
+    onOpenPrivateSafe: () -> Unit = {},
     viewModel: ContactsViewModel = hiltViewModel(),
     listState: LazyListState = rememberLazyListState()
 ) {
@@ -88,7 +90,6 @@ fun ContactsScreen(
     val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
     val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
     val isPrivateModeUnlocked by viewModel.isPrivateModeUnlocked.collectAsState()
-    val privatePin by viewModel.privatePin.collectAsState()
     val isPinDialogOpen by viewModel.isPinDialogOpen.collectAsState()
 
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
@@ -109,7 +110,7 @@ fun ContactsScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Title Header with Private Mode Lock Button
+            // Title Header with Private Mode Lock / Private Safe Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -122,36 +123,85 @@ fun ContactsScreen(
                         color = LineaColors.TextPrimary
                     )
                     Text(
-                        text = if (isPrivateModeUnlocked) "Unlocked: Showing private contacts" else "Address book with SIM affinity",
+                        text = if (isPrivateModeUnlocked) "Unlocked: Showing all contacts" else "Address book with SIM affinity",
                         style = LineaTypography.bodySmall,
                         color = if (isPrivateModeUnlocked) LineaColors.MutedSageGreen else LineaColors.TitaniumBlue
                     )
                 }
 
-                IconButton(
-                    onClick = {
-                        if (isPrivateModeUnlocked) {
-                            viewModel.lockPrivateMode()
-                        } else {
-                            viewModel.openPinDialog()
+                if (isPrivateModeUnlocked) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Prominent "Private Safe" Button shown while unlocked
+                        FrostedGlassBox(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onOpenPrivateSafe() }
+                                .background(LineaColors.MutedSageGreen.copy(alpha = 0.15f))
+                                .border(LineaDimensions.HairlineBorder, LineaColors.MutedSageGreen.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Security,
+                                    contentDescription = null,
+                                    tint = LineaColors.MutedSageGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Private Safe",
+                                    style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = LineaColors.MutedSageGreen
+                                )
+                            }
                         }
-                    },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(if (isPrivateModeUnlocked) LineaColors.MutedSageGreen.copy(alpha = 0.15f) else LineaColors.GlassFill)
-                        .border(
-                            LineaDimensions.HairlineBorder,
-                            if (isPrivateModeUnlocked) LineaColors.MutedSageGreen.copy(alpha = 0.4f) else LineaColors.GlassBorder,
-                            CircleShape
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Lock Button to re-lock immediately
+                        IconButton(
+                            onClick = { viewModel.lockPrivateMode() },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(LineaColors.GlassFill)
+                                .border(
+                                    LineaDimensions.HairlineBorder,
+                                    LineaColors.MutedSageGreen.copy(alpha = 0.4f),
+                                    CircleShape
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.LockOpen,
+                                contentDescription = "Lock Private Contacts",
+                                tint = LineaColors.MutedSageGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                } else {
+                    IconButton(
+                        onClick = { viewModel.openPinDialog() },
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(LineaColors.GlassFill)
+                            .border(
+                                LineaDimensions.HairlineBorder,
+                                LineaColors.GlassBorder,
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = "Unlock Private Contacts",
+                            tint = LineaColors.TextSecondary,
+                            modifier = Modifier.size(18.dp)
                         )
-                ) {
-                    Icon(
-                        imageVector = if (isPrivateModeUnlocked) Icons.Filled.LockOpen else Icons.Filled.Lock,
-                        contentDescription = "Private Contacts Lock",
-                        tint = if (isPrivateModeUnlocked) LineaColors.MutedSageGreen else LineaColors.TextSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    }
                 }
             }
 
@@ -418,7 +468,7 @@ fun ContactsScreen(
     // Private Contacts Unlock PIN Dialog
     if (isPinDialogOpen) {
         PrivatePinDialog(
-            correctPin = privatePin,
+            vaultSecurityManager = viewModel.vaultSecurityManager,
             onSuccess = { viewModel.unlockPrivateMode() },
             onDismiss = { viewModel.dismissPinDialog() }
         )
@@ -518,6 +568,23 @@ private fun ContactCardRow(
                             tint = LineaColors.MutedRust,
                             modifier = Modifier.size(14.dp)
                         )
+                    }
+
+                    if (contact.isPrivate) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(LineaColors.MutedSageGreen.copy(alpha = 0.2f))
+                                .border(LineaDimensions.HairlineBorder, LineaColors.MutedSageGreen.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "SAFE",
+                                style = LineaTypography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                color = LineaColors.MutedSageGreen
+                            )
+                        }
                     }
                 }
 

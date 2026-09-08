@@ -24,6 +24,12 @@ class LineaApp : Application() {
     @Inject
     lateinit var cleanupManager: com.ryanshelby.linea.telecom.cleanup.CallHistoryCleanupManager
 
+    @Inject
+    lateinit var preferences: com.ryanshelby.linea.data.preferences.LineaPreferences
+
+    @Inject
+    lateinit var vaultSecurityManager: com.ryanshelby.linea.security.PrivateVaultSecurityManager
+
     companion object {
         const val CHANNEL_ONGOING_CALLS = "linea_ongoing_calls"
         const val CHANNEL_INCOMING_CALLS = "linea_incoming_calls"
@@ -44,6 +50,12 @@ class LineaApp : Application() {
         registerPhoneAccounts()
         purgeLegacyRules()
         cleanupManager.schedulePeriodicCleanup()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                preferences.setPrivateModeUnlocked(false)
+                vaultSecurityManager.lockVault()
+            } catch (_: Exception) {}
+        }
     }
 
     private fun purgeLegacyRules() {
@@ -66,6 +78,14 @@ class LineaApp : Application() {
             override fun onActivityStopped(activity: android.app.Activity) {
                 startedActivityCount--
                 isAppInForeground = startedActivityCount > 0
+                if (startedActivityCount <= 0) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            preferences.setPrivateModeUnlocked(false)
+                            vaultSecurityManager.lockVault()
+                        } catch (_: Exception) {}
+                    }
+                }
             }
             override fun onActivitySaveInstanceState(activity: android.app.Activity, outState: android.os.Bundle) {}
             override fun onActivityDestroyed(activity: android.app.Activity) {}
