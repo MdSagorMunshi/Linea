@@ -54,6 +54,12 @@ interface CallRecordDao {
     @Query("DELETE FROM call_records WHERE timestamp < :cutoffTimestamp AND isPrivateContact = 0")
     suspend fun deleteRecordsOlderThan(cutoffTimestamp: Long): Int
 
+    @Query("UPDATE call_records SET isPrivateContact = 1 WHERE phoneNumber = :number OR REPLACE(REPLACE(REPLACE(phoneNumber, '+', ''), '-', ''), ' ', '') = :normalized")
+    suspend fun markRecordsAsPrivate(number: String, normalized: String)
+
+    @Query("UPDATE call_records SET isPrivateContact = 0 WHERE phoneNumber = :number OR REPLACE(REPLACE(REPLACE(phoneNumber, '+', ''), '-', ''), ' ', '') = :normalized")
+    suspend fun markRecordsAsPublic(number: String, normalized: String)
+
     @Query("""
         SELECT COUNT(*) FROM call_records 
         WHERE (phoneNumber = :number OR REPLACE(REPLACE(REPLACE(phoneNumber, '+', ''), '-', ''), ' ', '') = REPLACE(REPLACE(REPLACE(:number, '+', ''), '-', ''), ' ', ''))

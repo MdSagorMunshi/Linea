@@ -11,6 +11,8 @@ import com.ryanshelby.linea.data.local.dao.CallRecordingDao
 import com.ryanshelby.linea.data.local.dao.ContactDao
 import com.ryanshelby.linea.data.local.entities.CallRecordingEntity
 import com.ryanshelby.linea.ui.screens.history.HistoryGrouper
+import com.ryanshelby.linea.data.preferences.LineaPreferences
+import com.ryanshelby.linea.telecom.recorder.CallAudioRecorder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -43,7 +45,9 @@ data class RecordingUiItem(
 class RecordingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val recordingDao: CallRecordingDao,
-    private val contactDao: ContactDao
+    private val contactDao: ContactDao,
+    private val preferences: LineaPreferences,
+    private val audioRecorder: CallAudioRecorder
 ) : ViewModel() {
 
     private val _playingId = MutableStateFlow<Long?>(null)
@@ -57,14 +61,26 @@ class RecordingsViewModel @Inject constructor(
 
     private var mediaPlayer: MediaPlayer? = null
     private var progressJob: Job? = null
+    private var currentDecryptedTempFile: File? = null
 
     val recordings: StateFlow<List<RecordingUiItem>> = combine(
         recordingDao.getAllRecordings(),
         contactDao.getAllContacts(),
+        preferences.privateModeUnlocked,
         _playingId,
         _isPlaying,
         _playbackProgress
-    ) { recordingsList, contactsList, currentPlayingId, isCurrentlyPlaying, progress ->
+    ) { args: Array<Any?> ->
+        @Suppress("UNCHECKED_CAST")
+        val rawRecordings = args[0] as List<CallRecordingEntity>
+        @Suppress("UNCHECKED_CAST")
+        val contactsList = args[1] as List<com.ryanshelby.linea.data.local.entities.ContactEntity>
+        val isPrivateUnlocked = args[2] as Boolean
+        val currentPlayingId = args[3] as Long?
+        val isCurrentlyPlaying = args[4] as Boolean
+        val progress = args[5] as Float
+
+        val recordingsList = if (isPrivateUnlocked) rawRecordings else rawRecordings.filter { !it.isEncrypted }
         val contactMap = contactsList.associateBy { it.id }
         val dateFormat = SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault())
 
@@ -120,8 +136,17 @@ class RecordingsViewModel @Inject constructor(
         }
 
         try {
+            val playbackFile = if (recording.isEncrypted) {
+                currentDecryptedTempFile?.delete()
+                val temp = audioRecorder.decryptRecordingToTemp(file) ?: file
+                currentDecryptedTempFile = temp
+                temp
+            } else {
+                file
+            }
+
             val player = MediaPlayer().apply {
-                setDataSource(context, Uri.fromFile(file))
+                setDataSource(context, Uri.fromFile(playbackFile))
                 prepare()
                 setOnCompletionListener {
                     _isPlaying.value = false
@@ -182,6 +207,8 @@ class RecordingsViewModel @Inject constructor(
         _playingId.value = null
         _isPlaying.value = false
         _playbackProgress.value = 0f
+        currentDecryptedTempFile?.delete()
+        currentDecryptedTempFile = null
     }
 
     fun togglePin(recording: CallRecordingEntity) {

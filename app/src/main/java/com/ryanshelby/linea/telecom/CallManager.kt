@@ -366,9 +366,23 @@ class CallManager @Inject constructor(
                     vibrateFeedback(longArrayOf(0, 80))
                 }
                 val normalized = number.filter { it.isDigit() }
-                val isContact = contactDao.findNumberByNormalized(normalized) != null
-                if (audioRecorder.shouldAutoRecord(isContact)) {
-                    audioRecorder.startRecording(number)
+                val matchedNumber = contactDao.findNumberByNormalized(normalized)
+                    ?: if (normalized.length > 7) contactDao.findNumberByNormalized(normalized.takeLast(7)) else null
+                val contact = if (matchedNumber != null) contactDao.getContactById(matchedNumber.contactId) else null
+                val isPrivate = contact?.isPrivate == true
+
+                val shouldRecord = if (isPrivate) {
+                    audioRecorder.shouldAutoRecordPrivateSafe()
+                } else {
+                    audioRecorder.shouldAutoRecord(isContact = matchedNumber != null)
+                }
+
+                if (shouldRecord) {
+                    audioRecorder.startRecording(
+                        phoneNumber = number,
+                        contactId = contact?.id,
+                        isPrivateContact = isPrivate
+                    )
                 }
             }
         } else if (previousCallState == LineaCallState.ACTIVE && state == LineaCallState.DISCONNECTED) {
@@ -573,7 +587,19 @@ class CallManager @Inject constructor(
             audioRecorder.stopRecording()
         } else {
             val phone = _currentCall.value?.phoneNumber ?: return
-            audioRecorder.startRecording(phone)
+            scope.launch {
+                val normalized = phone.filter { it.isDigit() }
+                val matchedNumber = contactDao.findNumberByNormalized(normalized)
+                    ?: if (normalized.length > 7) contactDao.findNumberByNormalized(normalized.takeLast(7)) else null
+                val contact = if (matchedNumber != null) contactDao.getContactById(matchedNumber.contactId) else null
+                val isPrivate = contact?.isPrivate == true
+
+                audioRecorder.startRecording(
+                    phoneNumber = phone,
+                    contactId = contact?.id,
+                    isPrivateContact = isPrivate
+                )
+            }
         }
     }
 }

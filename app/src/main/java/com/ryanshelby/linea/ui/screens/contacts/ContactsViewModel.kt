@@ -30,10 +30,18 @@ import com.ryanshelby.linea.data.repository.ContactAccount
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
+import android.content.Context
+import com.ryanshelby.linea.data.local.dao.CallRecordDao
+import com.ryanshelby.linea.data.local.dao.CallRecordingDao
+import dagger.hilt.android.qualifiers.ApplicationContext
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ContactsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val contactDao: ContactDao,
+    private val callRecordDao: CallRecordDao,
+    private val recordingDao: CallRecordingDao,
     private val contactSyncRepository: ContactSyncRepository,
     private val callManager: CallManager,
     private val phoneAccountManager: PhoneAccountManager,
@@ -119,6 +127,25 @@ class ContactsViewModel @Inject constructor(
                     lookupKey = null
                 )
             )
+
+            // Mark past call logs as private and recordings as encrypted
+            val numbers = contactDao.getNumbersForContact(contactId).first()
+            for (num in numbers) {
+                val norm = num.number.filter { it.isDigit() }
+                callRecordDao.markRecordsAsPrivate(num.number, norm)
+                recordingDao.markRecordingsAsEncrypted(contactId, num.number)
+                // Delete from Android system call log to protect privacy
+                try {
+                    context.contentResolver.delete(
+                        android.provider.CallLog.Calls.CONTENT_URI,
+                        "${android.provider.CallLog.Calls.NUMBER} = ? OR ${android.provider.CallLog.Calls.NUMBER} = ?",
+                        arrayOf(num.number, norm)
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
             contactSyncRepository.loadContacts()
         }
     }
@@ -145,6 +172,14 @@ class ContactsViewModel @Inject constructor(
                     androidContactId = newRawId
                 )
             )
+
+            // Mark call logs as public again
+            for (num in numbers) {
+                val norm = num.number.filter { it.isDigit() }
+                callRecordDao.markRecordsAsPublic(num.number, norm)
+                recordingDao.markRecordingsAsDecrypted(contactId, num.number)
+            }
+
             contactSyncRepository.loadContacts()
         }
     }
@@ -167,6 +202,23 @@ class ContactsViewModel @Inject constructor(
 
     suspend fun getNumbersForContactDirect(contactId: Long): List<ContactNumberEntity> {
         return contactDao.getNumbersForContact(contactId).first()
+    }
+
+    fun placeCallFromPrivateSafe(number: String, preferredSimSlot: Int? = null) {
+        val simSlot = preferredSimSlot ?: 0
+        val simAccounts = phoneAccountManager.registerPhoneAccounts()
+        val simHandle = simAccounts.find { it.slotIndex == simSlot }?.phoneAccountHandle
+            ?: simAccounts.firstOrNull()?.phoneAccountHandle
+        callManager.placeCall(number, simHandle)
+    }
+
+    val autoRecordPrivateSafe: StateFlow<Boolean> = preferences.autoRecordPrivateSafe
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun setAutoRecordPrivateSafe(enabled: Boolean) {
+        viewModelScope.launch {
+            preferences.setAutoRecordPrivateSafe(enabled)
+        }
     }
 
     val preCallNoteForSelected: StateFlow<CallNoteEntity?> = _selectedContactForDetail

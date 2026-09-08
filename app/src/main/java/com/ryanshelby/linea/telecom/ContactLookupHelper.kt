@@ -15,7 +15,8 @@ import javax.inject.Singleton
 data class ContactLookupResult(
     val displayName: String?,
     val photoUri: String? = null,
-    val customRingtoneUri: String? = null
+    val customRingtoneUri: String? = null,
+    val isPrivate: Boolean = false
 )
 
 @Singleton
@@ -77,6 +78,8 @@ class ContactLookupHelper @Inject constructor(
             e.printStackTrace()
         }
 
+        var isPrivate = false
+
         // 2. Query Local Room ContactDao if name not resolved or to check local ringtone/contact settings
         try {
             val digitsOnly = trimmedNumber.filter { it.isDigit() }
@@ -91,7 +94,10 @@ class ContactLookupHelper @Inject constructor(
                 if (localNumber != null) {
                     val localContact = contactDao.getContactById(localNumber.contactId)
                     if (localContact != null) {
-                        if (resolvedName.isNullOrBlank()) {
+                        if (localContact.isPrivate) {
+                            isPrivate = true
+                            resolvedName = localContact.displayName
+                        } else if (resolvedName.isNullOrBlank()) {
                             resolvedName = localContact.displayName
                         }
                         if (resolvedPhoto.isNullOrBlank()) {
@@ -110,7 +116,8 @@ class ContactLookupHelper @Inject constructor(
         val result = ContactLookupResult(
             displayName = resolvedName,
             photoUri = resolvedPhoto,
-            customRingtoneUri = resolvedRingtone
+            customRingtoneUri = resolvedRingtone,
+            isPrivate = isPrivate
         )
 
         if (resolvedName != null) {

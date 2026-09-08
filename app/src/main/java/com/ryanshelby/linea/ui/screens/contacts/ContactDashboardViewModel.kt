@@ -75,7 +75,7 @@ class ContactDashboardViewModel @Inject constructor(
             val contact = contactDao.getContactById(targetId) ?: return@launch
             var numbers = contactDao.getNumbersForContact(targetId).first()
 
-            if (numbers.isEmpty() && contact.androidContactId != null && contact.androidContactId > 0) {
+            if (numbers.isEmpty() && !contact.isPrivate && contact.androidContactId != null && contact.androidContactId > 0) {
                 val fetchedNumbers = mutableListOf<ContactNumberEntity>()
                 try {
                     val cursor = context.contentResolver.query(
@@ -182,11 +182,50 @@ class ContactDashboardViewModel @Inject constructor(
         val current = _state.value.contact ?: return
         val newPrivate = !current.isPrivate
         viewModelScope.launch {
-            contactDao.setContactPrivate(current.id, newPrivate)
-            _state.value = _state.value.copy(
-                isPrivate = newPrivate,
-                contact = current.copy(isPrivate = newPrivate)
-            )
+            if (newPrivate) {
+                val sysId = current.androidContactId
+                if (sysId != null && sysId > 0) {
+                    contactSyncRepository.deleteContactFromSystemOnly(sysId)
+                }
+                contactDao.updateContact(
+                    current.copy(
+                        isPrivate = true,
+                        androidContactId = null,
+                        lookupKey = null
+                    )
+                )
+                val numbers = contactDao.getNumbersForContact(current.id).first()
+                for (num in numbers) {
+                    val norm = num.number.filter { it.isDigit() }
+                    callRecordDao.markRecordsAsPrivate(num.number, norm)
+                    try {
+                        context.contentResolver.delete(
+                            android.provider.CallLog.Calls.CONTENT_URI,
+                            "${android.provider.CallLog.Calls.NUMBER} = ? OR ${android.provider.CallLog.Calls.NUMBER} = ?",
+                            arrayOf(num.number, norm)
+                        )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                contactSyncRepository.loadContacts()
+                _state.value = _state.value.copy(
+                    isPrivate = true,
+                    contact = current.copy(isPrivate = true, androidContactId = null, lookupKey = null)
+                )
+            } else {
+                contactDao.setContactPrivate(current.id, false)
+                val numbers = contactDao.getNumbersForContact(current.id).first()
+                for (num in numbers) {
+                    val norm = num.number.filter { it.isDigit() }
+                    callRecordDao.markRecordsAsPublic(num.number, norm)
+                }
+                contactSyncRepository.loadContacts()
+                _state.value = _state.value.copy(
+                    isPrivate = false,
+                    contact = current.copy(isPrivate = false)
+                )
+            }
         }
     }
 

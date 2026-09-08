@@ -57,6 +57,7 @@ class LineaPreferences @Inject constructor(
         val KEY_LAST_CONTACT_ACCOUNT_NAME = stringPreferencesKey("last_contact_account_name")
         val KEY_LAST_CONTACT_ACCOUNT_TYPE = stringPreferencesKey("last_contact_account_type")
         val KEY_OPT_IN_LOCATION_TAG = booleanPreferencesKey("opt_in_location_tag")
+        val KEY_AUTO_RECORD_PRIVATE_SAFE = booleanPreferencesKey("auto_record_private_safe")
 
         // Quantum Vault & Anti-Brute-Force Keys
         val KEY_VAULT_HAS_PIN = booleanPreferencesKey("vault_has_pin")
@@ -102,6 +103,7 @@ class LineaPreferences @Inject constructor(
     val lastContactAccountName: Flow<String?> = dataStore.data.map { it[KEY_LAST_CONTACT_ACCOUNT_NAME] }
     val lastContactAccountType: Flow<String?> = dataStore.data.map { it[KEY_LAST_CONTACT_ACCOUNT_TYPE] }
     val optInLocationTag: Flow<Boolean> = dataStore.data.map { it[KEY_OPT_IN_LOCATION_TAG] ?: false }
+    val autoRecordPrivateSafe: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_PRIVATE_SAFE] ?: false }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -236,6 +238,10 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setOptInLocationTag(enabled: Boolean) {
         dataStore.edit { it[KEY_OPT_IN_LOCATION_TAG] = enabled }
+    }
+
+    suspend fun setAutoRecordPrivateSafe(enabled: Boolean) {
+        dataStore.edit { it[KEY_AUTO_RECORD_PRIVATE_SAFE] = enabled }
     }
 
     override suspend fun saveVaultConfig(

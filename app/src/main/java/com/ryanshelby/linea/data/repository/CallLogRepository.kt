@@ -36,16 +36,19 @@ class CallLogRepository @Inject constructor(
     ) = withContext(Dispatchers.IO) {
         if (phoneNumber.isBlank()) return@withContext
 
+        val lookup = contactLookupHelper.lookupContact(phoneNumber)
+        val isPrivate = lookup.isPrivate
+
         val resolvedName = if (!callerName.isNullOrBlank()) {
             callerName
         } else {
-            contactLookupHelper.lookupContact(phoneNumber).displayName
+            lookup.displayName
         }
 
         val resolvedPhoto = if (!photoUri.isNullOrBlank()) {
             photoUri
         } else {
-            contactLookupHelper.lookupContact(phoneNumber).photoUri
+            lookup.photoUri
         }
 
         // Check if this call was already logged to prevent duplicates
@@ -62,34 +65,37 @@ class CallLogRepository @Inject constructor(
                 simSlot = simSlot,
                 simDisplayName = simDisplayName,
                 networkType = networkType,
-                sessionGroupId = "session_${phoneNumber.filter { it.isDigit() }}"
+                sessionGroupId = "session_${phoneNumber.filter { it.isDigit() }}",
+                isPrivateContact = isPrivate
             )
             callRecordDao.insertCallRecord(record)
         }
 
-        // 2. Insert into Android System CallLog Provider
-        try {
-            val systemCallType = when (direction) {
-                CallDirectionType.INCOMING -> CallLog.Calls.INCOMING_TYPE
-                CallDirectionType.OUTGOING -> CallLog.Calls.OUTGOING_TYPE
-                CallDirectionType.MISSED -> CallLog.Calls.MISSED_TYPE
-                CallDirectionType.REJECTED -> CallLog.Calls.REJECTED_TYPE
-                CallDirectionType.BLOCKED -> CallLog.Calls.BLOCKED_TYPE
-            }
-
-            val values = ContentValues().apply {
-                put(CallLog.Calls.NUMBER, phoneNumber)
-                put(CallLog.Calls.DATE, timestamp)
-                put(CallLog.Calls.DURATION, durationSeconds)
-                put(CallLog.Calls.TYPE, systemCallType)
-                put(CallLog.Calls.NEW, if (direction == CallDirectionType.MISSED) 1 else 0)
-                if (resolvedName != null) {
-                    put(CallLog.Calls.CACHED_NAME, resolvedName)
+        // 2. Insert into Android System CallLog Provider ONLY if NOT a private contact
+        if (!isPrivate) {
+            try {
+                val systemCallType = when (direction) {
+                    CallDirectionType.INCOMING -> CallLog.Calls.INCOMING_TYPE
+                    CallDirectionType.OUTGOING -> CallLog.Calls.OUTGOING_TYPE
+                    CallDirectionType.MISSED -> CallLog.Calls.MISSED_TYPE
+                    CallDirectionType.REJECTED -> CallLog.Calls.REJECTED_TYPE
+                    CallDirectionType.BLOCKED -> CallLog.Calls.BLOCKED_TYPE
                 }
+
+                val values = ContentValues().apply {
+                    put(CallLog.Calls.NUMBER, phoneNumber)
+                    put(CallLog.Calls.DATE, timestamp)
+                    put(CallLog.Calls.DURATION, durationSeconds)
+                    put(CallLog.Calls.TYPE, systemCallType)
+                    put(CallLog.Calls.NEW, if (direction == CallDirectionType.MISSED) 1 else 0)
+                    if (resolvedName != null) {
+                        put(CallLog.Calls.CACHED_NAME, resolvedName)
+                    }
+                }
+                context.contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            context.contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 
@@ -160,10 +166,13 @@ class CallLogRepository @Inject constructor(
                     if (number.isNotBlank()) {
                         // Prevent inserting duplicates during system sync
                         if (callRecordDao.hasRecordNearTimestamp(number, timestamp) == 0) {
-                            val resolvedName = if (!name.isNullOrBlank()) {
+                            val lookup = contactLookupHelper.lookupContact(number)
+                            val isPrivate = lookup.isPrivate
+
+                            val resolvedName = if (!name.isNullOrBlank() && !isPrivate) {
                                 name
                             } else {
-                                contactLookupHelper.lookupContact(number).displayName
+                                lookup.displayName
                             }
 
                             val record = CallRecordEntity(
@@ -175,7 +184,8 @@ class CallLogRepository @Inject constructor(
                                 durationSeconds = duration,
                                 simSlot = 0,
                                 simDisplayName = "SIM 1",
-                                sessionGroupId = "session_${number.filter { c -> c.isDigit() }}"
+                                sessionGroupId = "session_${number.filter { c -> c.isDigit() }}",
+                                isPrivateContact = isPrivate
                             )
                             callRecordDao.insertCallRecord(record)
                         }

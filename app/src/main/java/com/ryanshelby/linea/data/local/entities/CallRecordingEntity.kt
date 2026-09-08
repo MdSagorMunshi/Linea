@@ -22,7 +22,8 @@ data class CallRecordingEntity(
     val durationMs: Long = 0,
     val fileSize: Long = 0,
     val timestamp: Long = System.currentTimeMillis(),
-    val isPinned: Boolean = false
+    val isPinned: Boolean = false,
+    val isEncrypted: Boolean = false
 )
 
 @Entity(

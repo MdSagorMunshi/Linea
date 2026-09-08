@@ -28,6 +28,15 @@ interface CallRecordingDao {
 
     @Query("DELETE FROM call_recordings WHERE id = :id")
     suspend fun deleteRecordingById(id: Long)
+
+    @Query("SELECT * FROM call_recordings WHERE contactId = :contactId OR phoneNumber = :number ORDER BY timestamp DESC")
+    fun getRecordingsForContact(contactId: Long, number: String): Flow<List<CallRecordingEntity>>
+
+    @Query("UPDATE call_recordings SET isEncrypted = 1 WHERE phoneNumber = :number OR contactId = :contactId")
+    suspend fun markRecordingsAsEncrypted(contactId: Long, number: String)
+
+    @Query("UPDATE call_recordings SET isEncrypted = 0 WHERE phoneNumber = :number OR contactId = :contactId")
+    suspend fun markRecordingsAsDecrypted(contactId: Long, number: String)
 }
 
 @Dao

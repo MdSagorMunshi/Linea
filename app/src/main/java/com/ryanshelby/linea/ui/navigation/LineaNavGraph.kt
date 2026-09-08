@@ -120,7 +120,10 @@ fun LineaNavGraph(
                         listState = contactsListState,
                         viewModel = contactsViewModel,
                         onContactClick = { contactId -> activeContactDashboardId = contactId },
-                        onOpenPrivateSafe = { isPrivateSafeOpen = true }
+                        onOpenPrivateSafe = {
+                            activeContactDashboardId = null
+                            isPrivateSafeOpen = true
+                        }
                     )
                 }
                 LineaDestination.SETTINGS -> {
@@ -155,7 +158,29 @@ fun LineaNavGraph(
             )
         }
 
-        // Contact Dashboard Full-screen Overlay (when viewing contact details)
+        // Private Safe Full-screen Overlay
+        if (isPrivateSafeOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {}
+            ) {
+                com.ryanshelby.linea.ui.screens.contacts.PrivateSafeScreen(
+                    onNavigateBack = {
+                        isPrivateSafeOpen = false
+                        activeContactDashboardId = null
+                    },
+                    onContactClick = { contactId -> activeContactDashboardId = contactId },
+                    viewModel = contactsViewModel,
+                    vaultSecurityManager = contactsViewModel.vaultSecurityManager
+                )
+            }
+        }
+
+        // Contact Dashboard Full-screen Overlay (rendered last = always on top)
         if (activeContactDashboardId != null) {
             Box(
                 modifier = Modifier
@@ -168,25 +193,6 @@ fun LineaNavGraph(
                 com.ryanshelby.linea.ui.screens.contacts.ContactDashboardScreen(
                     contactId = activeContactDashboardId!!,
                     onNavigateBack = { activeContactDashboardId = null }
-                )
-            }
-        }
-
-        // Private Safe Full-screen Overlay
-        if (isPrivateSafeOpen) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {}
-            ) {
-                com.ryanshelby.linea.ui.screens.contacts.PrivateSafeScreen(
-                    onNavigateBack = { isPrivateSafeOpen = false },
-                    onContactClick = { contactId -> activeContactDashboardId = contactId },
-                    viewModel = contactsViewModel,
-                    vaultSecurityManager = contactsViewModel.vaultSecurityManager
                 )
             }
         }
