@@ -17,6 +17,7 @@ import com.ryanshelby.linea.telecom.screening.CallScreeningEngine
 import com.ryanshelby.linea.telecom.screening.ScreeningDecision
 import com.ryanshelby.linea.telecom.recorder.CallAudioRecorder
 import com.ryanshelby.linea.data.preferences.LineaPreferences
+import com.ryanshelby.linea.ui.components.FloatingCallOverlayManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -71,7 +72,11 @@ class CallManager @Inject constructor(
     private val screeningEngine: CallScreeningEngine,
     private val preferences: LineaPreferences,
     private val audioRecorder: CallAudioRecorder,
-    private val contactDao: ContactDao
+    private val contactDao: ContactDao,
+    private val contactLookupHelper: ContactLookupHelper,
+    private val callRingtoneManager: CallRingtoneManager,
+    private val callUiModeDecider: CallUiModeDecider,
+    private val floatingOverlayManager: FloatingCallOverlayManager
 ) {
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -99,6 +104,7 @@ class CallManager @Inject constructor(
 
     fun dismissFloatingCall() {
         _incomingFloatingCall.value = null
+        floatingOverlayManager.dismiss()
         notificationManager.dismissIncomingCallHeadsUpNotification()
     }
 
@@ -119,8 +125,12 @@ class CallManager @Inject constructor(
         val isIncoming = call.state == Call.STATE_RINGING
 
         if (_currentCall.value == null) {
-            if (isIncoming) {
-                scope.launch {
+            scope.launch {
+                val contactLookup = contactLookupHelper.lookupContact(number)
+                val resolvedName = contactLookup.displayName ?: call.details?.callerDisplayName
+                val resolvedPhoto = contactLookup.photoUri
+
+                if (isIncoming) {
                     val decision = screeningEngine.screenCall(
                         phoneNumber = number,
                         isPrivate = number.isBlank(),
@@ -138,8 +148,8 @@ class CallManager @Inject constructor(
                         callLogRepository.logCall(
                             phoneNumber = number,
                             formattedNumber = number,
-                            callerName = null,
-                            photoUri = null,
+                            callerName = resolvedName,
+                            photoUri = resolvedPhoto,
                             direction = CallDirectionType.BLOCKED,
                             timestamp = System.currentTimeMillis(),
                             durationSeconds = 0,
@@ -148,38 +158,73 @@ class CallManager @Inject constructor(
                         return@launch
                     }
 
-                    // Call allowed -> proceed to ringing flow
-                    updateCallState(call)
-                    val isDim = preferences.dontInterruptMe.first()
-                    if (isDim) {
-                        _incomingFloatingCall.value = _currentCall.value
+                    // Call allowed -> update state with resolved contact details
+                    updateCallState(call, initialName = resolvedName, initialPhoto = resolvedPhoto)
+
+                    // Play ringtone and vibrate (respects ringerMode normal/vibrate/silent)
+                    callRingtoneManager.startRinging(number, contactLookup.customRingtoneUri)
+
+                    // Decide between Full Screen vs Heads-Up / Mini Call Float
+                    val isDimEnabled = preferences.dontInterruptMe.first()
+                    val canDrawOverlay = floatingOverlayManager.canDrawOverlay()
+                    val useFloatingOverlay = isDimEnabled && canDrawOverlay
+
+                    val uiMode = callUiModeDecider.decideUiMode()
+                    if (uiMode == CallUiMode.MINI_FLOAT && useFloatingOverlay) {
+                        // User explicitly enabled DIM floating card AND granted "Display over other apps"
+                        val callInfo = _currentCall.value
+                        if (callInfo != null) {
+                            _incomingFloatingCall.value = callInfo
+                            floatingOverlayManager.show(callInfo)
+                        }
+                        // Dismiss any heads-up notification so there is NEVER a duplicate!
+                        notificationManager.dismissIncomingCallHeadsUpNotification()
+                    } else if (uiMode == CallUiMode.MINI_FLOAT) {
+                        // Standard Google Phone Telecom path: native CallStyle heads-up notification (ZERO overlay permission needed)
+                        floatingOverlayManager.dismiss()
+                        _incomingFloatingCall.value = null
                         notificationManager.showIncomingCallHeadsUpNotification(
-                            callerName = call.details?.callerDisplayName,
-                            phoneNumber = number
+                            callerName = resolvedName,
+                            phoneNumber = number,
+                            photoUri = resolvedPhoto
                         )
                     } else {
+                        // Screen is off or lockscreen is active -> Full screen
+                        floatingOverlayManager.dismiss()
+                        _incomingFloatingCall.value = null
+                        notificationManager.showIncomingCallHeadsUpNotification(
+                            callerName = resolvedName,
+                            phoneNumber = number,
+                            photoUri = resolvedPhoto
+                        )
                         val intent = Intent(context, InCallActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         }
                         context.startActivity(intent)
                     }
+                } else {
+                    // Outgoing call
+                    updateCallState(call, initialName = resolvedName, initialPhoto = resolvedPhoto)
+                    val intent = Intent(context, InCallActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                    context.startActivity(intent)
                 }
-            } else {
-                updateCallState(call)
-                val intent = Intent(context, InCallActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                context.startActivity(intent)
             }
         } else {
             // Secondary call (Call Waiting)
-            _secondaryCall.value = ActiveCallInfo(
-                call = call,
-                phoneNumber = number,
-                displayName = call.details?.callerDisplayName,
-                state = LineaCallState.RINGING,
-                isIncoming = true
-            )
+            scope.launch {
+                val contactLookup = contactLookupHelper.lookupContact(number)
+                val resolvedName = contactLookup.displayName ?: call.details?.callerDisplayName
+                _secondaryCall.value = ActiveCallInfo(
+                    call = call,
+                    phoneNumber = number,
+                    displayName = resolvedName,
+                    photoUri = contactLookup.photoUri,
+                    state = LineaCallState.RINGING,
+                    isIncoming = true
+                )
+            }
         }
 
         call.registerCallback(object : Call.Callback() {
@@ -202,6 +247,9 @@ class CallManager @Inject constructor(
     }
 
     fun onCallRemoved(call: Call) {
+        callRingtoneManager.stopRinging()
+        dismissFloatingCall()
+
         val active = _currentCall.value
         if (active?.call == call) {
             timerJob?.cancel()
@@ -237,7 +285,6 @@ class CallManager @Inject constructor(
 
             _currentCall.value = active.copy(state = LineaCallState.DISCONNECTED)
             _currentCall.value = null
-            dismissFloatingCall()
 
             // If secondary call is waiting, promote it
             val secondary = _secondaryCall.value
@@ -265,9 +312,14 @@ class CallManager @Inject constructor(
         proximitySensorManager.onCallStateOrAudioChanged(isCallActive, isSpeaker)
     }
 
-    private fun updateCallState(call: Call) {
+    private fun updateCallState(
+        call: Call,
+        initialName: String? = null,
+        initialPhoto: String? = null
+    ) {
         val number = call.details?.handle?.schemeSpecificPart ?: ""
-        val callerName = call.details?.callerDisplayName
+        val callerName = initialName ?: _currentCall.value?.displayName ?: call.details?.callerDisplayName
+        val photoUri = initialPhoto ?: _currentCall.value?.photoUri
         val isIncoming = call.state == Call.STATE_RINGING
 
         val state = when (call.state) {
@@ -282,10 +334,11 @@ class CallManager @Inject constructor(
         val connectTime = call.details?.connectTimeMillis ?: 0L
         val duration = if (connectTime > 0) (System.currentTimeMillis() - connectTime) / 1000 else 0L
 
-        _currentCall.value = ActiveCallInfo(
+        val updatedInfo = ActiveCallInfo(
             call = call,
             phoneNumber = number,
             displayName = callerName,
+            photoUri = photoUri,
             state = state,
             isIncoming = isIncoming,
             connectTimeMillis = connectTime,
@@ -294,9 +347,18 @@ class CallManager @Inject constructor(
             isMuted = _isMuted.value,
             audioRoute = _audioRoute.value
         )
+        _currentCall.value = updatedInfo
+        if (state == LineaCallState.RINGING && _incomingFloatingCall.value != null) {
+            floatingOverlayManager.update(updatedInfo)
+        }
 
         val isSpeaker = _audioRoute.value == LineaAudioRoute.SPEAKER
         proximitySensorManager.onCallStateOrAudioChanged(state == LineaCallState.ACTIVE, isSpeaker)
+
+        if (state == LineaCallState.ACTIVE) {
+            callRingtoneManager.stopRinging()
+            dismissFloatingCall()
+        }
 
         if (previousCallState != LineaCallState.ACTIVE && state == LineaCallState.ACTIVE) {
             scope.launch {
@@ -396,14 +458,19 @@ class CallManager @Inject constructor(
     }
 
     fun answerCall() {
+        callRingtoneManager.stopRinging()
+        dismissFloatingCall()
         _currentCall.value?.call?.answer(0)
     }
 
     fun rejectCall(rejectWithMessage: Boolean = false, textMessage: String? = null) {
+        callRingtoneManager.stopRinging()
+        dismissFloatingCall()
         _currentCall.value?.call?.reject(rejectWithMessage, textMessage)
     }
 
     fun silenceRinger() {
+        callRingtoneManager.silence()
         try {
             telecomManager.silenceRinger()
         } catch (e: Exception) {

@@ -27,6 +27,10 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class InCallActivity : ComponentActivity() {
 
+    companion object {
+        const val ACTION_ANSWER_CALL = "com.ryanshelby.linea.ACTION_ANSWER_CALL"
+    }
+
     @Inject
     lateinit var callManager: CallManager
 
@@ -38,6 +42,7 @@ class InCallActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIntent(intent)
         enableEdgeToEdge()
 
         // Lockscreen takeover and screen wake
@@ -139,6 +144,18 @@ class InCallActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: android.content.Intent?) {
+        if (intent?.action == ACTION_ANSWER_CALL) {
+            callManager.answerCall()
         }
     }
 }

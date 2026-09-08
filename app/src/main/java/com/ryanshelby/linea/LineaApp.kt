@@ -20,12 +20,36 @@ class LineaApp : Application() {
         const val CHANNEL_MISSED_CALLS = "linea_missed_calls"
         const val CHANNEL_VOICEMAIL = "linea_voicemail"
         const val CHANNEL_REMINDERS = "linea_reminders"
+
+        var isAppInForeground: Boolean = false
+            private set
     }
+
+    private var startedActivityCount = 0
 
     override fun onCreate() {
         super.onCreate()
+        setupLifecycleTracking()
         createNotificationChannels()
         registerPhoneAccounts()
+    }
+
+    private fun setupLifecycleTracking() {
+        registerActivityLifecycleCallbacks(object : android.app.Application.ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) {}
+            override fun onActivityStarted(activity: android.app.Activity) {
+                startedActivityCount++
+                isAppInForeground = startedActivityCount > 0
+            }
+            override fun onActivityResumed(activity: android.app.Activity) {}
+            override fun onActivityPaused(activity: android.app.Activity) {}
+            override fun onActivityStopped(activity: android.app.Activity) {
+                startedActivityCount--
+                isAppInForeground = startedActivityCount > 0
+            }
+            override fun onActivitySaveInstanceState(activity: android.app.Activity, outState: android.os.Bundle) {}
+            override fun onActivityDestroyed(activity: android.app.Activity) {}
+        })
     }
 
     private fun registerPhoneAccounts() {

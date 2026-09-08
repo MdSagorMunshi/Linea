@@ -2,7 +2,9 @@ package com.ryanshelby.linea.telecom.recorder
 
 import android.content.Context
 import android.media.MediaRecorder
+import android.media.MediaScannerConnection
 import android.os.Build
+import android.os.Environment
 import com.ryanshelby.linea.data.local.dao.CallRecordingDao
 import com.ryanshelby.linea.data.local.entities.CallRecordingEntity
 import com.ryanshelby.linea.data.preferences.LineaPreferences
@@ -54,6 +56,35 @@ class CallAudioRecorder @Inject constructor(
         return if (contactsOnly) isContact else true
     }
 
+    private fun getRecordingsDirectory(): File {
+        // Primary: Shared Music/Linea folder on external storage
+        try {
+            val publicMusicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+            val lineaDir = File(publicMusicDir, "Linea")
+            if (lineaDir.exists() || lineaDir.mkdirs()) {
+                return lineaDir
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Secondary: App external files directory under Music/Linea
+        try {
+            val extMusicDir = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+            val lineaDir = File(extMusicDir, "Linea")
+            if (lineaDir.exists() || lineaDir.mkdirs()) {
+                return lineaDir
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Fallback: Internal storage recordings folder
+        return File(context.filesDir, "recordings").apply {
+            if (!exists()) mkdirs()
+        }
+    }
+
     @Synchronized
     fun startRecording(phoneNumber: String, contactId: Long? = null, callRecordId: Long? = null) {
         if (_isRecording.value) return
@@ -63,9 +94,7 @@ class CallAudioRecorder @Inject constructor(
         currentCallRecordId = callRecordId
         recordingStartTime = System.currentTimeMillis()
 
-        val recordingsDir = File(context.filesDir, "recordings").apply {
-            if (!exists()) mkdirs()
-        }
+        val recordingsDir = getRecordingsDirectory()
         val safeNum = phoneNumber.replace("+", "").filter { it.isDigit() }.ifBlank { "unknown" }
         val outputFile = File(recordingsDir, "rec_${recordingStartTime}_${safeNum}.m4a")
         _currentFilePath.value = outputFile.absolutePath
@@ -150,6 +179,17 @@ class CallAudioRecorder @Inject constructor(
             val fileSize = if (file.exists()) file.length() else 0L
 
             if (fileSize > 0L) {
+                try {
+                    MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(filePath),
+                        arrayOf("audio/mp4", "audio/m4a"),
+                        null
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
                 scope.launch {
                     recordingDao.insertRecording(
                         CallRecordingEntity(

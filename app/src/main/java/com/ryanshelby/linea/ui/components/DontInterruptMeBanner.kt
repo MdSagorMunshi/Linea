@@ -55,6 +55,7 @@ fun DontInterruptMeBanner(
     onReject: () -> Unit,
     onIgnore: () -> Unit,
     onMessage: () -> Unit,
+    onExpand: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isVisible = callInfo != null
@@ -83,7 +84,10 @@ fun DontInterruptMeBanner(
             ) {
                 Column {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onExpand),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Avatar

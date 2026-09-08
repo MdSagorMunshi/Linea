@@ -198,34 +198,44 @@ fun LineaNavGraph(
             )
         }
 
-        // DIM Mode Floating Banner overlay
+        // DIM Mode Floating Banner overlay (fallback inside app when system overlay permission is not granted)
         if (callManager != null) {
             val floatingCall by callManager.incomingFloatingCall.collectAsState()
             val context = androidx.compose.ui.platform.LocalContext.current
+            val hasOverlayPermission = android.provider.Settings.canDrawOverlays(context)
 
-            com.ryanshelby.linea.ui.components.DontInterruptMeBanner(
-                callInfo = floatingCall,
-                onAnswer = {
-                    callManager.answerCall()
-                    callManager.dismissFloatingCall()
-                    val inCallIntent = android.content.Intent(context, com.ryanshelby.linea.ui.incall.InCallActivity::class.java).apply {
-                        flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                    }
-                    context.startActivity(inCallIntent)
-                },
-                onReject = {
-                    callManager.rejectCall()
-                    callManager.dismissFloatingCall()
-                },
-                onIgnore = {
-                    callManager.silenceRinger()
-                    callManager.dismissFloatingCall()
-                },
-                onMessage = {
-                    callManager.dismissFloatingCall()
-                },
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
+            if (!hasOverlayPermission && floatingCall != null) {
+                com.ryanshelby.linea.ui.components.DontInterruptMeBanner(
+                    callInfo = floatingCall,
+                    onAnswer = {
+                        callManager.answerCall()
+                        callManager.dismissFloatingCall()
+                        val inCallIntent = android.content.Intent(context, com.ryanshelby.linea.ui.incall.InCallActivity::class.java).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        }
+                        context.startActivity(inCallIntent)
+                    },
+                    onReject = {
+                        callManager.rejectCall()
+                        callManager.dismissFloatingCall()
+                    },
+                    onIgnore = {
+                        callManager.silenceRinger()
+                        callManager.dismissFloatingCall()
+                    },
+                    onMessage = {
+                        callManager.dismissFloatingCall()
+                    },
+                    onExpand = {
+                        callManager.dismissFloatingCall()
+                        val inCallIntent = android.content.Intent(context, com.ryanshelby.linea.ui.incall.InCallActivity::class.java).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        }
+                        context.startActivity(inCallIntent)
+                    },
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
         }
     }
 }

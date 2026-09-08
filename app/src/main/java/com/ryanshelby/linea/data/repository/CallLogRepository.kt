@@ -7,6 +7,7 @@ import android.provider.CallLog
 import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.data.local.entities.CallDirectionType
 import com.ryanshelby.linea.data.local.entities.CallRecordEntity
+import com.ryanshelby.linea.telecom.ContactLookupHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,7 +17,8 @@ import javax.inject.Singleton
 @Singleton
 class CallLogRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val callRecordDao: CallRecordDao
+    private val callRecordDao: CallRecordDao,
+    private val contactLookupHelper: ContactLookupHelper
 ) {
 
     @SuppressLint("MissingPermission")
@@ -34,14 +36,26 @@ class CallLogRepository @Inject constructor(
     ) = withContext(Dispatchers.IO) {
         if (phoneNumber.isBlank()) return@withContext
 
+        val resolvedName = if (!callerName.isNullOrBlank()) {
+            callerName
+        } else {
+            contactLookupHelper.lookupContact(phoneNumber).displayName
+        }
+
+        val resolvedPhoto = if (!photoUri.isNullOrBlank()) {
+            photoUri
+        } else {
+            contactLookupHelper.lookupContact(phoneNumber).photoUri
+        }
+
         // Check if this call was already logged to prevent duplicates
         if (callRecordDao.hasRecordNearTimestamp(phoneNumber, timestamp) == 0) {
             // 1. Insert into LINEA local Room database
             val record = CallRecordEntity(
                 phoneNumber = phoneNumber,
                 formattedNumber = formattedNumber,
-                callerName = callerName,
-                photoUri = photoUri,
+                callerName = resolvedName,
+                photoUri = resolvedPhoto,
                 callType = direction,
                 timestamp = timestamp,
                 durationSeconds = durationSeconds,
@@ -69,8 +83,8 @@ class CallLogRepository @Inject constructor(
                 put(CallLog.Calls.DURATION, durationSeconds)
                 put(CallLog.Calls.TYPE, systemCallType)
                 put(CallLog.Calls.NEW, if (direction == CallDirectionType.MISSED) 1 else 0)
-                if (callerName != null) {
-                    put(CallLog.Calls.CACHED_NAME, callerName)
+                if (resolvedName != null) {
+                    put(CallLog.Calls.CACHED_NAME, resolvedName)
                 }
             }
             context.contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
@@ -146,10 +160,16 @@ class CallLogRepository @Inject constructor(
                     if (number.isNotBlank()) {
                         // Prevent inserting duplicates during system sync
                         if (callRecordDao.hasRecordNearTimestamp(number, timestamp) == 0) {
+                            val resolvedName = if (!name.isNullOrBlank()) {
+                                name
+                            } else {
+                                contactLookupHelper.lookupContact(number).displayName
+                            }
+
                             val record = CallRecordEntity(
                                 phoneNumber = number,
                                 formattedNumber = number,
-                                callerName = name,
+                                callerName = resolvedName,
                                 callType = direction,
                                 timestamp = timestamp,
                                 durationSeconds = duration,

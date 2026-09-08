@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,7 +60,9 @@ data class PermissionItem(
     val description: String,
     val icon: ImageVector,
     val permissionKey: String? = null,
-    val isCustomCheck: ((Context) -> Boolean)? = null
+    val isCustomCheck: ((Context) -> Boolean)? = null,
+    val customAction: ((Context) -> Unit)? = null,
+    val isOptional: Boolean = false
 )
 
 @Composable
@@ -76,7 +79,22 @@ fun PermissionsScreen(
             name = "Default Phone Dialer Role",
             description = "Handles cellular calls, incoming lockscreen UI, and telecom routing",
             icon = Icons.Filled.Security,
-            isCustomCheck = { isDefaultDialer }
+            isCustomCheck = { isDefaultDialer },
+            customAction = { onRequestDefaultDialer() }
+        ),
+        PermissionItem(
+            name = "Display Over Other Apps (Optional)",
+            description = "Optional: enables custom Mini Call Float card above active apps (not required for standard call notifications)",
+            icon = Icons.Filled.Settings,
+            isCustomCheck = { Settings.canDrawOverlays(it) },
+            customAction = { ctx ->
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:${ctx.packageName}")
+                )
+                ctx.startActivity(intent)
+            },
+            isOptional = true
         ),
         PermissionItem(
             name = "Phone State & Calls",
@@ -168,7 +186,7 @@ fun PermissionsScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // Status Summary Card
-            val allGranted = permissionItems.all { item ->
+            val allGranted = permissionItems.filter { !it.isOptional }.all { item ->
                 if (item.isCustomCheck != null) item.isCustomCheck.invoke(context)
                 else if (item.permissionKey != null) {
                     ContextCompat.checkSelfPermission(context, item.permissionKey) == PackageManager.PERMISSION_GRANTED
@@ -232,7 +250,26 @@ fun PermissionsScreen(
                     ContextCompat.checkSelfPermission(context, item.permissionKey) == PackageManager.PERMISSION_GRANTED
                 } else true
 
-                FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
+                val badgeColor = when {
+                    isGranted -> LineaColors.MutedSageGreen
+                    item.isOptional -> LineaColors.TitaniumBlue
+                    else -> LineaColors.CarmineRed
+                }
+                val badgeText = when {
+                    isGranted -> "GRANTED"
+                    item.isOptional -> "OPTIONAL"
+                    else -> "MISSING"
+                }
+
+                FrostedGlassBox(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (item.customAction != null) {
+                                Modifier.clickable { item.customAction.invoke(context) }
+                            } else Modifier
+                        )
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -275,24 +312,21 @@ fun PermissionsScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(
-                                    if (isGranted) LineaColors.MutedSageGreen.copy(alpha = 0.15f)
-                                    else LineaColors.CarmineRed.copy(alpha = 0.15f)
-                                )
+                                .background(badgeColor.copy(alpha = 0.15f))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = if (isGranted) Icons.Filled.Check else Icons.Filled.Close,
+                                    imageVector = if (isGranted) Icons.Filled.Check else if (item.isOptional) Icons.Filled.Settings else Icons.Filled.Close,
                                     contentDescription = null,
-                                    tint = if (isGranted) LineaColors.MutedSageGreen else LineaColors.CarmineRed,
+                                    tint = badgeColor,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = if (isGranted) "GRANTED" else "MISSING",
+                                    text = badgeText,
                                     fontSize = 10.sp,
-                                    color = if (isGranted) LineaColors.MutedSageGreen else LineaColors.CarmineRed
+                                    color = badgeColor
                                 )
                             }
                         }

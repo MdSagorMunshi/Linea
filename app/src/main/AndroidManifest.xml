@@ -30,6 +30,7 @@
     <application
         android:name=".LineaApp"
         android:allowBackup="true"
+        android:requestLegacyExternalStorage="true"
         android:dataExtractionRules="@null"
         android:fullBackupContent="true"
         android:icon="@drawable/ic_launcher"
