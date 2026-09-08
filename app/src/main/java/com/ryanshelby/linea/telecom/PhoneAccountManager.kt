@@ -3,15 +3,11 @@ package com.ryanshelby.linea.telecom
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
-import android.graphics.drawable.Icon
-import android.net.Uri
-import android.os.Build
 import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.SubscriptionInfo
 import android.telephony.SubscriptionManager
-import com.ryanshelby.linea.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,62 +26,85 @@ class PhoneAccountManager @Inject constructor(
     private val telecomManager: TelecomManager
 ) {
 
-    private val connectionServiceComponent = ComponentName(context, LineaConnectionService::class.java)
+    init {
+        unregisterLegacyAccounts()
+    }
+
+    private fun unregisterLegacyAccounts() {
+        try {
+            val legacyComponent = ComponentName(context, "com.ryanshelby.linea.telecom.LineaConnectionService")
+            telecomManager.unregisterPhoneAccount(PhoneAccountHandle(legacyComponent, "linea_default_sim"))
+            for (i in 0..10) {
+                telecomManager.unregisterPhoneAccount(PhoneAccountHandle(legacyComponent, "linea_sim_$i"))
+            }
+        } catch (_: Exception) {}
+    }
 
     @SuppressLint("MissingPermission")
     fun registerPhoneAccounts(): List<SimAccountInfo> {
+        return getSimAccounts()
+    }
+
+    @SuppressLint("MissingPermission")
+    fun getSimAccounts(): List<SimAccountInfo> {
         val registeredAccounts = mutableListOf<SimAccountInfo>()
-        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java) ?: return emptyList()
+        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+
+        val subscriptions: List<SubscriptionInfo>? = try {
+            subscriptionManager?.activeSubscriptionInfoList
+        } catch (_: SecurityException) {
+            null
+        }
 
         try {
-            val subscriptions: List<SubscriptionInfo>? = subscriptionManager.activeSubscriptionInfoList
-            if (!subscriptions.isNullOrEmpty()) {
-                subscriptions.forEach { subInfo ->
-                    val handleId = "linea_sim_${subInfo.subscriptionId}"
-                    val handle = PhoneAccountHandle(connectionServiceComponent, handleId)
-                    val label = subInfo.displayName?.toString() ?: "SIM ${subInfo.simSlotIndex + 1}"
-                    val carrier = subInfo.carrierName?.toString() ?: "Cellular"
+            val callCapableHandles = telecomManager.callCapablePhoneAccounts
+            if (!callCapableHandles.isNullOrEmpty()) {
+                callCapableHandles.forEachIndexed { index, handle ->
+                    val phoneAccount = telecomManager.getPhoneAccount(handle)
+                    val matchingSub = subscriptions?.firstOrNull { sub ->
+                        handle.id.contains(sub.subscriptionId.toString()) ||
+                        handle.id.contains(sub.iccId ?: "---") ||
+                        sub.simSlotIndex == index
+                    }
 
-                    val phoneAccount = PhoneAccount.builder(handle, label)
-                        .setCapabilities(PhoneAccount.CAPABILITY_CALL_PROVIDER or PhoneAccount.CAPABILITY_CONNECTION_MANAGER)
-                        .setIcon(Icon.createWithResource(context, R.drawable.ic_launcher_foreground))
-                        .setShortDescription(carrier)
-                        .addSupportedUriScheme(PhoneAccount.SCHEME_TEL)
-                        .build()
+                    val slotIndex = matchingSub?.simSlotIndex ?: index
+                    val subId = matchingSub?.subscriptionId ?: (index + 1)
+                    val displayName = matchingSub?.displayName?.toString()
+                        ?: phoneAccount?.label?.toString()
+                        ?: "SIM ${slotIndex + 1}"
+                    val carrierName = matchingSub?.carrierName?.toString()
+                        ?: phoneAccount?.shortDescription?.toString()
+                        ?: displayName
 
-                    telecomManager.registerPhoneAccount(phoneAccount)
                     registeredAccounts.add(
                         SimAccountInfo(
-                            slotIndex = subInfo.simSlotIndex,
-                            subscriptionId = subInfo.subscriptionId,
-                            displayName = label,
-                            carrierName = carrier,
+                            slotIndex = slotIndex,
+                            subscriptionId = subId,
+                            displayName = displayName,
+                            carrierName = carrierName,
                             phoneAccountHandle = handle
                         )
                     )
                 }
-            } else {
-                // Fallback virtual account for devices/emulators with no active physical SIM
-                val defaultHandle = PhoneAccountHandle(connectionServiceComponent, "linea_default_sim")
-                val defaultAccount = PhoneAccount.builder(defaultHandle, "LINEA Cellular")
-                    .setCapabilities(PhoneAccount.CAPABILITY_CALL_PROVIDER or PhoneAccount.CAPABILITY_CONNECTION_MANAGER)
-                    .setIcon(Icon.createWithResource(context, R.drawable.ic_launcher_foreground))
-                    .setShortDescription("Cellular Call Provider")
-                    .addSupportedUriScheme(PhoneAccount.SCHEME_TEL)
-                    .build()
-
-                telecomManager.registerPhoneAccount(defaultAccount)
-                registeredAccounts.add(
-                    SimAccountInfo(
-                        slotIndex = 0,
-                        subscriptionId = -1,
-                        displayName = "Cellular",
-                        carrierName = "Default Carrier",
-                        phoneAccountHandle = defaultHandle
-                    )
-                )
+            } else if (!subscriptions.isNullOrEmpty()) {
+                val defaultHandle = telecomManager.getDefaultOutgoingPhoneAccount(PhoneAccount.SCHEME_TEL)
+                if (defaultHandle != null) {
+                    subscriptions.forEach { subInfo ->
+                        val label = subInfo.displayName?.toString() ?: "SIM ${subInfo.simSlotIndex + 1}"
+                        val carrier = subInfo.carrierName?.toString() ?: "Cellular"
+                        registeredAccounts.add(
+                            SimAccountInfo(
+                                slotIndex = subInfo.simSlotIndex,
+                                subscriptionId = subInfo.subscriptionId,
+                                displayName = label,
+                                carrierName = carrier,
+                                phoneAccountHandle = defaultHandle
+                            )
+                        )
+                    }
+                }
             }
-        } catch (e: SecurityException) {
+        } catch (e: Exception) {
             e.printStackTrace()
         }
 

@@ -92,33 +92,18 @@ class VoicemailViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        seedSampleVoicemailsIfEmpty()
+        cleanupLegacySampleVoicemails()
     }
 
-    private fun seedSampleVoicemailsIfEmpty() {
+    private fun cleanupLegacySampleVoicemails() {
         viewModelScope.launch {
-            val existing = voicemailDao.getAllVoicemails().first()
-            if (existing.isEmpty()) {
-                val now = System.currentTimeMillis()
-                voicemailDao.insertVoicemail(
-                    VoicemailEntity(
-                        sender = "+1 (555) 019-2834",
-                        timestamp = now - 3600_000 * 3,
-                        duration = 42,
-                        transcriptionText = "Hi Ryan, this is John from the project team. Just following up on the design system specs. Give me a call back whenever you have a chance.",
-                        isRead = false
-                    )
-                )
-                voicemailDao.insertVoicemail(
-                    VoicemailEntity(
-                        sender = "+1 (555) 014-9988",
-                        timestamp = now - 3600_000 * 26,
-                        duration = 18,
-                        transcriptionText = "Hey there, confirming our scheduled hardware testing tomorrow at 10 AM. Talk soon!",
-                        isRead = true
-                    )
-                )
-            }
+            try {
+                val existing = voicemailDao.getAllVoicemails().first()
+                val dummySenders = setOf("+1 (555) 019-2834", "+1 (555) 014-9988")
+                existing.filter { it.sender in dummySenders }.forEach {
+                    voicemailDao.deleteVoicemailById(it.id)
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -165,11 +150,8 @@ class VoicemailViewModel @Inject constructor(
             }
         }
 
-        // Simulate playback smoothly for demo / synthesized visual voicemails
-        _playingId.value = voicemail.id
-        _isPlaying.value = true
-        val durationMs = (voicemail.duration * 1000).coerceAtLeast(3000)
-        startSimulatedPlayback(durationMs)
+        // If audio file doesn't exist or playback fails, reset playback state
+        stopPlayback()
     }
 
     private fun startProgressTracker() {
@@ -186,23 +168,6 @@ class VoicemailViewModel @Inject constructor(
                         }
                     } catch (_: Exception) {}
                 }
-                delay(100)
-            }
-        }
-    }
-
-    private fun startSimulatedPlayback(durationMs: Long) {
-        progressJob?.cancel()
-        progressJob = viewModelScope.launch {
-            val start = System.currentTimeMillis()
-            while (isActive && _isPlaying.value) {
-                val elapsed = System.currentTimeMillis() - start
-                if (elapsed >= durationMs) {
-                    _isPlaying.value = false
-                    _playbackProgress.value = 0f
-                    break
-                }
-                _playbackProgress.value = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f)
                 delay(100)
             }
         }

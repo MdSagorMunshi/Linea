@@ -114,7 +114,10 @@ class RecordingsViewModel @Inject constructor(
 
     private fun startPlayback(recording: CallRecordingEntity) {
         val file = File(recording.filePath)
-        if (!file.exists()) return
+        if (!file.exists()) {
+            stopPlayback()
+            return
+        }
 
         try {
             val player = MediaPlayer().apply {
@@ -133,10 +136,7 @@ class RecordingsViewModel @Inject constructor(
             startProgressTracker()
         } catch (e: Exception) {
             e.printStackTrace()
-            // On fallback dummy files, simulate playback smoothly:
-            _playingId.value = recording.id
-            _isPlaying.value = true
-            startSimulatedPlayback(recording.durationMs.coerceAtLeast(3000))
+            stopPlayback()
         }
     }
 
@@ -154,23 +154,6 @@ class RecordingsViewModel @Inject constructor(
                         }
                     } catch (_: Exception) {}
                 }
-                delay(100)
-            }
-        }
-    }
-
-    private fun startSimulatedPlayback(durationMs: Long) {
-        progressJob?.cancel()
-        progressJob = viewModelScope.launch {
-            val start = System.currentTimeMillis()
-            while (isActive && _isPlaying.value) {
-                val elapsed = System.currentTimeMillis() - start
-                if (elapsed >= durationMs) {
-                    _isPlaying.value = false
-                    _playbackProgress.value = 0f
-                    break
-                }
-                _playbackProgress.value = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f)
                 delay(100)
             }
         }

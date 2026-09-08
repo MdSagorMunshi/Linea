@@ -101,18 +101,17 @@ fun CallForwardingScreen(
     var activeConditionToEdit by remember { mutableStateOf<ForwardingCondition?>(null) }
     var enteredNumber by remember { mutableStateOf("") }
 
-    // Mock/Local states for the conditions
     var alwaysEnabled by remember { mutableStateOf(false) }
-    var alwaysNumber by remember { mutableStateOf("+1 (555) 019-2000") }
+    var alwaysNumber by remember { mutableStateOf("") }
 
     var busyEnabled by remember { mutableStateOf(false) }
-    var busyNumber by remember { mutableStateOf("+1 (555) 019-2000") }
+    var busyNumber by remember { mutableStateOf("") }
 
     var unansweredEnabled by remember { mutableStateOf(false) }
-    var unansweredNumber by remember { mutableStateOf("+1 (555) 019-2000") }
+    var unansweredNumber by remember { mutableStateOf("") }
 
     var unreachableEnabled by remember { mutableStateOf(false) }
-    var unreachableNumber by remember { mutableStateOf("+1 (555) 019-2000") }
+    var unreachableNumber by remember { mutableStateOf("") }
 
     fun sendMmiIntent(code: String) {
         val encodedHash = Uri.encode("#")

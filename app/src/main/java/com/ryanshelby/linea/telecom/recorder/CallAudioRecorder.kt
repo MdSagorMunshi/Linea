@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
-import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -96,13 +95,11 @@ class CallAudioRecorder @Inject constructor(
             mediaRecorder = recorder
         } catch (e: Exception) {
             e.printStackTrace()
-            // Fallback for emulator or hardware without direct audio hal access:
-            // Create a small placeholder file so metadata and UI can still function cleanly
-            try {
-                if (!outputFile.exists()) {
-                    FileOutputStream(outputFile).use { it.write(ByteArray(1024)) }
-                }
-            } catch (_: Exception) {}
+            if (outputFile.exists()) {
+                outputFile.delete()
+            }
+            _currentFilePath.value = null
+            return
         }
 
         _isRecording.value = true
@@ -152,19 +149,23 @@ class CallAudioRecorder @Inject constructor(
             val file = File(filePath)
             val fileSize = if (file.exists()) file.length() else 0L
 
-            scope.launch {
-                recordingDao.insertRecording(
-                    CallRecordingEntity(
-                        callRecordId = callRecordId,
-                        contactId = contactId,
-                        phoneNumber = phone,
-                        filePath = filePath,
-                        durationMs = durationMs,
-                        fileSize = fileSize,
-                        timestamp = recordingStartTime,
-                        isPinned = false
+            if (fileSize > 0L) {
+                scope.launch {
+                    recordingDao.insertRecording(
+                        CallRecordingEntity(
+                            callRecordId = callRecordId,
+                            contactId = contactId,
+                            phoneNumber = phone,
+                            filePath = filePath,
+                            durationMs = durationMs,
+                            fileSize = fileSize,
+                            timestamp = recordingStartTime,
+                            isPinned = false
+                        )
                     )
-                )
+                }
+            } else {
+                if (file.exists()) file.delete()
             }
         }
     }

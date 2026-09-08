@@ -48,7 +48,7 @@ LINEA was engineered and verified across 8 sequential architectural phases:
 
 ### Phase 1: Core Calling Pipeline & Dialpad
 - `LineaInCallService`: Manages system active calls, state callbacks, audio routes, and DTMF tones.
-- `LineaConnectionService`: Registers `PhoneAccountHandle` with Telecom framework capabilities (`CAPABILITY_CALL_PROVIDER`).
+- `PhoneAccountManager`: Resolves native carrier `PhoneAccountHandle` instances from `TelecomManager` and `SubscriptionManager` for direct dual-SIM hardware routing.
 - Fullscreen In-Call UI: Animated call duration counter, mute/hold/speaker toggles, in-call DTMF bottom sheet, and ambient caller glow.
 - Dialpad with instantaneous T9 contact filtering (letters `2`–`9` matching contact names and numbers).
 

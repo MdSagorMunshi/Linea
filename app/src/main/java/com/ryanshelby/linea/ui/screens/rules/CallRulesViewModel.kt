@@ -37,41 +37,18 @@ class CallRulesViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            seedDefaultRulesIfEmpty()
+            cleanupSeededRules()
         }
     }
 
-    private suspend fun seedDefaultRulesIfEmpty() {
-        val active = callRuleDao.getActiveRules()
-        if (active.isEmpty()) {
-            // Seed Nighttime Favorites rule
-            callRuleDao.insertRule(
-                CallRuleEntity(
-                    name = "Nighttime Favorites Only",
-                    isEnabled = true,
-                    startTime = "22:00",
-                    endTime = "07:00",
-                    daysOfWeek = "1,2,3,4,5,6,7",
-                    allowedFilter = RuleAllowedFilter.FAVORITES_ONLY,
-                    simSlot = null,
-                    action = RuleAction.REJECT
-                )
-            )
-
-            // Seed Weekday Work Hours rule
-            callRuleDao.insertRule(
-                CallRuleEntity(
-                    name = "Workday Priority Only",
-                    isEnabled = false,
-                    startTime = "09:00",
-                    endTime = "17:00",
-                    daysOfWeek = "1,2,3,4,5",
-                    allowedFilter = RuleAllowedFilter.FAVORITES_ONLY,
-                    simSlot = 0,
-                    action = RuleAction.SILENT
-                )
-            )
-        }
+    private suspend fun cleanupSeededRules() {
+        try {
+            val active = callRuleDao.getActiveRules()
+            val dummyNames = setOf("Nighttime Favorites Only", "Workday Priority Only")
+            active.filter { it.name in dummyNames }.forEach {
+                callRuleDao.deleteRuleById(it.id)
+            }
+        } catch (_: Exception) {}
     }
 
     fun toggleRule(rule: CallRuleEntity) {
