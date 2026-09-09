@@ -113,6 +113,8 @@ fun DialpadScreen(
     val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
     val activeProfile by viewModel.activeProfile.collectAsState()
     val callerIdResult by viewModel.callerIdResult.collectAsState()
+    val internationalPreview by viewModel.internationalPreview.collectAsState()
+    val dialpadHapticProfile by viewModel.dialpadHapticProfile.collectAsState()
 
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
     var showCountdownDialog by remember { mutableStateOf(false) }
@@ -606,6 +608,12 @@ fun DialpadScreen(
             }
         }
 
+        // International Time Zone Preview & Country Detection
+        DialpadTimezonePill(
+            preview = internationalPreview,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+
         // Dialpad Grid (4 rows x 3 columns) with Speed Dial support
         val rows = listOf(
             listOf(
@@ -648,7 +656,8 @@ fun DialpadScreen(
                             onLongPress = longPress,
                             size = 68.dp,
                             soundEnabled = soundEnabled,
-                            vibrationEnabled = vibrationEnabled
+                            vibrationEnabled = vibrationEnabled,
+                            hapticProfile = dialpadHapticProfile
                         )
                     }
                 }

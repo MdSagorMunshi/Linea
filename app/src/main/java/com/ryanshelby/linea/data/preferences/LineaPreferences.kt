@@ -34,6 +34,13 @@ class LineaPreferences @Inject constructor(
         const val EXPANDED = "EXPANDED"
     }
 
+    object DialpadHapticProfile {
+        const val TITANIUM_GLASS = "TITANIUM_GLASS"
+        const val MECHANICAL_RELAY = "MECHANICAL_RELAY"
+        const val STEALTH = "STEALTH"
+        const val CLASSIC = "CLASSIC"
+    }
+
     companion object {
         val KEY_NAVBAR_MODE = stringPreferencesKey("navbar_mode")
         val KEY_DEFAULT_SIM = intPreferencesKey("default_sim") // 0 = SIM 1, 1 = SIM 2, -1 = Ask Every Time
@@ -70,6 +77,9 @@ class LineaPreferences @Inject constructor(
         val KEY_OPT_IN_LOCATION_TAG = booleanPreferencesKey("opt_in_location_tag")
         val KEY_AUTO_RECORD_PRIVATE_SAFE = booleanPreferencesKey("auto_record_private_safe")
         val KEY_RINGTONE_TYPE = stringPreferencesKey("ringtone_type") // "APP_DEFAULT", "SYSTEM_DEFAULT"
+        val KEY_FLIP_TO_SILENCE = booleanPreferencesKey("flip_to_silence")
+        val KEY_PROXIMITY_WAVE_TO_SILENCE = booleanPreferencesKey("proximity_wave_to_silence")
+        val KEY_DIALPAD_HAPTIC_PROFILE = stringPreferencesKey("dialpad_haptic_profile") // TITANIUM_GLASS, MECHANICAL_RELAY, STEALTH, CLASSIC
 
         // Quantum Vault & Anti-Brute-Force Keys
 
@@ -119,6 +129,9 @@ class LineaPreferences @Inject constructor(
     val autoRecordPrivateSafe: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_PRIVATE_SAFE] ?: false }
     val ringtoneType: Flow<String> = dataStore.data.map { it[KEY_RINGTONE_TYPE] ?: RingtoneType.APP_DEFAULT }
     val navbarMode: Flow<String> = dataStore.data.map { it[KEY_NAVBAR_MODE] ?: NavbarMode.COLLAPSED }
+    val flipToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_FLIP_TO_SILENCE] ?: false }
+    val proximityWaveToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_PROXIMITY_WAVE_TO_SILENCE] ?: false }
+    val dialpadHapticProfile: Flow<String> = dataStore.data.map { it[KEY_DIALPAD_HAPTIC_PROFILE] ?: DialpadHapticProfile.TITANIUM_GLASS }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -131,6 +144,18 @@ class LineaPreferences @Inject constructor(
     override val vaultRecoveryMasterKeyEncrypted: Flow<String?> = dataStore.data.map { it[KEY_VAULT_RECOVERY_MASTER_KEY_ENC] }
     override val vaultFailedAttempts: Flow<Int> = dataStore.data.map { it[KEY_VAULT_FAILED_ATTEMPTS] ?: 0 }
     override val vaultLockoutUntil: Flow<Long> = dataStore.data.map { it[KEY_VAULT_LOCKOUT_UNTIL] ?: 0L }
+
+    suspend fun setFlipToSilence(enabled: Boolean) {
+        dataStore.edit { it[KEY_FLIP_TO_SILENCE] = enabled }
+    }
+
+    suspend fun setProximityWaveToSilence(enabled: Boolean) {
+        dataStore.edit { it[KEY_PROXIMITY_WAVE_TO_SILENCE] = enabled }
+    }
+
+    suspend fun setDialpadHapticProfile(profile: String) {
+        dataStore.edit { it[KEY_DIALPAD_HAPTIC_PROFILE] = profile }
+    }
 
     suspend fun setReduceAnimations(enabled: Boolean) {
         dataStore.edit { it[KEY_REDUCE_ANIMATIONS] = enabled }

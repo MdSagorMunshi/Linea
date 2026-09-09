@@ -16,6 +16,7 @@ import com.ryanshelby.linea.notifications.CallNotificationManager
 import com.ryanshelby.linea.ui.incall.InCallActivity
 import com.ryanshelby.linea.telecom.screening.CallScreeningEngine
 import com.ryanshelby.linea.telecom.screening.ScreeningDecision
+import com.ryanshelby.linea.telecom.gestures.CallGestureManager
 import com.ryanshelby.linea.telecom.recorder.CallAudioRecorder
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.ui.components.FloatingCallOverlayManager
@@ -77,7 +78,8 @@ class CallManager @Inject constructor(
     private val contactLookupHelper: ContactLookupHelper,
     private val callRingtoneManager: CallRingtoneManager,
     private val callUiModeDecider: CallUiModeDecider,
-    private val floatingOverlayManager: FloatingCallOverlayManager
+    private val floatingOverlayManager: FloatingCallOverlayManager,
+    private val callGestureManager: CallGestureManager
 ) {
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -264,6 +266,9 @@ class CallManager @Inject constructor(
 
                     // Play ringtone and vibrate (respects ringerMode normal/vibrate/silent)
                     callRingtoneManager.startRinging(number, contactLookup.customRingtoneUri)
+                    callGestureManager.startListening {
+                        silenceRinger()
+                    }
 
                     // Decide between Full Screen vs Heads-Up / Mini Call Float
                     val isDimEnabled = preferences.dontInterruptMe.first()
@@ -342,6 +347,7 @@ class CallManager @Inject constructor(
 
     fun onCallRemoved(call: Call) {
         callRingtoneManager.stopRinging()
+        callGestureManager.stopListening()
         dismissFloatingCall()
 
         val active = _currentCall.value
@@ -620,18 +626,21 @@ class CallManager @Inject constructor(
 
     fun answerCall() {
         callRingtoneManager.stopRinging()
+        callGestureManager.stopListening()
         dismissFloatingCall()
         _currentCall.value?.call?.answer(0)
     }
 
     fun rejectCall(rejectWithMessage: Boolean = false, textMessage: String? = null) {
         callRingtoneManager.stopRinging()
+        callGestureManager.stopListening()
         dismissFloatingCall()
         _currentCall.value?.call?.reject(rejectWithMessage, textMessage)
     }
 
     fun silenceRinger() {
         callRingtoneManager.silence()
+        callGestureManager.stopListening()
         try {
             telecomManager.silenceRinger()
         } catch (e: Exception) {

@@ -64,6 +64,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -73,10 +74,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.data.local.entities.CallNoteEntity
 import com.ryanshelby.linea.telecom.ActiveCallInfo
+import com.ryanshelby.linea.telecom.InternationalCountryHelper
 import com.ryanshelby.linea.telecom.LineaAudioRoute
 import com.ryanshelby.linea.telecom.LineaCallState
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.components.PreCallNoteBanner
+import com.ryanshelby.linea.ui.incall.components.ContactPosterBackground
+import com.ryanshelby.linea.ui.incall.components.LiveAudioWaveform
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -159,11 +163,12 @@ fun InCallScreen(
         label = "RecPulseAlpha"
     )
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(LineaColors.BackgroundGradient)
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        // Full-Screen Frosted Contact Poster Background
+        ContactPosterBackground(
+            photoUri = callInfo.photoUri,
+            displayName = callInfo.displayName ?: callInfo.phoneNumber
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -520,7 +525,20 @@ fun InCallScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(0.5f))
+
+            // Live Audio Waveform (Dynamic Fluid Audio Visualizer)
+            LiveAudioWaveform(
+                isActiveCall = (callInfo.state == LineaCallState.ACTIVE),
+                isMuted = isMuted,
+                isHeld = (callInfo.state == LineaCallState.HOLDING || callInfo.isHeld),
+                isRecording = isRecording,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.weight(0.5f))
 
             // Middle Section: Controls Grid (2 Rows)
             FrostedGlassBox(
@@ -680,11 +698,11 @@ private fun InCallActionButton(
 
     val scale = if (isPressed && !reduceAnimations) 0.90f else 1.0f
     val backgroundColor by animateColorAsState(
-        targetValue = if (isActive) activeColor.copy(alpha = 0.25f) else LineaColors.GlassFill,
+        targetValue = if (isActive) activeColor.copy(alpha = 0.28f) else LineaColors.GlassFill,
         label = "ButtonBgColor"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isActive) activeColor else LineaColors.GlassBorder,
+        targetValue = if (isActive) activeColor.copy(alpha = 0.85f) else LineaColors.GlassBorder,
         label = "ButtonBorderColor"
     )
     val iconTint by animateColorAsState(
@@ -705,10 +723,26 @@ private fun InCallActionButton(
     ) {
         Box(
             modifier = Modifier
-                .size(54.dp)
+                .size(56.dp)
                 .clip(CircleShape)
-                .background(backgroundColor)
-                .border(LineaDimensions.HairlineBorder, borderColor, CircleShape),
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            backgroundColor,
+                            backgroundColor.copy(alpha = 0.4f)
+                        )
+                    )
+                )
+                .border(
+                    width = 1.2.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            borderColor,
+                            borderColor.copy(alpha = 0.35f)
+                        )
+                    ),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -719,11 +753,14 @@ private fun InCallActionButton(
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
             text = label,
-            style = LineaTypography.bodySmall.copy(fontSize = 11.sp),
+            style = LineaTypography.bodySmall.copy(
+                fontSize = 11.sp,
+                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
+            ),
             color = if (isActive) activeColor else LineaColors.TextSecondary
         )
     }
@@ -743,9 +780,26 @@ private fun EndCallButton(
     Box(
         modifier = modifier
             .scale(scale)
-            .size(70.dp)
+            .size(72.dp)
             .clip(CircleShape)
-            .background(LineaColors.Danger)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        LineaColors.Danger.copy(alpha = 0.95f),
+                        LineaColors.MutedBrickRed.copy(alpha = 0.85f)
+                    )
+                )
+            )
+            .border(
+                width = 1.5.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.5f),
+                        LineaColors.Danger.copy(alpha = 0.3f)
+                    )
+                ),
+                shape = CircleShape
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

@@ -28,9 +28,11 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.VolumeUp
+import com.ryanshelby.linea.data.preferences.LineaPreferences
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -465,13 +467,86 @@ fun SettingsScreen(
                     onCheckedChange = { viewModel.setDialpadVibration(it) }
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Dialpad Haptic & Audio Profile",
+                    style = LineaTypography.bodyMedium,
+                    color = LineaColors.TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = when (uiState.dialpadHapticProfile) {
+                        LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS -> "Titanium Glass: Crisp dual-micro clicks with high fidelity tones"
+                        LineaPreferences.DialpadHapticProfile.MECHANICAL_RELAY -> "Mechanical Relay: Heavy tactile thump with classic relay acoustics"
+                        LineaPreferences.DialpadHapticProfile.STEALTH -> "Stealth: Subtle near-silent haptics with muted tones"
+                        else -> "Classic: Standard Android dialpad vibration"
+                    },
+                    style = LineaTypography.bodySmall,
+                    color = LineaColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    SelectionPill(
+                        label = "Titanium",
+                        isSelected = uiState.dialpadHapticProfile == LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS,
+                        onClick = { viewModel.setDialpadHapticProfile(LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS) }
+                    )
+                    SelectionPill(
+                        label = "Mechanical",
+                        isSelected = uiState.dialpadHapticProfile == LineaPreferences.DialpadHapticProfile.MECHANICAL_RELAY,
+                        onClick = { viewModel.setDialpadHapticProfile(LineaPreferences.DialpadHapticProfile.MECHANICAL_RELAY) }
+                    )
+                    SelectionPill(
+                        label = "Stealth",
+                        isSelected = uiState.dialpadHapticProfile == LineaPreferences.DialpadHapticProfile.STEALTH,
+                        onClick = { viewModel.setDialpadHapticProfile(LineaPreferences.DialpadHapticProfile.STEALTH) }
+                    )
+                    SelectionPill(
+                        label = "Classic",
+                        isSelected = uiState.dialpadHapticProfile == LineaPreferences.DialpadHapticProfile.CLASSIC,
+                        onClick = { viewModel.setDialpadHapticProfile(LineaPreferences.DialpadHapticProfile.CLASSIC) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 SettingsToggleRow(
                     title = "Call State Vibrations",
                     subtitle = "Haptic pulse when calls connect and disconnect",
                     checked = uiState.callVibration,
                     onCheckedChange = { viewModel.setCallVibration(it) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Motion & Call Gestures Panel
+        FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
+                SettingsSectionHeader(icon = Icons.Filled.ScreenRotation, title = "Motion & Call Gestures")
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SettingsToggleRow(
+                    title = "Flip to Silence",
+                    subtitle = "Turn phone face-down during incoming call to mute ringer",
+                    checked = uiState.flipToSilence,
+                    onCheckedChange = { viewModel.setFlipToSilence(it) }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SettingsToggleRow(
+                    title = "Proximity Wave to Silence",
+                    subtitle = "Wave hand over top sensor during incoming call to mute ringer",
+                    checked = uiState.proximityWaveToSilence,
+                    onCheckedChange = { viewModel.setProximityWaveToSilence(it) }
                 )
             }
         }

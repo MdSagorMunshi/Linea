@@ -7,6 +7,8 @@ import com.ryanshelby.linea.data.repository.ContactSyncRepository
 import com.ryanshelby.linea.telecom.CallManager
 import com.ryanshelby.linea.telecom.PhoneAccountManager
 import com.ryanshelby.linea.telecom.SimAccountInfo
+import com.ryanshelby.linea.telecom.InternationalCountryHelper
+import com.ryanshelby.linea.telecom.InternationalPreview
 import com.ryanshelby.linea.telecom.T9Contact
 import com.ryanshelby.linea.telecom.T9SearchEngine
 import com.ryanshelby.linea.telecom.T9SearchResult
@@ -66,6 +68,14 @@ class DialpadViewModel @Inject constructor(
                 null
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val internationalPreview: StateFlow<InternationalPreview?> = _enteredNumber
+        .map { number ->
+            InternationalCountryHelper.detectCountryAndLocalTime(number)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val dialpadHapticProfile: StateFlow<String> = preferences.dialpadHapticProfile
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS)
 
     val t9Matches: StateFlow<List<T9SearchResult>> = combine(
         _enteredNumber,

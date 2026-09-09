@@ -22,6 +22,7 @@
   <a href="#interface-showcase">Showcase</a> •
   <a href="#feature-suite">Features</a> •
   <a href="#design-system">Design System</a> •
+  <a href="CHANGELOG.md">Changelog</a> •
   <a href="#getting-started">Installation</a> •
   <a href="BUILD.md">Build</a> •
   <a href="CONTRIBUTING.md">Contributing</a> •
@@ -102,6 +103,33 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 - **PIN-Protected Safe**: Keep confidential contacts and sensitive call notes in a private vault hidden from public directory views.
 - **Hardware-Backed AES-256-GCM**: Cryptographic master keys are stored securely inside Android's hardware `AndroidKeyStore`.
 
+### 9. Live Audio Waveform on Active Call Screen
+- **Fluid Multi-Harmonic Metering**: 32-bar liquid glass visualizer embedded right into the in-call display.
+- **Call-State Responsive Cadence**: Reacts dynamically to speaking cadence (radiant cyan), mute (soft amber flatline), holding (rhythmic pulse), and recording (crimson glow).
+
+### 10. Full-Screen Frosted Contact Posters
+- **Cinematic Contact Backgrounds**: Renders full-screen blurred photo backdrops (`20.dp` Gaussian blur) with subtle breathing scale animations and vignette scrims.
+- **Zero-Latency In-Memory LRU**: Uses LINEA's native 16MB bitmap cache for 0ms transition delays.
+- **Architectural Fallback**: Monogram typographic watermarks for numbers without contact photos.
+
+### 11. Haptic Audio Dialpad Profiles
+- **4 Selectable Acoustic & Tactile Profiles**:
+  - *Titanium Glass*: Crisp dual-micro clicks (`PRIMITIVE_CLICK`) with bright DTMF tones.
+  - *Mechanical Relay*: Heavy tactile relay thump (`EFFECT_HEAVY_CLICK`) with classic relay acoustics.
+  - *Stealth*: Subtle near-silent micro-vibrations with muted audio.
+  - *Classic*: Standard Android dialpad feedback.
+
+### 12. "Flip to Silence" & Proximity Wave Gestures
+- **Zero-Touch Ringer Silencing**: Turn the device face-down or wave your hand over the top proximity sensor to immediately mute incoming ringtones.
+- **Battery-Safe Sensor Lifecycle**: Sensors register strictly while the ringer is actively playing and immediately unregister when answered, rejected, or disconnected.
+- **User Toggleable**: Defaulted to OFF; independently manageable under Settings &rarr; Motion & Call Gestures.
+
+### 13. Quick Decline Glass Action Sheet
+- **Swipe-Up Rejection with SMS**: Quickly decline incoming calls with 1-tap pre-canned response chips or custom text replies directly sent via Android Telecom.
+
+### 14. International Time Zone Preview & Country Detection
+- **Dialpad Destination Intelligence**: Instant country code detection across 40+ nations, displaying flag, country name, live local destination time, and late-night warnings.
+
 ---
 
 ## Design System
@@ -124,10 +152,10 @@ LINEA adheres strictly to an **Industrial Glassmorphic** aesthetic, engineered f
 ## Getting Started
 
 ### Installation
-1. Download the latest `app-debug.apk` from the [Releases](https://github.com/MdSagorMunshi/Linea/releases) page.
+1. Download the latest release APK from the [Releases](https://github.com/MdSagorMunshi/Linea/releases) page.
 2. Install the APK to your device or emulator:
    ```bash
-   adb install -r app-debug.apk
+   adb install -r LiNEA-v1.0.0-release.apk
    ```
 
 ### Designate as System Default Dialer
@@ -145,6 +173,7 @@ To handle real cellular calls, incoming notifications, and call screening:
 
 For developers, contributors, and technical deep dives:
 
+- **[CHANGELOG.md](CHANGELOG.md)**: Detailed release notes, version history, and roadmap logs.
 - **[BUILD.md](BUILD.md)**: Environment setup, compilation commands, and ADB telephony debugging cheat sheet.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: Code standards, pull request workflow, and commit conventions.
 - **[SECURITY.md](SECURITY.md)**: Security policy, cryptographic architecture, and vulnerability disclosure SLA.

@@ -1,7 +1,12 @@
 package com.ryanshelby.linea.ui.screens.dialpad
 
+import android.content.Context
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -29,11 +34,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -51,11 +58,23 @@ fun DialpadKey(
     size: Dp = 68.dp,
     soundEnabled: Boolean = true,
     vibrationEnabled: Boolean = true,
+    hapticProfile: String = LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val reduceAnimations = LocalReduceAnimations.current
     val haptic = LocalHapticFeedback.current
     var isPressed by remember { mutableStateOf(false) }
+
+    val vibrator = remember(context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vm?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+    }
 
     val toneGenerator = remember(soundEnabled) {
         if (soundEnabled) {
@@ -126,9 +145,36 @@ fun DialpadKey(
                     onPress = {
                         isPressed = true
                         if (vibrationEnabled) {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            if (vibrator != null && vibrator.hasVibrator()) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    when (hapticProfile) {
+                                        LineaPreferences.DialpadHapticProfile.STEALTH ->
+                                            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+                                        LineaPreferences.DialpadHapticProfile.MECHANICAL_RELAY ->
+                                            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
+                                        LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS ->
+                                            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
+                                        else ->
+                                            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
+                                    }
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    vibrator.vibrate(25)
+                                }
+                            } else {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                         }
-                        toneGenerator?.startTone(getToneForChar(digit), 80)
+
+                        val toneDuration = when (hapticProfile) {
+                            LineaPreferences.DialpadHapticProfile.STEALTH -> 0
+                            LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS -> 40
+                            LineaPreferences.DialpadHapticProfile.MECHANICAL_RELAY -> 65
+                            else -> 80
+                        }
+                        if (soundEnabled && toneDuration > 0) {
+                            toneGenerator?.startTone(getToneForChar(digit), toneDuration)
+                        }
                         tryAwaitRelease()
                         isPressed = false
                     },
