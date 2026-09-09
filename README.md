@@ -1,147 +1,235 @@
-# LINEA — Next-Generation Industrial Glassmorphic Android Dialer
+<p align="center">
+  <img src="docs/assets/screenshots/about_foss.png" alt="LINEA Dialer Banner" width="180" style="border-radius: 28px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);" />
+</p>
 
-[![Target Android 17](https://img.shields.io/badge/Android-17%20(API%2037)-5C7C99?style=flat&logo=android)](https://developer.android.com/about/versions/17)
-[![Min SDK 30](https://img.shields.io/badge/Min%20SDK-30%20(Android%2011)-5C7C99?style=flat)](https://developer.android.com)
-[![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.11.00-4285F4?style=flat&logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
-[![Zero Cloud AI](https://img.shields.io/badge/Zero%20Cloud%20AI-100%25%20On--Device-success?style=flat)](https://github.com)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+<h1 align="center">LINEA</h1>
 
-LINEA (`com.ryanshelby.linea`) is a high-performance, lightweight, animated default cellular dialer replacement engineered for Android 17 (API 37). Built directly on Android’s native Telecom framework (`InCallService`, `ConnectionService`, `PhoneAccount`, and `CallScreeningService`), LINEA handles genuine cellular calls, DTMF signaling, multi-call conferencing, and carrier MMI features with zero cloud dependency.
+<p align="center">
+  <strong>Next-Generation Sovereign Cellular Dialer for Android 17 (API 37)</strong><br />
+  <em>Industrial Glassmorphic Aesthetics • Native Telecom Framework • 100% On-Device • Zero Cloud Dependency</em>
+</p>
+
+<p align="center">
+  <a href="https://developer.android.com/about/versions/17"><img src="https://img.shields.io/badge/Target%20Android-17%20(API%2037)-5C7C99?style=for-the-badge&logo=android&logoColor=white" alt="Target Android 17" /></a>
+  <a href="https://developer.android.com"><img src="https://img.shields.io/badge/Min%20SDK-30%20(Android%2011)-2B313A?style=for-the-badge" alt="Min SDK 30" /></a>
+  <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin 2.0" /></a>
+  <a href="https://developer.android.com/jetpack/compose"><img src="https://img.shields.io/badge/Jetpack%20Compose-2024.11.00-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-5A8F6B?style=for-the-badge" alt="Apache 2.0 License" /></a>
+</p>
+
+<p align="center">
+  <a href="#key-pillars--capabilities">Features</a> •
+  <a href="#interface-showcase">Showcase</a> •
+  <a href="#design-system">Design System</a> •
+  <a href="#technical-architecture">Architecture</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="BUILD.md">Build Guide</a> •
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
 ---
 
-## Key Highlights
+## Overview
 
-- **Native Telecom Stack**: Full implementation of `InCallService` and `ConnectionService` registered as a system `PhoneAccount` for complete default dialer capabilities.
-- **Zero Cloud or External AI**: 100% computed on-device. T9 prefix indexing, availability insights, pattern-based caller ID, repeat call overrides, and call screening rules run entirely within local Room SQLite queries and deterministic algorithms.
-- **Industrial Glassmorphic Aesthetics**: Curated deep graphite palette (`#0D0F12` to `#1A1D21`), frosted glass surfaces (8% fill, 12% 1dp titanium borders), and tabular figures (`fontFeatureSettings = "tnum"`) across all timers, telemetry, and call metrics.
-- **Multi-SIM & Carrier Control**: Per-contact SIM affinity rules, live signal dBm and technology telemetry, dual SIM selection dialogs with timed auto-call countdowns, and carrier MMI forwarding/barring commands.
-- **Privacy & Security**: PIN-protected Private Contacts vault, offline country/region caller identification, on-device audio recording with amplitude waveform visualization, and full JSON data backup/migration.
+**LINEA** (`com.ryanshelby.linea`) is a high-performance, fully sovereign, animated default cellular dialer replacement specifically targeted and optimized for **Android 17 (API 37)**. Engineered directly atop Android’s native Telecom framework (`InCallService`, `ConnectionService`, `PhoneAccount`, and `CallScreeningService`), LINEA manages genuine cellular calls, DTMF audio generation, multi-call conferencing, and carrier MMI commands with absolute mathematical privacy and **zero cloud dependency**.
+
+Every contact index, availability metric, call screening filter, and caller ID lookup runs deterministically in local memory or encrypted SQLite databases. LINEA collects **no telemetry**, uses **no third-party tracking SDKs**, and connects to **no external servers**.
+
+---
+
+## Interface Showcase
+
+<p align="center">
+  <em>Experience an industrial glassmorphic interface designed with frosted titanium surfaces, tabular counters, and fluid transitions.</em>
+</p>
+
+| T9 Smart Dialpad | In-Call Active Calling | Contacts Directory | Contact Profile & Controls |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/assets/screenshots/dialpad_t9.png" width="220" /> | <img src="docs/assets/screenshots/incall_dialing.png" width="220" /> | <img src="docs/assets/screenshots/contacts_directory.png" width="220" /> | <img src="docs/assets/screenshots/contact_dashboard.png" width="220" /> |
+| *Zero-latency T9 matching with inline contact resolution* | *Hardware audio routes, DTMF pad, and call recording* | *A-Z haptic scrubber rail with dual-sync persistence* | *SIM affinity, per-contact rules, and complete deletion* |
+
+| Dual SIM Manager | Call Screening Engine | Settings & Preferences Hub | About & System Diagnostics |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/assets/screenshots/dual_sim.png" width="220" /> | <img src="docs/assets/screenshots/call_screening.png" width="220" /> | <img src="docs/assets/screenshots/settings_hub.png" width="220" /> | <img src="docs/assets/screenshots/about_foss.png" width="220" /> |
+| *Per-slot carrier display, dBm telemetry & default routing* | *Deterministic regex, prefix rules & emergency bypass* | *Full control over proximity, audio, and call retention* | *Auditable FOSS specs, developer info & OS environment* |
+
+---
+
+## Key Pillars & Capabilities
+
+### 1. Native Telecom Calling Engine
+- **Full InCallService Integration**: Seamlessly binds to Android telephony hardware when configured as the system default dialer.
+- **Carrier Audio Routing**: Dynamic routing across Earpiece, Speakerphone, Bluetooth SCO headsets, and Wired Headsets with proximity sensor ear-detection.
+- **DTMF Audio Tone Synthesizer**: Low-latency dual-tone multi-frequency signaling with touch feedback for navigating automated phone menus.
+- **Multi-Call & Conferencing**: Supports concurrent active calls, call swapping, call waiting, and 3-way conference call merging.
+
+### 2. Instantaneous T9 Dialpad & Search
+- Precomputed reverse prefix index for numbers `2`–`9` matching names, surnames, and company names.
+- Instant search response matching both raw phone digits and alphanumeric names without UI lag.
+- Clean clipboard auto-paste detection and one-tap dialing.
+
+### 3. Contact Management & Deep Deletion
+- **Dual-Write Architecture**: Bidirectionally synchronizes contacts with Android's system `ContactsContract` and the local Room database.
+- **Complete Contact Purge**: Comprehensive deletion cleans local Room tables (`contacts`, `contact_numbers`, `contact_emails`, `contact_group_members`) and purges raw and aggregate contacts from Android's system content provider.
+- **SIM Affinity**: Bind specific contacts to dial automatically through SIM 1 or SIM 2.
+
+### 4. Smart Call Screening & Quiet Hours
+- **On-Device Screening**: Intercepts spam, hidden/private numbers, and international calls before the phone rings.
+- **Emergency Repeated-Call Override**: Automatically lets urgent callers through if the same number calls 3 times within 5 minutes, even when Quiet Hours are active.
+- **Custom Rule Builder**: Wildcard patterns (e.g. `+1800*`), regex matching, and contact allow-lists.
+
+### 5. Dual SIM Hardware Intelligence
+- Detects installed physical SIMs and eSIM profiles with live carrier branding and signal telemetry.
+- Optional 3s / 5s / 10s auto-call countdown dialog with cancelable SIM selector prompt.
+
+### 6. Privacy Vault & Security
+- **AES-256-GCM Vault**: 4-digit PIN-protected safe for sensitive contacts and private notes.
+- **Master Key Security**: Cryptographic keys are anchored directly in Android's hardware-backed `AndroidKeyStore`.
+- **Zero Cloud AI / Zero Telemetry**: Absolutely no network telemetry, Firebase, Crashlytics, or analytics SDKs bundled.
+
+### 7. In-Call Recording & Voicemail
+- Built-in call recorder capturing audio to protected local storage with real-time waveform visualization.
+- Visual Voicemail interface with playback scrubbing, callback triggers, and read/unread status.
 
 ---
 
 ## Design System
 
-LINEA adheres strictly to an industrial-grade glassmorphic visual language:
+LINEA rejects generic bright palettes in favor of a curated **Industrial Glassmorphic** theme:
 
-| Design Token | Specification | Hex / Value |
-|---|---|---|
-| **Primary Background** | Dark Graphite Gradient | `#0D0F12` &rarr; `#1A1D21` |
-| **Glass Panel Surface** | Semi-transparent dark fill | `Color.White.copy(alpha = 0.08f)` |
-| **Glass Panel Border** | High-precision hairline stroke | `1.dp`, `Color.White.copy(alpha = 0.12f)` |
-| **Primary Accent** | Titanium Blue | `#5C7C99` |
-| **Success / Incoming** | Sage Green | `#5A8F6B` |
-| **Danger / Blocked** | Rust Red / Brick Red | `#B5473F` / `#8C3B35` |
-| **Warning / Pinned** | Amber Gold | `#D4A359` |
-| **Numerical Figures** | Monospaced Tabular Figures | `FontFeature("tnum")` |
-
----
-
-## Architectural Breakdown & Phase Roadmap
-
-LINEA was engineered and verified across 8 sequential architectural phases:
-
-### Phase 0: Foundation, Architecture & Design System
-- Multi-layer clean architecture: Presentation (Compose), Domain, and Room Local Persistence.
-- Room database (`LineaDatabase`) with 11 relational entities, foreign key cascades, and schema indices.
-- Global glassmorphism primitives (`FrostedGlassBox`, `GlassPanel`, `FloatingGlassNavBar`).
-
-### Phase 1: Core Calling Pipeline & Dialpad
-- `LineaInCallService`: Manages system active calls, state callbacks, audio routes, and DTMF tones.
-- `PhoneAccountManager`: Resolves native carrier `PhoneAccountHandle` instances from `TelecomManager` and `SubscriptionManager` for direct dual-SIM hardware routing.
-- Fullscreen In-Call UI: Animated call duration counter, mute/hold/speaker toggles, in-call DTMF bottom sheet, and ambient caller glow.
-- Dialpad with instantaneous T9 contact filtering (letters `2`–`9` matching contact names and numbers).
-
-### Phase 2: Call History & Contacts Directory
-- Coalescing call history: groups same-day repeated calls with expandable count badges (`×3`, `×6`).
-- Interactive A-Z scrubber: vertical alphabet touch rail with haptic feedback ticks.
-- Contact Detail & Create/Edit sheets with dual-write persistence to Android's `ContactsContract` and Room database.
-- SIM affinity selector: forces individual contacts to dial via SIM 1 or SIM 2.
-
-### Phase 3: Smart Call Management & Blocking Engine
-- `CallScreeningEngine`: Real-time screening supporting exact numbers, wildcard prefixes (`*800*`), regex ranges, and silent ringing.
-- Dual SIM Hub: Live carrier display, network type (`5G`, `LTE`), signal strength dBm bars, and custom SIM color badges.
-- Auto-call countdown: 5-second cancelable dialog before dialing on designated default SIM slots.
-
-### Phase 4: Advanced Calling, Recording & Voicemail
-- In-call audio recorder: captures voice calls to local storage with amplitude metering and waveform playback.
-- Call waiting and merge: handles concurrent calls, swapping active calls, and initiating 3-way conference calls.
-- Visual Voicemail interface: playback slider, callback actions, and mark as read/unread.
-- Carrier MMI code management: Call Forwarding (`*21*`, `*61*`) and Call Barring (`*33*`, `*35*`).
-
-### Phase 5: Smart Rules Engine & DIM Mode
-- Deterministic rules engine: Time-of-day quiet hours schedules, day-of-week recurrence, and emergency overrides.
-- Repeat Call Tracker: Automatically bypasses quiet hours if the same number calls 3 times within 5 minutes.
-- Pre-Call Notes: Pops contextual notes on the incoming call screen for designated clients or family members.
-- Dark Industrial Minimalist (DIM) Mode: Ultra-low contrast night mode for OLED battery preservation.
-
-### Phase 6: Differentiators, Insights & Privacy
-- **Availability Insights**: Algorithmic 2-hour window answer rate analysis based on local call history.
-- **Offline Caller ID**: Zero-network country/region detection, toll-free identification, and domestic carrier prefixes.
-- **Private Contacts Vault**: 4-digit PIN-protected contacts hidden from main dialer tabs and system logs.
-- **Call Diagnostics**: Real-time diagnostic tool detecting silent mode, DND status, airplane mode, and active block rules.
-- **Backup & Migration**: Local JSON export and import for user rules, contacts, profiles, and settings.
-
-### Phase 7: Polish, Edge Cases & Verification
-- Comprehensive `BackHandler` navigation tree: sub-screens and sheets pop gracefully to parent tabs before exiting.
-- Frosted glass empty states for search queries and zero-entry lists.
-- Multi-hour call duration formatting (`1h 0m 0s`).
-- 48 / 48 unit tests passing across all engines and database schemas.
-
----
-
-## Tech Stack & Dependencies
-
-- **Platform**: Android 17 (API 37), Min SDK 30
-- **Language**: Kotlin 2.0.21
-- **UI Framework**: Jetpack Compose (BOM 2024.11.00) + Material 3
-- **Dependency Injection**: Hilt 2.52
-- **Persistence**: Room 2.6.1 + Jetpack DataStore Preferences
-- **Asynchronous**: Kotlin Coroutines & Flow
-- **Background Work**: AndroidX WorkManager 2.10.0
-- **Testing**: JUnit 4, Robolectric, Kotlinx Coroutines Test, Room In-Memory DB
-
----
-
-## Building & Running
-
-### Prerequisites
-- JDK 17
-- Android SDK Platform 37 & Build-Tools 35.0.0
-- Android 17 (API 37) Emulator or physical device
-
-### Run Unit Tests
-```bash
-./gradlew testDebugUnitTest
+```
+Graphite Base (#0D0F12) ──> Frosted Panels (8% Alpha) ──> Titanium Hairlines (12% Alpha)
 ```
 
-### Build Debug APK
+| Token | Specification | Hex / Value | Visual Application |
+|---|---|---|---|
+| **Background** | Deep Graphite | `#0D0F12` &rarr; `#1A1D21` | Edge-to-edge dark workspace |
+| **Glass Surface** | Semi-transparent fill | `Color.White.copy(alpha = 0.08f)` | Cards, sheets, nav bars |
+| **Glass Border** | Hairline stroke | `1.dp`, `Color.White.copy(alpha = 0.12f)` | Precision bounding box |
+| **Titanium Accent** | Titanium Blue | `#5C7C99` | Primary actions, toggles, badges |
+| **Success / Answer** | Sage Green | `#5A8F6B` | Call connect, incoming status |
+| **Danger / Block** | Rust / Brick Red | `#B5473F` / `#8C3B35` | End call, delete, block rules |
+| **Warning / Pin** | Amber Gold | `#D4A359` | Pinned items, emergency bypass |
+| **Numerics** | Tabular Figures | `fontFeatureSettings = "tnum"` | Timers, dialpad digits, telemetry |
+
+---
+
+## Technical Architecture
+
+```
+                                  ┌──────────────────────────────┐
+                                  │      Android Telecom API     │
+                                  │  (InCallService / Telecom)   │
+                                  └──────────────┬───────────────┘
+                                                 │
+                                                 ▼
+┌─────────────────────────┐           ┌──────────────────────────┐           ┌─────────────────────────┐
+│   Jetpack Compose UI    │ <───────> │       CallManager        │ <───────> │   CallScreeningEngine   │
+│ (Screens, Sheets, Nav)  │ StateFlow │ (Audio, Calls, Telecom)  │  Events   │ (Rules, Quiet Hours)    │
+└─────────────────────────┘           └──────────┬───────────────┘           └─────────────────────────┘
+                                                 │
+                                                 ▼
+                                      ┌──────────────────────────┐
+                                      │   ContactSyncRepository  │
+                                      └──────────┬───────────────┘
+                                                 │
+                        ┌────────────────────────┴────────────────────────┐
+                        ▼                                                 ▼
+         ┌──────────────────────────────┐                  ┌──────────────────────────────┐
+         │        Room Database         │                  │   System ContactsContract    │
+         │ (11 Relational Local Tables) │                  │  (Android ContentResolver)   │
+         └──────────────────────────────┘                  └──────────────────────────────┘
+```
+
+For in-depth architectural patterns, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
+
+## Getting Started
+
+### Installation
+1. Download the latest `app-debug.apk` from [GitHub Releases](https://github.com/MdSagorMunshi/Linea/releases).
+2. Install the APK via ADB or your device file manager:
+   ```bash
+   adb install -r app-debug.apk
+   ```
+
+### Set LINEA as Default Dialer
+To enable native call answering, incoming HUD notifications, and call management:
+1. Open LINEA and navigate to **Settings** &rarr; **Permissions Architecture**.
+2. Tap **Set as Default Dialer** and confirm the system dialog.
+3. *Alternatively, set via ADB:*
+   ```bash
+   adb shell telecom set-default-dialer com.ryanshelby.linea
+   ```
+
+---
+
+## Building from Source
+
+### Prerequisites
+- **JDK**: OpenJDK 17
+- **Android SDK**: API 37 (Android 17) platform & Build-Tools 35.0.0
+- **Build System**: Gradle 8.11+ (via `./gradlew`)
+
 ```bash
+# Clone the repository
+git clone https://github.com/MdSagorMunshi/Linea.git
+cd Linea
+
+# Compile Kotlin & Room KSP
+./gradlew compileDebugKotlin
+
+# Run unit tests
+./gradlew testDebugUnitTest
+
+# Assemble Debug APK
 ./gradlew assembleDebug
 # Binary created at: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### Build Release APK
-```bash
-./gradlew assembleRelease
-# Binary created at: app/build/outputs/apk/release/app-release-unsigned.apk
-```
-
-### Install to Connected Device
-```bash
-./gradlew installDebug
-adb shell am start -n com.ryanshelby.linea/.MainActivity
-```
+For complete compilation flags, release signing, and telephony debugging commands, read [BUILD.md](BUILD.md).
 
 ---
 
-## Default Dialer Setup
+## Documentation Sitemap
 
-To set LINEA as the default dialer on your device:
-1. Open LINEA and tap the **Settings** tab.
-2. Select **Permissions & System Integration**.
-3. Tap **Set as Default Dialer** to trigger the system default dialer prompt.
-4. Alternatively, execute via ADB:
-```bash
-adb shell telecom set-default-dialer com.ryanshelby.linea
+| Document | Description |
+|---|---|
+| [BUILD.md](BUILD.md) | Complete environment setup, compilation commands, and ADB debugging cheat sheet |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System architectural layers, Room schema, Telecom state machine, and T9 algorithms |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines, Git branching strategy, and pull request standards |
+| [SECURITY.md](SECURITY.md) | Security policy, cryptographic architecture, and vulnerability disclosure |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant v2.1 community pledge and standards |
+| [LICENSE](LICENSE) | Apache License, Version 2.0 legal terms |
+
+---
+
+## Developer & Official Support
+
+- **Lead Developer**: Ryan Shelby
+- **Official Support Email**: [ryn@disr.it](mailto:ryn@disr.it)
+- **FOSS Git Repository**: [https://github.com/MdSagorMunshi/Linea.git](https://github.com/MdSagorMunshi/Linea.git)
+- **Web Project Page**: [https://github.com/MdSagorMunshi/Linea](https://github.com/MdSagorMunshi/Linea)
+
+---
+
+## License
+
+LINEA is released as Free and Open Source Software under the **[Apache License 2.0](LICENSE)**.
+
+```
+Copyright 2026 Ryan Shelby
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 ```
