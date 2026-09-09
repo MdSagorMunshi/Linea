@@ -24,6 +24,10 @@ class CallActionReceiver : BroadcastReceiver() {
         const val ACTION_HANG_UP = "com.ryanshelby.linea.ACTION_HANG_UP"
         const val ACTION_TOGGLE_MUTE = "com.ryanshelby.linea.ACTION_TOGGLE_MUTE"
         const val ACTION_TOGGLE_SPEAKER = "com.ryanshelby.linea.ACTION_TOGGLE_SPEAKER"
+        const val ACTION_SWAP_CALLS = "com.ryanshelby.linea.ACTION_SWAP_CALLS"
+        const val ACTION_MERGE_CALLS = "com.ryanshelby.linea.ACTION_MERGE_CALLS"
+        const val ACTION_HOLD = "com.ryanshelby.linea.ACTION_HOLD"
+        const val ACTION_UNHOLD = "com.ryanshelby.linea.ACTION_UNHOLD"
         const val ACTION_IGNORE = "com.ryanshelby.linea.ACTION_IGNORE"
         const val ACTION_MESSAGE = "com.ryanshelby.linea.ACTION_MESSAGE"
         const val EXTRA_PHONE_NUMBER = "extra_phone_number"
@@ -58,6 +62,18 @@ class CallActionReceiver : BroadcastReceiver() {
             }
             ACTION_TOGGLE_SPEAKER -> {
                 callManager.toggleSpeaker()
+            }
+            ACTION_SWAP_CALLS -> {
+                callManager.swapCalls()
+            }
+            ACTION_MERGE_CALLS -> {
+                callManager.mergeConference()
+            }
+            ACTION_HOLD -> {
+                callManager.holdCall()
+            }
+            ACTION_UNHOLD -> {
+                callManager.unholdCall()
             }
             ACTION_IGNORE -> {
                 // Silences ringer but leaves call ringing in background

@@ -6,28 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.material3.Text
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import com.ryanshelby.linea.ui.theme.LineaColors
-import com.ryanshelby.linea.ui.theme.LineaTypography
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
@@ -333,66 +312,6 @@ fun LineaNavGraph(
                     },
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
-            }
-
-            // Return to active call chip when navigating dialer/contacts during an active/held call
-            val activeCall by callManager.currentCall.collectAsState()
-            val isCallInProgress = activeCall != null && (
-                activeCall?.state == com.ryanshelby.linea.telecom.LineaCallState.ACTIVE ||
-                activeCall?.state == com.ryanshelby.linea.telecom.LineaCallState.HOLDING ||
-                activeCall?.state == com.ryanshelby.linea.telecom.LineaCallState.DIALING
-            )
-
-            AnimatedVisibility(
-                visible = isCallInProgress,
-                enter = fadeIn() + slideInVertically(),
-                exit = fadeOut() + slideOutVertically(),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 56.dp)
-            ) {
-                val current = activeCall
-                if (current != null) {
-                    val callerText = current.displayName ?: current.phoneNumber.ifBlank { "Active Call" }
-                    val durationText = if (current.durationSeconds > 0) {
-                        val m = current.durationSeconds / 60
-                        val s = current.durationSeconds % 60
-                        String.format("%02d:%02d", m, s)
-                    } else if (current.state == com.ryanshelby.linea.telecom.LineaCallState.HOLDING) {
-                        "On Hold"
-                    } else {
-                        "Dialing..."
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(LineaColors.GlassFill)
-                            .border(1.dp, LineaColors.Success.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                            .clickable {
-                                val inCallIntent = android.content.Intent(context, com.ryanshelby.linea.ui.incall.InCallActivity::class.java).apply {
-                                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                                }
-                                context.startActivity(inCallIntent)
-                            }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(LineaColors.Success)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Return to call: $callerText ($durationText)",
-                            style = LineaTypography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = LineaColors.TextPrimary
-                        )
-                    }
-                }
             }
         }
     }

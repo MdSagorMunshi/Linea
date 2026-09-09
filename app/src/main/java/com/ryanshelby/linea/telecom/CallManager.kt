@@ -116,6 +116,7 @@ class CallManager @Inject constructor(
     private var inCallService: LineaInCallService? = null
     private var timerJob: Job? = null
     private var previousCallState: LineaCallState = LineaCallState.IDLE
+    private var userSelectedSpeaker: Boolean = false
 
     fun registerInCallService(service: LineaInCallService) {
         this.inCallService = service
@@ -130,6 +131,15 @@ class CallManager @Inject constructor(
         val isIncoming = call.state == Call.STATE_RINGING
 
         if (_currentCall.value == null) {
+            userSelectedSpeaker = false
+            _audioRoute.value = LineaAudioRoute.EARPIECE
+            _isMuted.value = false
+            inCallService?.setAudioRoute(CallAudioState.ROUTE_EARPIECE)
+            try {
+                audioManager.isSpeakerphoneOn = false
+                audioManager.isMicrophoneMute = false
+            } catch (_: Exception) {}
+
             scope.launch {
                 val contactLookup = contactLookupHelper.lookupContact(number)
                 val resolvedName = contactLookup.displayName ?: call.details?.callerDisplayName
@@ -296,6 +306,13 @@ class CallManager @Inject constructor(
             if (secondary != null) {
                 _currentCall.value = secondary
                 _secondaryCall.value = null
+            } else {
+                userSelectedSpeaker = false
+                _audioRoute.value = LineaAudioRoute.EARPIECE
+                try {
+                    audioManager.isSpeakerphoneOn = false
+                    audioManager.isMicrophoneMute = false
+                } catch (_: Exception) {}
             }
         } else if (_secondaryCall.value?.call == call) {
             _secondaryCall.value = null
@@ -304,10 +321,20 @@ class CallManager @Inject constructor(
 
     fun onAudioStateChanged(audioState: CallAudioState) {
         _isMuted.value = audioState.isMuted
-        val route = when (audioState.route) {
-            CallAudioState.ROUTE_SPEAKER -> LineaAudioRoute.SPEAKER
-            CallAudioState.ROUTE_BLUETOOTH -> LineaAudioRoute.BLUETOOTH
-            CallAudioState.ROUTE_WIRED_HEADSET -> LineaAudioRoute.WIRED_HEADSET
+        val route = when {
+            audioState.route == CallAudioState.ROUTE_BLUETOOTH -> LineaAudioRoute.BLUETOOTH
+            audioState.route == CallAudioState.ROUTE_WIRED_HEADSET -> LineaAudioRoute.WIRED_HEADSET
+            audioState.route == CallAudioState.ROUTE_SPEAKER -> {
+                if (userSelectedSpeaker) {
+                    LineaAudioRoute.SPEAKER
+                } else {
+                    inCallService?.setAudioRoute(CallAudioState.ROUTE_EARPIECE)
+                    try {
+                        audioManager.isSpeakerphoneOn = false
+                    } catch (_: Exception) {}
+                    LineaAudioRoute.EARPIECE
+                }
+            }
             else -> LineaAudioRoute.EARPIECE
         }
         _audioRoute.value = route
@@ -577,6 +604,7 @@ class CallManager @Inject constructor(
 
     fun toggleSpeaker() {
         val willBeSpeaker = _audioRoute.value != LineaAudioRoute.SPEAKER
+        userSelectedSpeaker = willBeSpeaker
         val newRoute = if (willBeSpeaker) {
             CallAudioState.ROUTE_SPEAKER
         } else {
@@ -595,6 +623,18 @@ class CallManager @Inject constructor(
         refreshOngoingCallNotification()
     }
 
+    fun canMergeConference(): Boolean {
+        val current = _currentCall.value ?: return false
+        val secondary = _secondaryCall.value ?: return false
+        val details = current.call.details
+        val secDetails = secondary.call.details
+        val caps = details?.callCapabilities ?: 0
+        return details?.can(Call.Details.CAPABILITY_MERGE_CONFERENCE) == true ||
+                secDetails?.can(Call.Details.CAPABILITY_MERGE_CONFERENCE) == true ||
+                (caps and Call.Details.CAPABILITY_MERGE_CONFERENCE) != 0 ||
+                (secondary.state == LineaCallState.ACTIVE || secondary.state == LineaCallState.HOLDING)
+    }
+
     fun refreshOngoingCallNotification() {
         val current = _currentCall.value ?: return
         if (current.state == LineaCallState.ACTIVE || current.state == LineaCallState.DIALING || current.state == LineaCallState.HOLDING) {
@@ -604,6 +644,11 @@ class CallManager @Inject constructor(
                 LineaCallState.HOLDING -> "On hold"
                 else -> "Active call"
             }
+            val secondary = _secondaryCall.value
+            val hasSecondary = secondary != null
+            val secondaryName = secondary?.displayName?.ifBlank { secondary.phoneNumber } ?: secondary?.phoneNumber
+            val canMerge = canMergeConference()
+
             notificationManager.showOngoingCallNotification(
                 callerName = current.displayName,
                 phoneNumber = current.phoneNumber,
@@ -611,7 +656,11 @@ class CallManager @Inject constructor(
                 connectTimeMillis = if (current.state == LineaCallState.ACTIVE) current.connectTimeMillis else 0L,
                 isMuted = _isMuted.value,
                 isSpeakerOn = _audioRoute.value == LineaAudioRoute.SPEAKER,
-                photoUri = current.photoUri
+                photoUri = current.photoUri,
+                hasSecondaryCall = hasSecondary,
+                secondaryCallerName = secondaryName,
+                canMerge = canMerge,
+                isHeld = current.state == LineaCallState.HOLDING || current.isHeld
             )
         }
     }

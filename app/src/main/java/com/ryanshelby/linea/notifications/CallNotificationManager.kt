@@ -38,7 +38,11 @@ class CallNotificationManager @Inject constructor(
         connectTimeMillis: Long = 0L,
         isMuted: Boolean = false,
         isSpeakerOn: Boolean = false,
-        photoUri: String? = null
+        photoUri: String? = null,
+        hasSecondaryCall: Boolean = false,
+        secondaryCallerName: String? = null,
+        canMerge: Boolean = false,
+        isHeld: Boolean = false
     ) {
         val displayName = when {
             !callerName.isNullOrBlank() -> callerName
@@ -74,7 +78,7 @@ class CallNotificationManager @Inject constructor(
 
         // 2. Full Screen / Tap Intent: returns to InCallActivity
         val fullScreenIntent = Intent(context, InCallActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
         }
         val contentPendingIntent = PendingIntent.getActivity(
             context,
@@ -89,7 +93,7 @@ class CallNotificationManager @Inject constructor(
             hangUpPendingIntent
         )
 
-        // 4. In-notification Quick Controls: Mute & Speaker
+        // 4. In-notification Quick Controls
         val muteIntent = Intent(context, CallActionReceiver::class.java).apply {
             action = CallActionReceiver.ACTION_TOGGLE_MUTE
             putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
@@ -112,12 +116,19 @@ class CallNotificationManager @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val contentText = if (hasSecondaryCall) {
+            val secName = secondaryCallerName?.ifBlank { "Secondary Call" } ?: "Secondary Call"
+            "Active • On Hold: $secName"
+        } else {
+            stateText
+        }
+
         val notificationBuilder = NotificationCompat.Builder(context, LineaApp.CHANNEL_ONGOING_CALLS)
             .setSmallIcon(R.drawable.ic_stat_call)
             .setStyle(callStyle)
             .addPerson(callerPerson)
             .setContentTitle(displayName)
-            .setContentText(stateText)
+            .setContentText(contentText)
             .setContentIntent(contentPendingIntent)
             .setFullScreenIntent(contentPendingIntent, false)
             .setOngoing(true)
@@ -126,16 +137,84 @@ class CallNotificationManager @Inject constructor(
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setColor(0xFF537193.toInt())
             .setOnlyAlertOnce(true)
-            .addAction(
+
+        if (hasSecondaryCall) {
+            // Swap action
+            val swapIntent = Intent(context, CallActionReceiver::class.java).apply {
+                action = CallActionReceiver.ACTION_SWAP_CALLS
+                putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+            }
+            val swapPendingIntent = PendingIntent.getBroadcast(
+                context,
+                23,
+                swapIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            notificationBuilder.addAction(
+                R.drawable.ic_swap_calls,
+                "Swap",
+                swapPendingIntent
+            )
+
+            // Merge action (if supported)
+            if (canMerge) {
+                val mergeIntent = Intent(context, CallActionReceiver::class.java).apply {
+                    action = CallActionReceiver.ACTION_MERGE_CALLS
+                    putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+                }
+                val mergePendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    24,
+                    mergeIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                notificationBuilder.addAction(
+                    R.drawable.ic_call_merge,
+                    "Merge",
+                    mergePendingIntent
+                )
+            }
+
+            // Mute action
+            notificationBuilder.addAction(
                 R.drawable.ic_mic_off,
                 if (isMuted) "Unmute" else "Mute",
                 mutePendingIntent
             )
-            .addAction(
+        } else if (isHeld) {
+            // Resume action for single held call
+            val unholdIntent = Intent(context, CallActionReceiver::class.java).apply {
+                action = CallActionReceiver.ACTION_UNHOLD
+                putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+            }
+            val unholdPendingIntent = PendingIntent.getBroadcast(
+                context,
+                25,
+                unholdIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            notificationBuilder.addAction(
+                R.drawable.ic_stat_call,
+                "Resume",
+                unholdPendingIntent
+            )
+            notificationBuilder.addAction(
+                R.drawable.ic_mic_off,
+                if (isMuted) "Unmute" else "Mute",
+                mutePendingIntent
+            )
+        } else {
+            notificationBuilder.addAction(
+                R.drawable.ic_mic_off,
+                if (isMuted) "Unmute" else "Mute",
+                mutePendingIntent
+            )
+            notificationBuilder.addAction(
                 R.drawable.ic_volume_up,
-                if (isSpeakerOn) "Earpiece" else "Speaker",
+                if (isSpeakerOn) "Phone" else "Speaker",
                 speakerPendingIntent
             )
+        }
 
         if (connectTimeMillis > 0L) {
             notificationBuilder.setWhen(connectTimeMillis)
