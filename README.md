@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="docs/assets/screenshots/about_foss.png" alt="LINEA Dialer Banner" width="180" style="border-radius: 28px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);" />
+  <img src="docs/assets/screenshots/about_foss.png" alt="LINEA Dialer Banner" width="160" style="border-radius: 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);" />
 </p>
 
 <h1 align="center">LINEA</h1>
 
 <p align="center">
-  <strong>Next-Generation Sovereign Cellular Dialer for Android 17 (API 37)</strong><br />
+  <strong>The Sovereign, Privacy-Preserving Cellular Dialer for Android 17 (API 37)</strong><br />
   <em>Industrial Glassmorphic Aesthetics • Native Telecom Framework • 100% On-Device • Zero Cloud Dependency</em>
 </p>
 
@@ -18,35 +18,41 @@
 </p>
 
 <p align="center">
-  <a href="#key-pillars--capabilities">Features</a> •
+  <a href="#about-linea">About</a> •
   <a href="#interface-showcase">Showcase</a> •
+  <a href="#feature-suite">Features</a> •
   <a href="#design-system">Design System</a> •
-  <a href="#technical-architecture">Architecture</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="BUILD.md">Build Guide</a> •
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="#getting-started">Installation</a> •
+  <a href="BUILD.md">Build</a> •
+  <a href="CONTRIBUTING.md">Contributing</a> •
+  <a href="#developer--support">Support</a>
 </p>
 
 ---
 
-## Overview
+## About LINEA
 
-**LINEA** (`com.ryanshelby.linea`) is a high-performance, fully sovereign, animated default cellular dialer replacement specifically targeted and optimized for **Android 17 (API 37)**. Engineered directly atop Android’s native Telecom framework (`InCallService`, `ConnectionService`, `PhoneAccount`, and `CallScreeningService`), LINEA manages genuine cellular calls, DTMF audio generation, multi-call conferencing, and carrier MMI commands with absolute mathematical privacy and **zero cloud dependency**.
+**LINEA** (`com.ryanshelby.linea`) is a sovereign, high-performance cellular dialer engineered from scratch for **Android 17 (API 37)**. Built directly on Android's native Telecom framework (`InCallService`, `ConnectionService`, and `CallScreeningService`), LINEA acts as a full replacement for your stock phone app with genuine cellular calling, DTMF tone generation, multi-call conferencing, and carrier MMI management.
 
-Every contact index, availability metric, call screening filter, and caller ID lookup runs deterministically in local memory or encrypted SQLite databases. LINEA collects **no telemetry**, uses **no third-party tracking SDKs**, and connects to **no external servers**.
+### The Zero-Cloud Privacy Manifesto
+Modern stock dialers frequently upload call logs, contacts, and telemetry to proprietary cloud servers under the guise of caller identification or AI features. **LINEA rejects this paradigm completely:**
+- **Zero Cloud AI**: All intelligence—including smart T9 indexing, availability pattern analysis, caller identification, and spam screening—runs 100% locally on your device.
+- **Zero Telemetry**: No analytics SDKs, crash trackers, user telemetry, or third-party ad networks are bundled.
+- **Hardware-Backed Encryption**: Sensitive contacts and private call notes are sealed behind an AES-256-GCM vault anchored in Android's hardware keystore.
+- **Fully Free & Open Source**: Complete audibility and transparency under the permissive Apache 2.0 license.
 
 ---
 
 ## Interface Showcase
 
 <p align="center">
-  <em>Experience an industrial glassmorphic interface designed with frosted titanium surfaces, tabular counters, and fluid transitions.</em>
+  <em>An industrial glassmorphic visual language featuring deep graphite gradients, frosted titanium panels, and monospaced tabular figures.</em>
 </p>
 
-| T9 Smart Dialpad | In-Call Active Calling | Contacts Directory | Contact Profile & Controls |
+| T9 Smart Dialpad | Active In-Call Screen | Contacts Directory | Contact Profile & Controls |
 |:---:|:---:|:---:|:---:|
 | <img src="docs/assets/screenshots/dialpad_t9.png" width="220" /> | <img src="docs/assets/screenshots/incall_dialing.png" width="220" /> | <img src="docs/assets/screenshots/contacts_directory.png" width="220" /> | <img src="docs/assets/screenshots/contact_dashboard.png" width="220" /> |
-| *Zero-latency T9 matching with inline contact resolution* | *Hardware audio routes, DTMF pad, and call recording* | *A-Z haptic scrubber rail with dual-sync persistence* | *SIM affinity, per-contact rules, and complete deletion* |
+| *Instant T9 matching with inline contact resolution* | *Hardware audio routes, DTMF pad, and call recording* | *A-Z haptic scrubber rail with dual-sync persistence* | *SIM affinity, per-contact rules, and complete deletion* |
 
 | Dual SIM Manager | Call Screening Engine | Settings & Preferences Hub | About & System Diagnostics |
 |:---:|:---:|:---:|:---:|
@@ -55,157 +61,99 @@ Every contact index, availability metric, call screening filter, and caller ID l
 
 ---
 
-## Key Pillars & Capabilities
+## Feature Suite
 
-### 1. Native Telecom Calling Engine
-- **Full InCallService Integration**: Seamlessly binds to Android telephony hardware when configured as the system default dialer.
-- **Carrier Audio Routing**: Dynamic routing across Earpiece, Speakerphone, Bluetooth SCO headsets, and Wired Headsets with proximity sensor ear-detection.
-- **DTMF Audio Tone Synthesizer**: Low-latency dual-tone multi-frequency signaling with touch feedback for navigating automated phone menus.
-- **Multi-Call & Conferencing**: Supports concurrent active calls, call swapping, call waiting, and 3-way conference call merging.
+### 1. Native Cellular Calling Pipeline
+- **Default Dialer Integration**: Seamlessly binds to Android telephony hardware as the system-designated default phone app.
+- **Hardware Audio Switching**: Effortlessly toggle between Earpiece, Speakerphone, Bluetooth SCO headsets, and Wired Headsets with dynamic proximity sensor screen shutoff.
+- **DTMF Tone Synthesizer**: Low-latency dual-tone multi-frequency audio generator with tactile haptic feedback for navigating phone trees and IVR systems.
+- **Multi-Call & Conferencing**: Full support for call waiting, swapping between active lines, and merging simultaneous calls into 3-way conferences.
 
 ### 2. Instantaneous T9 Dialpad & Search
-- Precomputed reverse prefix index for numbers `2`–`9` matching names, surnames, and company names.
-- Instant search response matching both raw phone digits and alphanumeric names without UI lag.
-- Clean clipboard auto-paste detection and one-tap dialing.
+- **Sub-Millisecond Indexing**: Precomputed reverse prefix index maps numbers `2`–`9` across names, surnames, and organization tags.
+- **Bipartite Search**: Matches both raw phone digit strings and contact names simultaneously without frame drops.
+- **Clipboard Auto-Detection**: Instant detection of copied numbers from emails or browsers with one-tap dialing.
 
 ### 3. Contact Management & Deep Deletion
-- **Dual-Write Architecture**: Bidirectionally synchronizes contacts with Android's system `ContactsContract` and the local Room database.
-- **Complete Contact Purge**: Comprehensive deletion cleans local Room tables (`contacts`, `contact_numbers`, `contact_emails`, `contact_group_members`) and purges raw and aggregate contacts from Android's system content provider.
-- **SIM Affinity**: Bind specific contacts to dial automatically through SIM 1 or SIM 2.
+- **Dual-Write Architecture**: Changes made in LINEA instantly sync to Android's native `ContactsContract` and the local Room SQLite database.
+- **Deep Contact Purge**: Complete contact deletion thoroughly cleans Room relational tables (`contacts`, `numbers`, `emails`, `group_members`) and purges raw and aggregate contacts from Android's system database.
+- **SIM Affinity Rules**: Bind individual contacts to always dial through SIM 1 or SIM 2 automatically.
+- **A-Z Haptic Scrubber**: Vertical alphabetical scrubber rail with micro-haptic ticks for rapid directory navigation.
 
 ### 4. Smart Call Screening & Quiet Hours
-- **On-Device Screening**: Intercepts spam, hidden/private numbers, and international calls before the phone rings.
-- **Emergency Repeated-Call Override**: Automatically lets urgent callers through if the same number calls 3 times within 5 minutes, even when Quiet Hours are active.
-- **Custom Rule Builder**: Wildcard patterns (e.g. `+1800*`), regex matching, and contact allow-lists.
+- **On-Device Screening**: Intercept spam, hidden numbers, and international calls before your device rings.
+- **Emergency Repeated-Call Override**: Never miss an emergency: if any caller rings 3 times within 5 minutes, LINEA automatically bypasses Quiet Hours and silent filters.
+- **Rule Engine**: Create custom filtering rules with exact matches, prefix wildcards (e.g. `+1800*`), and regular expressions.
 
 ### 5. Dual SIM Hardware Intelligence
-- Detects installed physical SIMs and eSIM profiles with live carrier branding and signal telemetry.
-- Optional 3s / 5s / 10s auto-call countdown dialog with cancelable SIM selector prompt.
+- **Live Carrier Telemetry**: Displays carrier names, cellular technology (`5G`, `LTE`), and live signal strength in dBm.
+- **Default Outgoing Slot**: Select SIM 1, SIM 2, or Always Ask before placing outgoing calls.
+- **Cancelable Countdown Dialog**: Optional 3s / 5s / 10s auto-dial countdown timer allowing instant slot swapping before the call connects.
 
-### 6. Privacy Vault & Security
-- **AES-256-GCM Vault**: 4-digit PIN-protected safe for sensitive contacts and private notes.
-- **Master Key Security**: Cryptographic keys are anchored directly in Android's hardware-backed `AndroidKeyStore`.
-- **Zero Cloud AI / Zero Telemetry**: Absolutely no network telemetry, Firebase, Crashlytics, or analytics SDKs bundled.
+### 6. In-Call Audio Recording & Waveforms
+- **Local Audio Recording**: Record cellular calls directly to private, protected app storage with zero cloud uploads.
+- **Waveform Metering**: Real-time amplitude visualizer during active calls and playback scrub bar in the recording player.
 
-### 7. In-Call Recording & Voicemail
-- Built-in call recorder capturing audio to protected local storage with real-time waveform visualization.
-- Visual Voicemail interface with playback scrubbing, callback triggers, and read/unread status.
+### 7. Visual Voicemail & Carrier Tools
+- **On-Device Voicemail**: Visual playback slider, instant callback actions, and read/unread status management.
+- **Carrier MMI Codes**: Built-in management for Call Forwarding (`*21*`, `*61*`) and Call Barring (`*33*`, `*35*`).
+
+### 8. Private Vault & Security
+- **PIN-Protected Safe**: Keep confidential contacts and sensitive call notes in a private vault hidden from public directory views.
+- **Hardware-Backed AES-256-GCM**: Cryptographic master keys are stored securely inside Android's hardware `AndroidKeyStore`.
 
 ---
 
 ## Design System
 
-LINEA rejects generic bright palettes in favor of a curated **Industrial Glassmorphic** theme:
+LINEA adheres strictly to an **Industrial Glassmorphic** aesthetic, engineered for visual clarity, low-light legibility, and OLED power efficiency:
 
-```
-Graphite Base (#0D0F12) ──> Frosted Panels (8% Alpha) ──> Titanium Hairlines (12% Alpha)
-```
-
-| Token | Specification | Hex / Value | Visual Application |
+| Design Token | Specification | Hex / Value | Visual Application |
 |---|---|---|---|
-| **Background** | Deep Graphite | `#0D0F12` &rarr; `#1A1D21` | Edge-to-edge dark workspace |
-| **Glass Surface** | Semi-transparent fill | `Color.White.copy(alpha = 0.08f)` | Cards, sheets, nav bars |
-| **Glass Border** | Hairline stroke | `1.dp`, `Color.White.copy(alpha = 0.12f)` | Precision bounding box |
-| **Titanium Accent** | Titanium Blue | `#5C7C99` | Primary actions, toggles, badges |
-| **Success / Answer** | Sage Green | `#5A8F6B` | Call connect, incoming status |
-| **Danger / Block** | Rust / Brick Red | `#B5473F` / `#8C3B35` | End call, delete, block rules |
-| **Warning / Pin** | Amber Gold | `#D4A359` | Pinned items, emergency bypass |
-| **Numerics** | Tabular Figures | `fontFeatureSettings = "tnum"` | Timers, dialpad digits, telemetry |
-
----
-
-## Technical Architecture
-
-```
-                                  ┌──────────────────────────────┐
-                                  │      Android Telecom API     │
-                                  │  (InCallService / Telecom)   │
-                                  └──────────────┬───────────────┘
-                                                 │
-                                                 ▼
-┌─────────────────────────┐           ┌──────────────────────────┐           ┌─────────────────────────┐
-│   Jetpack Compose UI    │ <───────> │       CallManager        │ <───────> │   CallScreeningEngine   │
-│ (Screens, Sheets, Nav)  │ StateFlow │ (Audio, Calls, Telecom)  │  Events   │ (Rules, Quiet Hours)    │
-└─────────────────────────┘           └──────────┬───────────────┘           └─────────────────────────┘
-                                                 │
-                                                 ▼
-                                      ┌──────────────────────────┐
-                                      │   ContactSyncRepository  │
-                                      └──────────┬───────────────┘
-                                                 │
-                        ┌────────────────────────┴────────────────────────┐
-                        ▼                                                 ▼
-         ┌──────────────────────────────┐                  ┌──────────────────────────────┐
-         │        Room Database         │                  │   System ContactsContract    │
-         │ (11 Relational Local Tables) │                  │  (Android ContentResolver)   │
-         └──────────────────────────────┘                  └──────────────────────────────┘
-```
-
-For in-depth architectural patterns, see [ARCHITECTURE.md](ARCHITECTURE.md).
+| **Primary Background** | Dark Graphite Gradient | `#0D0F12` &rarr; `#1A1D21` | Edge-to-edge dark workspace |
+| **Glass Panel Surface** | Semi-transparent fill | `Color.White.copy(alpha = 0.08f)` | Cards, dialogs, bottom sheets |
+| **Glass Panel Border** | Precision hairline stroke | `1.dp`, `Color.White.copy(alpha = 0.12f)` | Precision bounding borders |
+| **Primary Accent** | Titanium Blue | `#5C7C99` | Primary action buttons, badges |
+| **Success / Connect** | Sage Green | `#5A8F6B` | Call connect, incoming status |
+| **Danger / Block** | Rust / Brick Red | `#B5473F` / `#8C3B35` | End call, delete contact, block rules |
+| **Warning / Pinned** | Amber Gold | `#D4A359` | Emergency overrides, pinned contacts |
+| **Numerics & Timers** | Tabular Figures | `fontFeatureSettings = "tnum"` | Dialpad digits, call duration timers |
 
 ---
 
 ## Getting Started
 
 ### Installation
-1. Download the latest `app-debug.apk` from [GitHub Releases](https://github.com/MdSagorMunshi/Linea/releases).
-2. Install the APK via ADB or your device file manager:
+1. Download the latest `app-debug.apk` from the [Releases](https://github.com/MdSagorMunshi/Linea/releases) page.
+2. Install the APK to your device or emulator:
    ```bash
    adb install -r app-debug.apk
    ```
 
-### Set LINEA as Default Dialer
-To enable native call answering, incoming HUD notifications, and call management:
+### Designate as System Default Dialer
+To handle real cellular calls, incoming notifications, and call screening:
 1. Open LINEA and navigate to **Settings** &rarr; **Permissions Architecture**.
-2. Tap **Set as Default Dialer** and confirm the system dialog.
-3. *Alternatively, set via ADB:*
+2. Tap **Set as Default Dialer** and confirm the system prompt.
+3. *Or set directly via ADB:*
    ```bash
    adb shell telecom set-default-dialer com.ryanshelby.linea
    ```
 
 ---
 
-## Building from Source
+## Documentation
 
-### Prerequisites
-- **JDK**: OpenJDK 17
-- **Android SDK**: API 37 (Android 17) platform & Build-Tools 35.0.0
-- **Build System**: Gradle 8.11+ (via `./gradlew`)
+For developers, contributors, and technical deep dives:
 
-```bash
-# Clone the repository
-git clone https://github.com/MdSagorMunshi/Linea.git
-cd Linea
-
-# Compile Kotlin & Room KSP
-./gradlew compileDebugKotlin
-
-# Run unit tests
-./gradlew testDebugUnitTest
-
-# Assemble Debug APK
-./gradlew assembleDebug
-# Binary created at: app/build/outputs/apk/debug/app-debug.apk
-```
-
-For complete compilation flags, release signing, and telephony debugging commands, read [BUILD.md](BUILD.md).
+- **[BUILD.md](BUILD.md)**: Environment setup, compilation commands, and ADB telephony debugging cheat sheet.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)**: Code standards, pull request workflow, and commit conventions.
+- **[SECURITY.md](SECURITY.md)**: Security policy, cryptographic architecture, and vulnerability disclosure SLA.
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Clean Architecture structure, Room schemas, and Telecom state machine.
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)**: Contributor Covenant v2.1 open source standards.
 
 ---
 
-## Documentation Sitemap
-
-| Document | Description |
-|---|---|
-| [BUILD.md](BUILD.md) | Complete environment setup, compilation commands, and ADB debugging cheat sheet |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System architectural layers, Room schema, Telecom state machine, and T9 algorithms |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines, Git branching strategy, and pull request standards |
-| [SECURITY.md](SECURITY.md) | Security policy, cryptographic architecture, and vulnerability disclosure |
-| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant v2.1 community pledge and standards |
-| [LICENSE](LICENSE) | Apache License, Version 2.0 legal terms |
-
----
-
-## Developer & Official Support
+## Developer & Support
 
 - **Lead Developer**: Ryan Shelby
 - **Official Support Email**: [ryn@disr.it](mailto:ryn@disr.it)
