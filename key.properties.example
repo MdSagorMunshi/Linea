@@ -1,0 +1,6 @@
+# Linea Release Signing Configuration
+# Do NOT commit key.properties to source control!
+storeFile=linea-release-key.jks
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyAlias=linea-ryan
+keyPassword=YOUR_KEY_PASSWORD

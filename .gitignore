@@ -10,3 +10,21 @@
 .cxx
 *.apk
 *.aab
+
+# Keystores, signing keys & credentials
+*.jks
+*.keystore
+*.key
+*.p12
+*.pepk
+key.properties
+signing.properties
+
+# Android Studio & IDE
+.idea/
+*.iws
+out/
+
+# System & OS
+.DS_Store
+Thumbs.db
