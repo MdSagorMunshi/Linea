@@ -357,4 +357,13 @@ class ContactDashboardViewModel @Inject constructor(
             loadContactData(current.id)
         }
     }
+
+    fun deleteContact(onDeleted: () -> Unit) {
+        val current = _state.value.contact ?: return
+        viewModelScope.launch {
+            contactSyncRepository.deleteContact(current.id, current.androidContactId)
+            _state.value = ContactDashboardState()
+            onDeleted()
+        }
+    }
 }

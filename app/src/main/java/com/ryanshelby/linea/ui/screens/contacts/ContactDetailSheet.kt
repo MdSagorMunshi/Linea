@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,9 +41,14 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import com.ryanshelby.linea.ui.components.ContactAvatar
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -95,6 +101,7 @@ fun ContactDetailSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -141,8 +148,7 @@ fun ContactDetailSheet(
                     }
 
                     IconButton(onClick = {
-                        onDeleteContact(contact)
-                        onDismiss()
+                        showDeleteConfirmation = true
                     }) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
@@ -564,7 +570,87 @@ fun ContactDetailSheet(
                 }
             }
 
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Prominent Full-Width Delete Contact Button
+            OutlinedButton(
+                onClick = { showDeleteConfirmation = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, LineaColors.Danger.copy(alpha = 0.6f)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = LineaColors.Danger
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Delete Contact",
+                    tint = LineaColors.Danger,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Delete Contact",
+                    style = LineaTypography.titleSmall,
+                    color = LineaColors.Danger,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
             Spacer(modifier = Modifier.height(28.dp))
+        }
+
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                containerColor = LineaColors.BackgroundElevated,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = null,
+                        tint = LineaColors.Danger,
+                        modifier = Modifier.size(28.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        text = "Delete Contact",
+                        style = LineaTypography.titleMedium,
+                        color = LineaColors.TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Are you sure you want to delete \"${contact.displayName}\"? This action cannot be undone and will remove the contact from your phone and Linea.",
+                        style = LineaTypography.bodyMedium,
+                        color = LineaColors.TextSecondary
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteConfirmation = false
+                            onDeleteContact(contact)
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LineaColors.Danger,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Delete", fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) {
+                        Text("Cancel", color = LineaColors.TextSecondary)
+                    }
+                }
+            )
         }
     }
 }

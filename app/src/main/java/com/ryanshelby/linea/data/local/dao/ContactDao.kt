@@ -114,4 +114,10 @@ interface ContactDao {
 
     @Query("SELECT * FROM contact_emails WHERE contactId = :contactId")
     suspend fun getEmailsForContactOnce(contactId: Long): List<ContactEmailEntity>
+
+    @Query("DELETE FROM contact_emails WHERE contactId = :contactId")
+    suspend fun deleteEmailsForContact(contactId: Long)
+
+    @Query("DELETE FROM contact_group_members WHERE contactId = :contactId")
+    suspend fun removeContactFromAllGroups(contactId: Long)
 }

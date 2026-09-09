@@ -463,6 +463,10 @@ fun ContactsScreen(
             onDismiss = { viewModel.dismissCreateOrEditSheet() },
             onSave = { displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes ->
                 viewModel.saveContact(displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes)
+            },
+            onDelete = { contact ->
+                viewModel.deleteContact(contact)
+                viewModel.dismissCreateOrEditSheet()
             }
         )
     }

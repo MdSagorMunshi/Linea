@@ -462,6 +462,12 @@ class ContactSyncRepository @Inject constructor(
             val rawUri = android.content.ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, androidContactId)
             context.contentResolver.delete(rawUri, null, null)
 
+            context.contentResolver.delete(
+                ContactsContract.RawContacts.CONTENT_URI,
+                "${ContactsContract.RawContacts.CONTACT_ID} = ?",
+                arrayOf(androidContactId.toString())
+            )
+
             val contactUri = android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, androidContactId)
             context.contentResolver.delete(contactUri, null, null)
         } catch (e: Exception) {
@@ -602,11 +608,26 @@ class ContactSyncRepository @Inject constructor(
     }
 
     suspend fun deleteContact(id: Long, androidContactId: Long? = null) = withContext(Dispatchers.IO) {
+        contactDao.deleteNumbersForContact(id)
+        contactDao.deleteEmailsForContact(id)
+        contactDao.removeContactFromAllGroups(id)
         contactDao.deleteContactById(id)
-        if (androidContactId != null) {
+        if (androidContactId != null && androidContactId > 0) {
             try {
-                val uri = android.content.ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, androidContactId)
-                context.contentResolver.delete(uri, null, null)
+                // 1. Delete by RawContacts URI directly (in case androidContactId is raw contact ID)
+                val rawUri = android.content.ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, androidContactId)
+                context.contentResolver.delete(rawUri, null, null)
+
+                // 2. Delete any raw contacts where CONTACT_ID = androidContactId
+                context.contentResolver.delete(
+                    ContactsContract.RawContacts.CONTENT_URI,
+                    "${ContactsContract.RawContacts.CONTACT_ID} = ?",
+                    arrayOf(androidContactId.toString())
+                )
+
+                // 3. Delete by Contacts URI (in case androidContactId is aggregate Contact ID)
+                val contactUri = android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, androidContactId)
+                context.contentResolver.delete(contactUri, null, null)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,6 +59,7 @@ fun ContactDashboardScreen(
     var noteInput by remember { mutableStateOf("") }
     var isEditingNote by remember { mutableStateOf(false) }
     var isEditingContact by remember { mutableStateOf(false) }
+    var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.preCallNote) {
         if (state.preCallNote != null) {
@@ -149,6 +151,24 @@ fun ContactDashboardScreen(
                     imageVector = Icons.Filled.Edit,
                     contentDescription = "Edit Contact",
                     tint = LineaColors.TextPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Delete Contact Button
+            IconButton(
+                onClick = { showDeleteConfirmationDialog = true },
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(LineaColors.Danger.copy(alpha = 0.12f))
+                    .border(LineaDimensions.HairlineBorder, LineaColors.Danger.copy(alpha = 0.4f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Delete Contact",
+                    tint = LineaColors.Danger
                 )
             }
         }
@@ -702,6 +722,37 @@ fun ContactDashboardScreen(
                         }
                     }
                 }
+
+                // Delete Contact Action Button
+                item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = { showDeleteConfirmationDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, LineaColors.Danger.copy(alpha = 0.6f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = LineaColors.Danger
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Delete Contact",
+                            tint = LineaColors.Danger,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Delete Contact",
+                            style = LineaTypography.titleSmall,
+                            color = LineaColors.Danger,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
 
@@ -714,6 +765,66 @@ fun ContactDashboardScreen(
                 onSave = { displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes ->
                     viewModel.updateContact(displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes)
                     isEditingContact = false
+                },
+                onDelete = {
+                    isEditingContact = false
+                    viewModel.deleteContact {
+                        Toast.makeText(context, "Contact deleted", Toast.LENGTH_SHORT).show()
+                        onNavigateBack()
+                    }
+                }
+            )
+        }
+
+        if (showDeleteConfirmationDialog && contact != null) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmationDialog = false },
+                containerColor = LineaColors.BackgroundElevated,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = null,
+                        tint = LineaColors.Danger,
+                        modifier = Modifier.size(28.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        text = "Delete Contact",
+                        style = LineaTypography.titleMedium,
+                        color = LineaColors.TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Are you sure you want to delete \"${contact.displayName}\"? This action cannot be undone and will remove the contact from your device.",
+                        style = LineaTypography.bodyMedium,
+                        color = LineaColors.TextSecondary
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteConfirmationDialog = false
+                            viewModel.deleteContact {
+                                Toast.makeText(context, "Contact deleted", Toast.LENGTH_SHORT).show()
+                                onNavigateBack()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LineaColors.Danger,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Delete", fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmationDialog = false }) {
+                        Text("Cancel", color = LineaColors.TextSecondary)
+                    }
                 }
             )
         }
