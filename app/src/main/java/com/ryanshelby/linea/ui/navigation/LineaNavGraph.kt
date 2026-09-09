@@ -3,6 +3,7 @@ package com.ryanshelby.linea.ui.navigation
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import com.ryanshelby.linea.ui.screens.history.HistoryScreen
 import com.ryanshelby.linea.ui.screens.settings.SettingsScreen
 import com.ryanshelby.linea.ui.screens.settings.SettingsViewModel
 import com.ryanshelby.linea.ui.screens.settings.blocking.BlockingScreen
+import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.screens.settings.blocking.BlockingViewModel
 import com.ryanshelby.linea.ui.screens.settings.dualsim.DualSimScreen
 import com.ryanshelby.linea.ui.screens.settings.permissions.PermissionsScreen
@@ -45,7 +47,8 @@ enum class SettingsSubScreen {
     DIAGNOSTICS,
     STATS,
     BACKUP,
-    ABOUT
+    ABOUT,
+    RINGTONE
 }
 
 @Composable
@@ -144,7 +147,8 @@ fun LineaNavGraph(
                         onNavigateToDiagnostics = { settingsSubScreen = SettingsSubScreen.DIAGNOSTICS },
                         onNavigateToStats = { settingsSubScreen = SettingsSubScreen.STATS },
                         onNavigateToBackup = { settingsSubScreen = SettingsSubScreen.BACKUP },
-                        onNavigateToAbout = { settingsSubScreen = SettingsSubScreen.ABOUT }
+                        onNavigateToAbout = { settingsSubScreen = SettingsSubScreen.ABOUT },
+                        onNavigateToRingtone = { settingsSubScreen = SettingsSubScreen.RINGTONE }
                     )
                 }
             }
@@ -204,6 +208,7 @@ fun LineaNavGraph(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(LineaColors.BackgroundDeep)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -274,6 +279,12 @@ fun LineaNavGraph(
                     }
                     SettingsSubScreen.ABOUT -> {
                         com.ryanshelby.linea.ui.screens.settings.about.AboutScreen(
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.RINGTONE -> {
+                        com.ryanshelby.linea.ui.screens.settings.ringtone.RingtoneSettingsScreen(
+                            preferences = lineaPreferences,
                             onNavigateBack = { settingsSubScreen = null }
                         )
                     }

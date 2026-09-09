@@ -36,7 +36,8 @@ data class SettingsUiState(
     val unreadMissedCalls: Int = 0,
     val autoRecordCalls: Boolean = false,
     val callDurationWarningMinutes: Int = 0,
-    val voicemailNumber: String = "123"
+    val voicemailNumber: String = "123",
+    val ringtoneType: String = com.ryanshelby.linea.data.preferences.LineaPreferences.RingtoneType.APP_DEFAULT
 )
 
 @HiltViewModel
@@ -67,7 +68,8 @@ class SettingsViewModel @Inject constructor(
         callRecordDao.getUnreadMissedCallCount(),
         preferences.autoRecordCalls,
         preferences.callDurationWarningMinutes,
-        preferences.voicemailNumber
+        preferences.voicemailNumber,
+        preferences.ringtoneType
     ) { args ->
         val defaultSim = args[0] as Int
         val askSim = args[1] as Boolean
@@ -88,6 +90,7 @@ class SettingsViewModel @Inject constructor(
         val autoRecord = args[16] as Boolean
         val durationWarn = args[17] as Int
         val vmNumber = args[18] as String
+        val ringtone = args[19] as String
 
         val quietRule = rulesList.filterIsInstance<com.ryanshelby.linea.data.local.entities.CallRuleEntity>()
             .firstOrNull { it.name.contains("Quiet", ignoreCase = true) || it.name.contains("Night", ignoreCase = true) }
@@ -112,13 +115,18 @@ class SettingsViewModel @Inject constructor(
             unreadMissedCalls = missedCount,
             autoRecordCalls = autoRecord,
             callDurationWarningMinutes = durationWarn,
-            voicemailNumber = vmNumber
+            voicemailNumber = vmNumber,
+            ringtoneType = ringtone
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Lazily,
         initialValue = SettingsUiState()
     )
+
+    fun setRingtoneType(type: String) {
+        viewModelScope.launch { preferences.setRingtoneType(type) }
+    }
 
     fun setAutoRecordCalls(enabled: Boolean) {
         viewModelScope.launch { preferences.setAutoRecordCalls(enabled) }

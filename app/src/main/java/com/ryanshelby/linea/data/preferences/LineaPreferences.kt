@@ -24,6 +24,11 @@ class LineaPreferences @Inject constructor(
 ) : VaultPreferences {
     private val dataStore = context.dataStore
 
+    object RingtoneType {
+        const val APP_DEFAULT = "APP_DEFAULT"
+        const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
+    }
+
     companion object {
         val KEY_DEFAULT_SIM = intPreferencesKey("default_sim") // 0 = SIM 1, 1 = SIM 2, -1 = Ask Every Time
         val KEY_ASK_SIM_BEFORE_DIAL = booleanPreferencesKey("ask_sim_before_dial")
@@ -58,8 +63,10 @@ class LineaPreferences @Inject constructor(
         val KEY_LAST_CONTACT_ACCOUNT_TYPE = stringPreferencesKey("last_contact_account_type")
         val KEY_OPT_IN_LOCATION_TAG = booleanPreferencesKey("opt_in_location_tag")
         val KEY_AUTO_RECORD_PRIVATE_SAFE = booleanPreferencesKey("auto_record_private_safe")
+        val KEY_RINGTONE_TYPE = stringPreferencesKey("ringtone_type") // "APP_DEFAULT", "SYSTEM_DEFAULT"
 
         // Quantum Vault & Anti-Brute-Force Keys
+
         val KEY_VAULT_HAS_PIN = booleanPreferencesKey("vault_has_pin")
         val KEY_VAULT_PIN_HASH = stringPreferencesKey("vault_pin_hash")
         val KEY_VAULT_SALT = stringPreferencesKey("vault_salt")
@@ -104,6 +111,7 @@ class LineaPreferences @Inject constructor(
     val lastContactAccountType: Flow<String?> = dataStore.data.map { it[KEY_LAST_CONTACT_ACCOUNT_TYPE] }
     val optInLocationTag: Flow<Boolean> = dataStore.data.map { it[KEY_OPT_IN_LOCATION_TAG] ?: false }
     val autoRecordPrivateSafe: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_PRIVATE_SAFE] ?: false }
+    val ringtoneType: Flow<String> = dataStore.data.map { it[KEY_RINGTONE_TYPE] ?: RingtoneType.APP_DEFAULT }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -242,6 +250,10 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setAutoRecordPrivateSafe(enabled: Boolean) {
         dataStore.edit { it[KEY_AUTO_RECORD_PRIVATE_SAFE] = enabled }
+    }
+
+    suspend fun setRingtoneType(type: String) {
+        dataStore.edit { it[KEY_RINGTONE_TYPE] = type }
     }
 
     override suspend fun saveVaultConfig(

@@ -3,6 +3,7 @@ package com.ryanshelby.linea.telecom
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
@@ -11,6 +12,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import com.ryanshelby.linea.R
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +34,7 @@ class CallRingtoneManager @Inject constructor(
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     private var activeRingtone: Ringtone? = null
+    private var activeMediaPlayer: MediaPlayer? = null
     private var isRinging = false
     private var loopJob: Job? = null
 
@@ -64,41 +67,84 @@ class CallRingtoneManager @Inject constructor(
         }
     }
 
-    private fun playRingtoneSound(customUriStr: String?) {
+    private suspend fun playRingtoneSound(customUriStr: String?) {
         try {
-            val ringtoneUri = if (!customUriStr.isNullOrBlank()) {
-                Uri.parse(customUriStr)
-            } else {
-                RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
-                    ?: Settings.System.DEFAULT_RINGTONE_URI
-            }
+            stopRingtoneSound()
+            val ringtoneType = preferences.ringtoneType.first()
 
-            val ringtone = RingtoneManager.getRingtone(context, ringtoneUri) ?: return
+            if (!customUriStr.isNullOrBlank()) {
+                // Contact assigned a specific custom ringtone
+                playUriRingtone(Uri.parse(customUriStr))
+            } else if (ringtoneType == LineaPreferences.RingtoneType.APP_DEFAULT) {
+                // App Default: Linea Signature Ringtone
+                playAppDefaultRingtone()
+            } else {
+                // System Default Ringtone
+                val systemUri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
+                    ?: Settings.System.DEFAULT_RINGTONE_URI
+                playUriRingtone(systemUri)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun playAppDefaultRingtone() {
+        try {
+            val player = MediaPlayer.create(context, R.raw.linea_ringtone) ?: return
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
+            player.setAudioAttributes(audioAttributes)
+            player.isLooping = true
+            player.start()
+            activeMediaPlayer = player
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
-            ringtone.audioAttributes = audioAttributes
+    private fun playUriRingtone(uri: Uri) {
+        try {
+            val ringtone = RingtoneManager.getRingtone(context, uri)
+            if (ringtone != null) {
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                ringtone.audioAttributes = audioAttributes
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    ringtone.isLooping = true
+                }
+                ringtone.play()
+                activeRingtone = ringtone
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                ringtone.isLooping = true
-            }
-
-            ringtone.play()
-            activeRingtone = ringtone
-
-            // If API < 28 or ringtone doesn't natively loop, ensure continuous playback
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-                loopJob?.cancel()
-                loopJob = scope.launch {
-                    while (isActive && isRinging) {
-                        delay(1000)
-                        if (isRinging && activeRingtone?.isPlaying == false) {
-                            activeRingtone?.play()
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+                    loopJob?.cancel()
+                    loopJob = scope.launch {
+                        while (isActive && isRinging) {
+                            delay(1000)
+                            if (isRinging && activeRingtone?.isPlaying == false) {
+                                activeRingtone?.play()
+                            }
                         }
                     }
                 }
+            } else {
+                val player = MediaPlayer().apply {
+                    setDataSource(context, uri)
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
+                    isLooping = true
+                    prepare()
+                    start()
+                }
+                activeMediaPlayer = player
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -143,6 +189,19 @@ class CallRingtoneManager @Inject constructor(
     }
 
     private fun stopRingtoneSound() {
+        try {
+            activeMediaPlayer?.let {
+                if (it.isPlaying) {
+                    it.stop()
+                }
+                it.release()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            activeMediaPlayer = null
+        }
+
         try {
             activeRingtone?.let {
                 if (it.isPlaying) {

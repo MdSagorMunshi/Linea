@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Security
@@ -91,6 +92,7 @@ fun SettingsScreen(
     onNavigateToStats: () -> Unit = {},
     onNavigateToBackup: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
+    onNavigateToRingtone: () -> Unit = {},
     scrollState: ScrollState = rememberScrollState(),
     modifier: Modifier = Modifier
 ) {
@@ -427,7 +429,25 @@ fun SettingsScreen(
             Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
                 SettingsSectionHeader(icon = Icons.Filled.VolumeUp, title = "Sound & Haptics")
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                SettingsNavCard(
+                    icon = Icons.Filled.MusicNote,
+                    title = "Phone Ringtone",
+                    subtitle = if (uiState.ringtoneType == com.ryanshelby.linea.data.preferences.LineaPreferences.RingtoneType.APP_DEFAULT) {
+                        "Linea Signature (Default)"
+                    } else {
+                        "System Default"
+                    },
+                    badge = if (uiState.ringtoneType == com.ryanshelby.linea.data.preferences.LineaPreferences.RingtoneType.APP_DEFAULT) {
+                        "LINEA"
+                    } else {
+                        "SYSTEM"
+                    },
+                    onClick = onNavigateToRingtone
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 SettingsToggleRow(
                     title = "Dial Pad DTMF Tones",
