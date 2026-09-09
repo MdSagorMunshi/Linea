@@ -17,6 +17,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -37,12 +38,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -59,6 +70,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -66,6 +78,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.delay
 import com.ryanshelby.linea.telecom.SimAccountInfo
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.components.RoleBanner
@@ -107,6 +123,105 @@ fun DialpadScreen(
 
     val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
+
+    val systemClipboard = remember {
+        context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+    }
+    var clipboardNumber by remember { mutableStateOf<String?>(null) }
+
+    val readClipboardNumber: () -> String? = remember(context, systemClipboard, clipboardManager) {
+        {
+            try {
+                val rawText = if (systemClipboard != null && systemClipboard.hasPrimaryClip()) {
+                    val clip = systemClipboard.primaryClip
+                    if (clip != null && clip.itemCount > 0) {
+                        clip.getItemAt(0)?.coerceToText(context)?.toString()?.trim()
+                    } else null
+                } else {
+                    clipboardManager.getText()?.text?.trim()
+                }
+
+                if (!rawText.isNullOrEmpty() &&
+                    rawText.length in 1..40 &&
+                    rawText.lines().size == 1 &&
+                    rawText.any { it.isDigit() }
+                ) {
+                    rawText
+                } else {
+                    null
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    val refreshClipboard = remember(readClipboardNumber) {
+        {
+            clipboardNumber = readClipboardNumber()
+        }
+    }
+
+    val copyToClipboard = remember(context, systemClipboard, clipboardManager) {
+        { text: String ->
+            try {
+                if (systemClipboard != null) {
+                    val clip = android.content.ClipData.newPlainText("Phone Number", text)
+                    systemClipboard.setPrimaryClip(clip)
+                }
+                clipboardManager.setText(AnnotatedString(text))
+                clipboardNumber = text
+            } catch (_: Exception) {
+                clipboardManager.setText(AnnotatedString(text))
+                clipboardNumber = text
+            }
+        }
+    }
+
+    // Refresh when window gains focus (e.g., returning to Linea from another app where text was copied)
+    val windowInfo = LocalWindowInfo.current
+    LaunchedEffect(windowInfo.isWindowFocused) {
+        if (windowInfo.isWindowFocused) {
+            refreshClipboard()
+            delay(150)
+            refreshClipboard()
+        }
+    }
+
+    // Refresh when enteredNumber clears
+    LaunchedEffect(enteredNumber.isEmpty()) {
+        if (enteredNumber.isEmpty()) {
+            refreshClipboard()
+        }
+    }
+
+    // Lifecycle and primary clip changed listeners
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, systemClipboard) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshClipboard()
+            }
+        }
+        val clipListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+            refreshClipboard()
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        try {
+            systemClipboard?.addPrimaryClipChangedListener(clipListener)
+        } catch (_: Exception) {}
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            try {
+                systemClipboard?.removePrimaryClipChangedListener(clipListener)
+            } catch (_: Exception) {}
+        }
+    }
+
+    var showPasteMenu by remember { mutableStateOf(false) }
+    var pasteMenuOffset by remember { mutableStateOf(Offset.Zero) }
 
     val displayedSims = if (activeSims.isNotEmpty()) activeSims else simAccounts
 
@@ -223,122 +338,273 @@ fun DialpadScreen(
             modifier = Modifier.padding(bottom = 6.dp)
         )
 
-        // Number Display Area (tabular figures, copy/paste support)
+        // Blank Space Area (Number Display + Caller ID + Flexible Spacer)
+        // Supports tap-and-hold anywhere in the blank space to show paste options
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .combinedClickable(
-                    onClick = {
-                        if (enteredNumber.isEmpty()) {
-                            val clipText = clipboardManager.getText()?.text?.trim()
-                            if (!clipText.isNullOrEmpty() && clipText.any { it.isDigit() }) {
-                                viewModel.setNumber(clipText.filter { it.isDigit() || it in "+*#" })
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+                .weight(1f)
+                .pointerInput(enteredNumber, clipboardNumber) {
+                    detectTapGestures(
+                        onTap = {
+                            if (showPasteMenu) {
+                                showPasteMenu = false
+                            } else if (enteredNumber.isEmpty()) {
+                                val clipText = clipboardNumber ?: readClipboardNumber()
+                                if (!clipText.isNullOrEmpty()) {
+                                    val dialable = clipText.filter { it.isDigit() || it in "+*#" }
+                                    if (dialable.isNotEmpty()) {
+                                        viewModel.setNumber(dialable)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             }
-                        }
-                    },
-                    onLongClick = {
-                        if (enteredNumber.isNotEmpty()) {
-                            clipboardManager.setText(AnnotatedString(enteredNumber))
+                        },
+                        onLongPress = { offset ->
+                            refreshClipboard()
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            Toast.makeText(context, "Copied $enteredNumber", Toast.LENGTH_SHORT).show()
-                        } else {
-                            val clipText = clipboardManager.getText()?.text?.trim()
-                            if (!clipText.isNullOrEmpty() && clipText.any { it.isDigit() }) {
-                                viewModel.setNumber(clipText.filter { it.isDigit() || it in "+*#" })
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+                            val clipText = readClipboardNumber()
+                            if (!clipText.isNullOrEmpty() || enteredNumber.isNotEmpty()) {
+                                pasteMenuOffset = offset
+                                showPasteMenu = true
+                            } else {
+                                Toast.makeText(context, "No number in clipboard to paste", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                }
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Number Display Area (tabular figures, copy/paste support)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .padding(horizontal = 8.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (enteredNumber.isEmpty()) {
+                        val clipText = clipboardNumber
+                        if (!clipText.isNullOrEmpty()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(LineaColors.GlassFill)
+                                    .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(16.dp))
+                                    .clickable {
+                                        val dialable = clipText.filter { it.isDigit() || it in "+*#" }
+                                        if (dialable.isNotEmpty()) {
+                                            viewModel.setNumber(dialable)
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ContentPaste,
+                                    contentDescription = "Paste",
+                                    tint = LineaColors.TitaniumBlue,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Paste ${clipText.take(16)}${if (clipText.length > 16) "…" else ""}",
+                                    style = LineaTypography.labelSmall,
+                                    color = LineaColors.TitaniumBlue
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = enteredNumber,
+                            style = LineaTypography.displayLarge.copy(
+                                fontFeatureSettings = "tnum",
+                                fontSize = if (enteredNumber.length > 12) 26.sp else 34.sp,
+                                letterSpacing = 1.sp
+                            ),
+                            color = LineaColors.TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                // Offline Caller ID Badge (Emergency / Toll-Free / Country / Region)
+                if (callerIdResult != null) {
+                    val cid = callerIdResult!!
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.2f) else LineaColors.GlassFill)
+                            .border(
+                                0.5.dp,
+                                if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.5f) else LineaColors.GlassBorder,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Text(
+                                text = cid.badgeLabel,
+                                style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                fontSize = 9.sp,
+                                color = if (cid.isEmergency) LineaColors.Danger else LineaColors.TitaniumBlue
+                            )
+                            Text(
+                                text = "•",
+                                style = LineaTypography.labelSmall,
+                                color = LineaColors.TextTertiary
+                            )
+                            Text(
+                                text = cid.regionOrCountry,
+                                style = LineaTypography.labelSmall,
+                                fontSize = 10.sp,
+                                color = LineaColors.TextSecondary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            // Floating Paste Options Popup on Tap-and-Hold
+            if (showPasteMenu) {
+                Popup(
+                    alignment = Alignment.TopCenter,
+                    offset = IntOffset(
+                        x = 0,
+                        y = (pasteMenuOffset.y.toInt() - 90).coerceAtLeast(10)
+                    ),
+                    onDismissRequest = { showPasteMenu = false },
+                    properties = PopupProperties(focusable = true)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFF1E2228))
+                            .border(1.dp, LineaColors.GlassBorder, RoundedCornerShape(20.dp))
+                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            val clipText = clipboardNumber ?: readClipboardNumber()
+                            if (!clipText.isNullOrEmpty()) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            val dialable = clipText.filter { it.isDigit() || it in "+*#" }
+                                            if (dialable.isNotEmpty()) {
+                                                viewModel.setNumber(dialable)
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+                                            }
+                                            showPasteMenu = false
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.ContentPaste,
+                                        contentDescription = "Paste",
+                                        tint = LineaColors.TitaniumBlue,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Paste ${clipText.take(14)}${if (clipText.length > 14) "…" else ""}",
+                                        style = LineaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = LineaColors.TextPrimary
+                                    )
+                                }
+                            }
+
+                            if (enteredNumber.isNotEmpty()) {
+                                if (!clipText.isNullOrEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .height(18.dp)
+                                            .width(1.dp)
+                                            .background(LineaColors.GlassBorder)
+                                    )
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            copyToClipboard(enteredNumber)
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            Toast.makeText(context, "Copied $enteredNumber", Toast.LENGTH_SHORT).show()
+                                            showPasteMenu = false
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.ContentCopy,
+                                        contentDescription = "Copy",
+                                        tint = LineaColors.TextSecondary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "Copy",
+                                        style = LineaTypography.labelMedium,
+                                        color = LineaColors.TextSecondary
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .height(18.dp)
+                                        .width(1.dp)
+                                        .background(LineaColors.GlassBorder)
+                                )
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            viewModel.clearNumber()
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            showPasteMenu = false
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Clear,
+                                        contentDescription = "Clear",
+                                        tint = LineaColors.TextTertiary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "Clear",
+                                        style = LineaTypography.labelMedium,
+                                        color = LineaColors.TextTertiary
+                                    )
+                                }
                             }
                         }
                     }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (enteredNumber.isEmpty()) {
-                val clipText = clipboardManager.getText()?.text?.trim()
-                if (!clipText.isNullOrEmpty() && clipText.any { it.isDigit() }) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(LineaColors.GlassFill)
-                            .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(16.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.ContentPaste,
-                            contentDescription = "Paste",
-                            tint = LineaColors.TitaniumBlue,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "Paste ${clipText.take(16)}${if (clipText.length > 16) "…" else ""}",
-                            style = LineaTypography.labelSmall,
-                            color = LineaColors.TitaniumBlue
-                        )
-                    }
-                }
-            } else {
-                Text(
-                    text = enteredNumber,
-                    style = LineaTypography.displayLarge.copy(
-                        fontFeatureSettings = "tnum",
-                        fontSize = if (enteredNumber.length > 12) 26.sp else 34.sp,
-                        letterSpacing = 1.sp
-                    ),
-                    color = LineaColors.TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-
-        // Offline Caller ID Badge (Emergency / Toll-Free / Country / Region)
-        if (callerIdResult != null) {
-            val cid = callerIdResult!!
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.2f) else LineaColors.GlassFill)
-                    .border(
-                        0.5.dp,
-                        if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.5f) else LineaColors.GlassBorder,
-                        RoundedCornerShape(12.dp)
-                    )
-                    .padding(horizontal = 10.dp, vertical = 3.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Text(
-                        text = cid.badgeLabel,
-                        style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        fontSize = 9.sp,
-                        color = if (cid.isEmergency) LineaColors.Danger else LineaColors.TitaniumBlue
-                    )
-                    Text(
-                        text = "•",
-                        style = LineaTypography.labelSmall,
-                        color = LineaColors.TextTertiary
-                    )
-                    Text(
-                        text = cid.regionOrCountry,
-                        style = LineaTypography.labelSmall,
-                        fontSize = 10.sp,
-                        color = LineaColors.TextSecondary
-                    )
                 }
             }
         }
-
-        Spacer(modifier = Modifier.weight(1f))
 
         // Dialpad Grid (4 rows x 3 columns) with Speed Dial support
         val rows = listOf(
