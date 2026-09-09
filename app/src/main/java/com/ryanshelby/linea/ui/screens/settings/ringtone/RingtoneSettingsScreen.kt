@@ -2,6 +2,7 @@ package com.ryanshelby.linea.ui.screens.settings.ringtone
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.provider.Settings
@@ -134,30 +135,39 @@ fun RingtoneSettingsScreen(
             } else {
                 stopPreview()
                 try {
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setLegacyStreamType(AudioManager.STREAM_RING)
+                        .build()
+
                     val player = if (mode == LineaPreferences.RingtoneType.APP_DEFAULT) {
-                        MediaPlayer.create(context, R.raw.linea_ringtone)
+                        val afd = context.resources.openRawResourceFd(R.raw.linea_ringtone)
+                        if (afd != null) {
+                            MediaPlayer().apply {
+                                setAudioAttributes(audioAttributes)
+                                @Suppress("DEPRECATION")
+                                setAudioStreamType(AudioManager.STREAM_RING)
+                                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                                afd.close()
+                                setVolume(1.0f, 1.0f)
+                                prepare()
+                            }
+                        } else null
                     } else {
                         val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
                             ?: Settings.System.DEFAULT_RINGTONE_URI
                         MediaPlayer().apply {
+                            setAudioAttributes(audioAttributes)
+                            @Suppress("DEPRECATION")
+                            setAudioStreamType(AudioManager.STREAM_RING)
                             setDataSource(context, uri)
-                            setAudioAttributes(
-                                AudioAttributes.Builder()
-                                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                                    .build()
-                            )
+                            setVolume(1.0f, 1.0f)
                             prepare()
                         }
                     }
 
                     if (player != null) {
-                        player.setAudioAttributes(
-                            AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                                .build()
-                        )
                         player.setOnCompletionListener {
                             stopPreview()
                         }

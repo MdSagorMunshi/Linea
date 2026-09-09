@@ -3,6 +3,7 @@ package com.ryanshelby.linea.ui.incall
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import com.ryanshelby.linea.MainActivity
 import android.os.Build
 import android.os.Bundle
@@ -44,6 +45,7 @@ class InCallActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        volumeControlStream = AudioManager.STREAM_RING
         handleIntent(intent)
         enableEdgeToEdge()
 
@@ -89,6 +91,13 @@ class InCallActivity : ComponentActivity() {
                             (callManager.secondaryCall.value == null || callManager.secondaryCall.value?.state == LineaCallState.DISCONNECTED)
                     if (stillNoCalls) {
                         finishAndRemoveTask()
+                    }
+                } else {
+                    volumeControlStream = if (current?.state == LineaCallState.ACTIVE || current?.state == LineaCallState.HOLDING ||
+                        secondary?.state == LineaCallState.ACTIVE || secondary?.state == LineaCallState.HOLDING) {
+                        AudioManager.STREAM_VOICE_CALL
+                    } else {
+                        AudioManager.STREAM_RING
                     }
                 }
             }

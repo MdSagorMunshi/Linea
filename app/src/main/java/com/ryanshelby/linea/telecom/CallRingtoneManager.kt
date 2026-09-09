@@ -91,14 +91,24 @@ class CallRingtoneManager @Inject constructor(
 
     private fun playAppDefaultRingtone() {
         try {
-            val player = MediaPlayer.create(context, R.raw.linea_ringtone) ?: return
+            val afd = context.resources.openRawResourceFd(R.raw.linea_ringtone) ?: return
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setLegacyStreamType(AudioManager.STREAM_RING)
                 .build()
-            player.setAudioAttributes(audioAttributes)
-            player.isLooping = true
-            player.start()
+
+            val player = MediaPlayer().apply {
+                setAudioAttributes(audioAttributes)
+                @Suppress("DEPRECATION")
+                setAudioStreamType(AudioManager.STREAM_RING)
+                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                isLooping = true
+                setVolume(1.0f, 1.0f)
+                prepare()
+                start()
+            }
+            afd.close()
             activeMediaPlayer = player
         } catch (e: Exception) {
             e.printStackTrace()
@@ -107,15 +117,20 @@ class CallRingtoneManager @Inject constructor(
 
     private fun playUriRingtone(uri: Uri) {
         try {
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setLegacyStreamType(AudioManager.STREAM_RING)
+                .build()
+
             val ringtone = RingtoneManager.getRingtone(context, uri)
             if (ringtone != null) {
-                val audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
                 ringtone.audioAttributes = audioAttributes
+                @Suppress("DEPRECATION")
+                ringtone.streamType = AudioManager.STREAM_RING
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     ringtone.isLooping = true
+                    ringtone.volume = 1.0f
                 }
                 ringtone.play()
                 activeRingtone = ringtone
@@ -133,14 +148,12 @@ class CallRingtoneManager @Inject constructor(
                 }
             } else {
                 val player = MediaPlayer().apply {
+                    setAudioAttributes(audioAttributes)
+                    @Suppress("DEPRECATION")
+                    setAudioStreamType(AudioManager.STREAM_RING)
                     setDataSource(context, uri)
-                    setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
                     isLooping = true
+                    setVolume(1.0f, 1.0f)
                     prepare()
                     start()
                 }

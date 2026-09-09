@@ -110,7 +110,8 @@ class LineaApp : Application() {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Shows heads-up notifications for incoming cellular calls"
-                enableVibration(true)
+                setSound(null, null)
+                enableVibration(false)
             }
 
             try {
