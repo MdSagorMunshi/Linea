@@ -93,7 +93,7 @@ fun AboutScreen(
         }
     }
 
-    val versionName = packageInfo?.versionName ?: "1.0.0"
+    val versionName = packageInfo?.versionName ?: "2.0.0"
     val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         packageInfo?.longVersionCode?.toString() ?: "1"
     } else {

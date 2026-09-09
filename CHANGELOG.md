@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-09-09
+
+### Changed
+- Bumped `versionCode` to `2` and `versionName` to `2.0.0`.
+- Updated version display across **Settings** footer and **About** screen to reflect v2.0.0.
+- Consolidated all v1.1.0 feature additions (waveform, contact posters, haptic profiles, gestures,
+  quick-decline sheet, international time-zone preview, and next-gen glassmorphism call UI) into the
+  official **v2.0.0 major release** on GitHub.
+
+---
+
 ## [1.1.0] - 2026-09-09
 
 ### Added
