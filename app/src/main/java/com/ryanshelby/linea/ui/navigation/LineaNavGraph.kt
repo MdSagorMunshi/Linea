@@ -15,9 +15,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.telecom.PhoneAccountManager
@@ -73,6 +75,9 @@ fun LineaNavGraph(
     val reduceAnim = LocalReduceAnimations.current
 
     val settingsState by settingsViewModel.uiState.collectAsState()
+    val persistentNavbarMode by lineaPreferences.navbarMode.collectAsState(initial = LineaPreferences.NavbarMode.COLLAPSED)
+    var isNavbarTemporarilyExpanded by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Hoisted scroll states to preserve exact positions across sub-screen visits and tab switches
     // Resets cleanly only when the app process is closed (cold restart)
@@ -94,7 +99,11 @@ fun LineaNavGraph(
         settingsSubScreen = null
     }
 
-    BackHandler(enabled = activeContactDashboardId == null && !isPrivateSafeOpen && settingsSubScreen == null && currentDestination != LineaDestination.DIALPAD) {
+    BackHandler(enabled = activeContactDashboardId == null && !isPrivateSafeOpen && settingsSubScreen == null && isNavbarTemporarilyExpanded) {
+        isNavbarTemporarilyExpanded = false
+    }
+
+    BackHandler(enabled = activeContactDashboardId == null && !isPrivateSafeOpen && settingsSubScreen == null && !isNavbarTemporarilyExpanded && currentDestination != LineaDestination.DIALPAD) {
         currentDestination = LineaDestination.DIALPAD
     }
 
@@ -154,12 +163,42 @@ fun LineaNavGraph(
             }
         }
 
-        // Floating Glass Bottom Navigation Bar with unread missed calls badge
+        // Dismiss temporarily expanded navbar on outside tap
+        if (isNavbarTemporarilyExpanded && persistentNavbarMode == LineaPreferences.NavbarMode.COLLAPSED && activeContactDashboardId == null && settingsSubScreen == null && !isPrivateSafeOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        isNavbarTemporarilyExpanded = false
+                    }
+            )
+        }
+
+        // Floating Glass Bottom Navigation Bar with collapsible circle, spring morphing & gestures
         if (activeContactDashboardId == null && settingsSubScreen == null && !isPrivateSafeOpen) {
             FloatingGlassNavBar(
                 currentDestination = currentDestination,
-                onNavigate = { destination -> currentDestination = destination },
+                onNavigate = { destination ->
+                    currentDestination = destination
+                },
                 unreadMissedCalls = settingsState.unreadMissedCalls,
+                persistentNavbarMode = persistentNavbarMode,
+                onTogglePersistentNavbarMode = {
+                    coroutineScope.launch {
+                        val newMode = if (persistentNavbarMode == LineaPreferences.NavbarMode.EXPANDED) {
+                            LineaPreferences.NavbarMode.COLLAPSED
+                        } else {
+                            LineaPreferences.NavbarMode.EXPANDED
+                        }
+                        lineaPreferences.setNavbarMode(newMode)
+                        isNavbarTemporarilyExpanded = false
+                    }
+                },
+                isTemporarilyExpanded = isNavbarTemporarilyExpanded,
+                onSetTemporarilyExpanded = { expanded -> isNavbarTemporarilyExpanded = expanded },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }

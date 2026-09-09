@@ -29,7 +29,13 @@ class LineaPreferences @Inject constructor(
         const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
     }
 
+    object NavbarMode {
+        const val COLLAPSED = "COLLAPSED"
+        const val EXPANDED = "EXPANDED"
+    }
+
     companion object {
+        val KEY_NAVBAR_MODE = stringPreferencesKey("navbar_mode")
         val KEY_DEFAULT_SIM = intPreferencesKey("default_sim") // 0 = SIM 1, 1 = SIM 2, -1 = Ask Every Time
         val KEY_ASK_SIM_BEFORE_DIAL = booleanPreferencesKey("ask_sim_before_dial")
         val KEY_REDUCE_ANIMATIONS = booleanPreferencesKey("reduce_animations")
@@ -112,6 +118,7 @@ class LineaPreferences @Inject constructor(
     val optInLocationTag: Flow<Boolean> = dataStore.data.map { it[KEY_OPT_IN_LOCATION_TAG] ?: false }
     val autoRecordPrivateSafe: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_PRIVATE_SAFE] ?: false }
     val ringtoneType: Flow<String> = dataStore.data.map { it[KEY_RINGTONE_TYPE] ?: RingtoneType.APP_DEFAULT }
+    val navbarMode: Flow<String> = dataStore.data.map { it[KEY_NAVBAR_MODE] ?: NavbarMode.COLLAPSED }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -254,6 +261,10 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setRingtoneType(type: String) {
         dataStore.edit { it[KEY_RINGTONE_TYPE] = type }
+    }
+
+    suspend fun setNavbarMode(mode: String) {
+        dataStore.edit { it[KEY_NAVBAR_MODE] = mode }
     }
 
     override suspend fun saveVaultConfig(

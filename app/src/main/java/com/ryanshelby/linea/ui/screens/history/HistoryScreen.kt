@@ -84,7 +84,7 @@ fun HistoryScreen(
         ) {
             Column {
                 Text(
-                    text = "Call History",
+                    text = "Recent",
                     style = LineaTypography.titleLarge,
                     color = LineaColors.TextPrimary
                 )
@@ -371,7 +371,7 @@ fun HistoryScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = if (searchQuery.isNotEmpty()) "No matching calls found" else "No call history yet",
+                                text = if (searchQuery.isNotEmpty()) "No matching calls found" else "No recent calls yet",
                                 style = LineaTypography.titleMedium,
                                 color = LineaColors.TextPrimary
                             )

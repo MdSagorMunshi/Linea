@@ -463,7 +463,7 @@ fun CallDetailSheet(
 
             // Chronological Call Timeline
             Text(
-                text = "Call History",
+                text = "Recent Calls",
                 style = LineaTypography.titleSmall,
                 color = LineaColors.TextPrimary
             )

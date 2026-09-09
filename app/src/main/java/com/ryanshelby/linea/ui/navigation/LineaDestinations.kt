@@ -17,7 +17,7 @@ enum class LineaDestination(
     ),
     HISTORY(
         route = "history",
-        title = "History",
+        title = "Recent",
         outlineIcon = R.drawable.ic_history_outline,
         filledIcon = R.drawable.ic_history_filled
     ),

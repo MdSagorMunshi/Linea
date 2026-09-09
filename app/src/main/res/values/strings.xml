@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">LINEA</string>
     <string name="nav_dialpad">Dial Pad</string>
-    <string name="nav_history">History</string>
+    <string name="nav_history">Recent</string>
     <string name="nav_contacts">Contacts</string>
     <string name="nav_settings">Settings</string>
     
