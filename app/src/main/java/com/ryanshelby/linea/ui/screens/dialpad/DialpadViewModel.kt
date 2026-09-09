@@ -139,7 +139,15 @@ class DialpadViewModel @Inject constructor(
         _selectedSimIndex.value = index
     }
 
+    private var lastPlaceCallTimestamp: Long = 0L
+
     fun placeCall(phoneNumber: String? = null) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastPlaceCallTimestamp < 1000L) {
+            return
+        }
+        lastPlaceCallTimestamp = now
+
         val numberToCall = (phoneNumber ?: _enteredNumber.value).trim()
         if (numberToCall.isEmpty()) return
 

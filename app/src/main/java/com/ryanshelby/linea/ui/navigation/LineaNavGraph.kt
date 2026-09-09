@@ -44,7 +44,8 @@ enum class SettingsSubScreen {
     CALL_RULES,
     DIAGNOSTICS,
     STATS,
-    BACKUP
+    BACKUP,
+    ABOUT
 }
 
 @Composable
@@ -142,7 +143,8 @@ fun LineaNavGraph(
                         onNavigateToCallRules = { settingsSubScreen = SettingsSubScreen.CALL_RULES },
                         onNavigateToDiagnostics = { settingsSubScreen = SettingsSubScreen.DIAGNOSTICS },
                         onNavigateToStats = { settingsSubScreen = SettingsSubScreen.STATS },
-                        onNavigateToBackup = { settingsSubScreen = SettingsSubScreen.BACKUP }
+                        onNavigateToBackup = { settingsSubScreen = SettingsSubScreen.BACKUP },
+                        onNavigateToAbout = { settingsSubScreen = SettingsSubScreen.ABOUT }
                     )
                 }
             }
@@ -267,6 +269,11 @@ fun LineaNavGraph(
                     }
                     SettingsSubScreen.BACKUP -> {
                         com.ryanshelby.linea.ui.screens.backup.BackupRestoreScreen(
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.ABOUT -> {
+                        com.ryanshelby.linea.ui.screens.settings.about.AboutScreen(
                             onNavigateBack = { settingsSubScreen = null }
                         )
                     }

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Security
@@ -89,6 +90,7 @@ fun SettingsScreen(
     onNavigateToDiagnostics: () -> Unit = {},
     onNavigateToStats: () -> Unit = {},
     onNavigateToBackup: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {},
     scrollState: ScrollState = rememberScrollState(),
     modifier: Modifier = Modifier
 ) {
@@ -640,11 +642,24 @@ fun SettingsScreen(
             onClick = onNavigateToPermissions
         )
 
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // About Linea Navigation Card
+        SettingsNavCard(
+            icon = Icons.Filled.Info,
+            title = "About Linea & FOSS",
+            subtitle = "Ryan Shelby • Open Source • Support & Specs",
+            badge = "ABOUT",
+            onClick = onNavigateToAbout
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        // About Linea Card
+        // About Linea Card (Interactive Preview)
         FrostedGlassBox(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToAbout() },
             shape = RoundedCornerShape(20.dp)
         ) {
             Column(
@@ -667,13 +682,19 @@ fun SettingsScreen(
                     color = LineaColors.TextPrimary
                 )
                 Text(
-                    text = "Version 1.0.0 • Post-Quantum Secure",
+                    text = "Version 1.0.0 • Free & Open Source (FOSS)",
                     style = LineaTypography.labelSmall,
                     color = LineaColors.TitaniumBlue
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Developer: Ryan Shelby • Support: ryn@disr.it",
+                    style = LineaTypography.labelSmall,
+                    color = LineaColors.AccentGreen
+                )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "On-device SQLite • AES-256-GCM Vault • Zero-telemetry",
+                    text = "On-device SQLite • AES-256-GCM Vault • Zero-telemetry\nTap to view full developer info & source repository",
                     style = LineaTypography.bodySmall,
                     color = LineaColors.TextTertiary,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center

@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,13 +45,21 @@ fun CallCountdownDialog(
 ) {
     val duration = if (totalSeconds > 0) totalSeconds else 3
     var secondsRemaining by remember { mutableIntStateOf(duration) }
+    var hasConfirmed by remember { mutableStateOf(false) }
+
+    val handleConfirm = {
+        if (!hasConfirmed) {
+            hasConfirmed = true
+            onConfirmCall()
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (secondsRemaining > 0) {
             delay(1000L)
             secondsRemaining -= 1
         }
-        onConfirmCall()
+        handleConfirm()
     }
 
     Dialog(onDismissRequest = onCancel) {
@@ -119,14 +128,17 @@ fun CallCountdownDialog(
                     }
 
                     Button(
-                        onClick = onConfirmCall,
+                        onClick = handleConfirm,
+                        enabled = !hasConfirmed,
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(LineaDimensions.ButtonCornerRadius),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = LineaColors.TitaniumBlue,
-                            contentColor = LineaColors.TextPrimary
+                            contentColor = LineaColors.TextPrimary,
+                            disabledContainerColor = LineaColors.TitaniumBlue.copy(alpha = 0.5f),
+                            disabledContentColor = LineaColors.TextPrimary.copy(alpha = 0.5f)
                         )
                     ) {
                         Text(

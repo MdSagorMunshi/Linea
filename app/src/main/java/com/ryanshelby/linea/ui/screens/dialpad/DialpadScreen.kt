@@ -45,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -101,6 +102,7 @@ fun DialpadScreen(
     var showCountdownDialog by remember { mutableStateOf(false) }
     var showSimSelectSheet by remember { mutableStateOf(false) }
     var showCreateContactSheet by remember { mutableStateOf(false) }
+    var lastInitiateCallTime by remember { mutableLongStateOf(0L) }
     val simSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val clipboardManager = LocalClipboardManager.current
@@ -114,13 +116,17 @@ fun DialpadScreen(
     }
 
     val initiateCall = { number: String ->
-        pendingCallNumber = number
-        if (askSimBeforeDial && displayedSims.size > 1) {
-            showSimSelectSheet = true
-        } else if (callConfirmationEnabled) {
-            showCountdownDialog = true
-        } else {
-            viewModel.placeCall(number)
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastInitiateCallTime >= 1000L) {
+            lastInitiateCallTime = now
+            pendingCallNumber = number
+            if (askSimBeforeDial && displayedSims.size > 1) {
+                showSimSelectSheet = true
+            } else if (callConfirmationEnabled) {
+                showCountdownDialog = true
+            } else {
+                viewModel.placeCall(number)
+            }
         }
     }
 
@@ -487,7 +493,10 @@ fun DialpadScreen(
             totalSeconds = callCountdownSeconds,
             onConfirmCall = {
                 showCountdownDialog = false
-                viewModel.placeCall(pendingCallNumber)
+                val target = pendingCallNumber ?: enteredNumber
+                if (target.isNotBlank()) {
+                    viewModel.placeCall(target)
+                }
             },
             onCancel = { showCountdownDialog = false }
         )

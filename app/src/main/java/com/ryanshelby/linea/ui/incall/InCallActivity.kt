@@ -78,11 +78,18 @@ class InCallActivity : ComponentActivity() {
                 moveTaskToBack(true)
             }
 
-            LaunchedEffect(currentCall?.state) {
-                val state = currentCall?.state
-                if (currentCall == null || state == LineaCallState.DISCONNECTED) {
-                    delay(600)
-                    finishAndRemoveTask()
+            LaunchedEffect(currentCall?.state, secondaryCall?.state) {
+                val current = currentCall
+                val secondary = secondaryCall
+                val noActiveCalls = (current == null || current.state == LineaCallState.DISCONNECTED) &&
+                        (secondary == null || secondary.state == LineaCallState.DISCONNECTED)
+                if (noActiveCalls) {
+                    delay(800)
+                    val stillNoCalls = (callManager.currentCall.value == null || callManager.currentCall.value?.state == LineaCallState.DISCONNECTED) &&
+                            (callManager.secondaryCall.value == null || callManager.secondaryCall.value?.state == LineaCallState.DISCONNECTED)
+                    if (stillNoCalls) {
+                        finishAndRemoveTask()
+                    }
                 }
             }
 
@@ -90,7 +97,7 @@ class InCallActivity : ComponentActivity() {
 
             CompositionLocalProvider(LocalReduceAnimations provides reduceAnimations) {
                 LineaTheme(theme = themePreference, reduceAnimations = reduceAnimations) {
-                    val call = currentCall
+                    val call = currentCall ?: secondaryCall
                     if (call != null) {
                         if (call.state == LineaCallState.RINGING && call.isIncoming) {
                             IncomingCallScreen(
