@@ -36,7 +36,12 @@ android {
             val storeFilePath = keystoreProperties.getProperty("storeFile")
                 ?: System.getenv("KEYSTORE_FILE")
                 ?: "linea-release-key.jks"
-            val keyStoreFile = if (file(storeFilePath).isAbsolute) file(storeFilePath) else rootProject.file(storeFilePath)
+            val rawFile = File(storeFilePath)
+            val keyStoreFile = when {
+                rawFile.isAbsolute -> rawFile
+                rootProject.file(storeFilePath).exists() -> rootProject.file(storeFilePath)
+                else -> file(storeFilePath)
+            }
             if (keyStoreFile.exists()) {
                 storeFile = keyStoreFile
                 storePassword = keystoreProperties.getProperty("storePassword") ?: System.getenv("KEYSTORE_PASSWORD") ?: ""
