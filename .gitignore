@@ -6,6 +6,7 @@
 /build
 /app/build
 /captures
+/site
 .externalNativeBuild
 .cxx
 *.apk

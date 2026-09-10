@@ -97,6 +97,8 @@ fun InCallScreen(
     isRecording: Boolean = false,
     recordingDurationSeconds: Long = 0L,
     durationWarningActive: Boolean = false,
+    audioLevelHistory: FloatArray = FloatArray(32),
+    callWaveformEnabled: Boolean = true,
     preCallNote: String? = null,
     existingNotes: List<CallNoteEntity> = emptyList(),
     onDisconnect: () -> Unit,
@@ -527,16 +529,21 @@ fun InCallScreen(
 
             Spacer(modifier = Modifier.weight(0.5f))
 
-            // Live Audio Waveform (Dynamic Fluid Audio Visualizer)
-            LiveAudioWaveform(
-                isActiveCall = (callInfo.state == LineaCallState.ACTIVE),
-                isMuted = isMuted,
-                isHeld = (callInfo.state == LineaCallState.HOLDING || callInfo.isHeld),
-                isRecording = isRecording,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
+            // Live Audio Waveform (Heartbeat / Medical ECG Visualizer)
+            if (callWaveformEnabled) {
+                LiveAudioWaveform(
+                    isActiveCall = (callInfo.state == LineaCallState.ACTIVE),
+                    isMuted = isMuted,
+                    isHeld = (callInfo.state == LineaCallState.HOLDING || callInfo.isHeld),
+                    isRecording = isRecording,
+                    audioLevelHistory = audioLevelHistory,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.height(56.dp))
+            }
 
             Spacer(modifier = Modifier.weight(0.5f))
 

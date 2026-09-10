@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] - 2026-09-11
+
+### Added
+- **Linea Call Audio Service (Accessibility Exemption)**:
+  - Created passive accessibility service (`LineaCallAudioService`) registered with `BIND_ACCESSIBILITY_SERVICE`.
+  - Android `AudioPolicyService` exempts accessibility clients from active call audio silencing, capturing incoming and outgoing audio clearly without silent recordings.
+  - Multi-tier service validation combining official `AccessibilityManager.getEnabledAccessibilityServiceList` with `Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES`.
+- **Pre-Request Rationale Dialog**:
+  - Implemented explicit rationale dialog (`LiquidGlassPermissionDialog`) on first launch explaining why accessibility is needed for call audio recording.
+  - User can tap **Allow** to open Android Accessibility settings, or **Deny** to dismiss without requesting.
+- **Settings Accessibility Management & Auto-Record Guard**:
+  - Added dedicated **Call Audio Service (Accessibility)** status card in Settings displaying real-time `ACTIVE` or `REQUIRED` badges.
+  - Guarded **Auto-Record All Calls** switch: blocks activation and displays the rationale dialog if the accessibility service is not enabled.
+- **In-Call Recording Guard**:
+  - Tapping **Record** during an active call without accessibility service displays an informative toast instructing the user to enable the service from Linea Settings before calls.
+  - Prevents confusing in-call system navigation and blocks recording blank audio.
+- **Unified Single-AudioRecord Pipeline**:
+  - Unified file recorder and live ECG voice visualizer into a single 16kHz 16-bit mono WAV engine with 3.0x digital gain boost.
+  - Real-time RMS monitoring directly feeds the live medical ECG heartbeat visualizer with zero hardware microphone contention.
+
+---
+
 ## [2.0.0] - 2026-09-09
 
 ### Changed
@@ -21,13 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2026-09-09
 
 ### Added
-- **Live Audio Waveform Visualizer**:
-  - Implemented 32-bar multi-harmonic fluid liquid glass audio visualizer (`LiveAudioWaveform`) rendered on the active call screen.
-  - Dynamically changes phase, amplitude, and color palette based on real-time call states:
-    - *Active Call*: Radiant cyan & titanium blue harmonic speaking cadence.
-    - *Muted*: Soft flatline amber glow with minimal amplitude.
-    - *On Hold*: Rhythmic pulsing warning amber.
-    - *Recording*: Vibrant crimson red glowing glass bars.
+- **Medical ECG Heartbeat Voice Visualizer**:
+  - Implemented medical ECG / heartbeat style glowing voice visualizer line (`LiveAudioWaveform`) directly on the active call screen without any background boxes, borders, or text.
+  - Dynamically modulates continuous P-Q-R-S-T medical heartbeat waves based on real-time audio volume from caller and receiver.
+  - Features an absolute straight horizontal line when silent (no audio detected) or muted/held.
+  - Added user toggle in **Settings &rarr; Appearance & Motion** ("In-Call Heartbeat Waveform") defaulting to **ON**, allowing users on low-end devices to turn it off.
 - **Full-Screen Frosted Contact Posters**:
   - Created `ContactPosterBackground` featuring photo blur (`20.dp`), subtle breathing scale animations, and layered vignette gradient scrims.
   - Integrated native `ContactPhotoHelper` 16MB LRU memory cache for 0-latency instant poster rendering with zero third-party dependencies.

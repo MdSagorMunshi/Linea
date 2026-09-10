@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -119,6 +120,19 @@ fun PermissionsScreen(
             description = "Audio streaming for phone calls and earpiece/speaker routing",
             icon = Icons.Filled.Mic,
             permissionKey = android.Manifest.permission.RECORD_AUDIO
+        ),
+        PermissionItem(
+            name = "Call Audio Service (Accessibility)",
+            description = "Bypasses Android 10+ call audio silencing for un-silenced call recording and live voice wave",
+            icon = Icons.Filled.RecordVoiceOver,
+            permissionKey = null,
+            isCustomCheck = { ctx ->
+                com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.isServiceEnabled(ctx)
+            },
+            customAction = { ctx ->
+                com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.openAccessibilitySettings(ctx)
+            },
+            isOptional = true
         ),
         PermissionItem(
             name = "Bluetooth Headsets",

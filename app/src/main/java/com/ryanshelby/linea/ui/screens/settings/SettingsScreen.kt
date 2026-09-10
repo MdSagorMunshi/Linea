@@ -27,12 +27,17 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.VolumeUp
 import com.ryanshelby.linea.data.preferences.LineaPreferences
+import com.ryanshelby.linea.telecom.recorder.LineaCallAudioService
+import com.ryanshelby.linea.ui.components.LiquidGlassPermissionDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -102,6 +107,7 @@ fun SettingsScreen(
     val activeProfile by viewModel.activeProfile.collectAsState()
     val context = LocalContext.current
     var showClearHistoryDialog by remember { mutableStateOf(false) }
+    var showAccessibilityDialog by remember { mutableStateOf(false) }
 
     val exportCsvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -196,6 +202,28 @@ fun SettingsScreen(
             subtitle = "${uiState.callRulesCount} rules configured • Nighttime & workday filters",
             badge = if (uiState.callRulesCount > 0) "${uiState.callRulesCount} RULES" else null,
             onClick = onNavigateToCallRules
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Call Audio Service (Accessibility)
+        val isCallAudioServiceActive = LineaCallAudioService.isServiceEnabled(context)
+        SettingsNavCard(
+            icon = Icons.Filled.RecordVoiceOver,
+            title = "Call Audio Service (Accessibility)",
+            subtitle = if (isCallAudioServiceActive) {
+                "Active • Hardware call audio streaming & ECG monitoring enabled"
+            } else {
+                "Required • Android requires this service to record call audio"
+            },
+            badge = if (isCallAudioServiceActive) "ACTIVE" else "REQUIRED",
+            onClick = {
+                if (isCallAudioServiceActive) {
+                    android.widget.Toast.makeText(context, "Call Audio Service is enabled and active.", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    showAccessibilityDialog = true
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -316,11 +344,26 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                val isAudioServiceActive = LineaCallAudioService.isServiceEnabled(context)
                 SettingsToggleRow(
                     title = "Auto-Record All Calls",
-                    subtitle = "Automatically record cellular calls to private storage",
-                    checked = uiState.autoRecordCalls,
-                    onCheckedChange = { viewModel.setAutoRecordCalls(it) }
+                    subtitle = if (isAudioServiceActive) {
+                        "Automatically record cellular calls to private storage"
+                    } else {
+                        "Requires Call Audio Service (Accessibility) to capture audio"
+                    },
+                    checked = uiState.autoRecordCalls && isAudioServiceActive,
+                    onCheckedChange = { enabled ->
+                        if (enabled) {
+                            if (LineaCallAudioService.isServiceEnabled(context)) {
+                                viewModel.setAutoRecordCalls(true)
+                            } else {
+                                showAccessibilityDialog = true
+                            }
+                        } else {
+                            viewModel.setAutoRecordCalls(false)
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -601,6 +644,15 @@ fun SettingsScreen(
                     checked = uiState.reduceAnimations,
                     onCheckedChange = { viewModel.setReduceAnimations(it) }
                 )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                SettingsToggleRow(
+                    title = "In-Call Heartbeat Waveform",
+                    subtitle = "Real-time medical ECG voice visualizer (turn off to reduce lag)",
+                    checked = uiState.callWaveformEnabled,
+                    onCheckedChange = { viewModel.setCallWaveformEnabled(it) }
+                )
             }
         }
 
@@ -837,6 +889,24 @@ fun SettingsScreen(
                 OutlinedButton(onClick = { showClearHistoryDialog = false }) {
                     Text("Cancel", color = LineaColors.TextSecondary)
                 }
+            }
+        )
+    }
+
+    if (showAccessibilityDialog) {
+        LiquidGlassPermissionDialog(
+            title = "Call Audio Service Required",
+            message = "Android restricts phone call audio recording to protect privacy. To capture incoming and outgoing voice audio clearly without blank recordings, Linea requires its passive Call Audio Service enabled in Android Accessibility settings.\n\nLinea only uses this permission locally on your device to stream call audio to your recordings. No screen content, keystrokes, or personal data are ever read or collected.",
+            actionLabel = "Allow",
+            dismissLabel = "Deny",
+            icon = Icons.Filled.RecordVoiceOver,
+            onAction = {
+                showAccessibilityDialog = false
+                LineaCallAudioService.openAccessibilitySettings(context)
+            },
+            dismissible = true,
+            onDismiss = {
+                showAccessibilityDialog = false
             }
         )
     }

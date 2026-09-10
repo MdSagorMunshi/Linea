@@ -19,6 +19,8 @@ import com.ryanshelby.linea.telecom.PhoneAccountManager
 import com.ryanshelby.linea.telecom.RoleHelper
 import com.ryanshelby.linea.telecom.SimAccountInfo
 import com.ryanshelby.linea.ui.navigation.LineaNavGraph
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import com.ryanshelby.linea.ui.components.LiquidGlassPermissionDialog
 import com.ryanshelby.linea.ui.theme.LineaTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -77,8 +79,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val reduceAnimations by lineaPreferences.reduceAnimations.collectAsState(initial = false)
             val themePreference by lineaPreferences.themePreference.collectAsState(initial = "DARK")
-            // Start with true to avoid flashing the first-launch dialog before DataStore loads.
-            val permissionIntroShown by lineaPreferences.permissionIntroShown.collectAsState(initial = true)
+            val permissionIntroShown by lineaPreferences.permissionIntroShown.collectAsState(initial = null)
+            val accessibilityPromptShown by lineaPreferences.accessibilityPromptShown.collectAsState(initial = null)
 
             LineaTheme(theme = themePreference, reduceAnimations = reduceAnimations) {
                 LineaNavGraph(
@@ -92,7 +94,7 @@ class MainActivity : ComponentActivity() {
                     onRequestPermissions = { requestAllPermissionsUpfront() }
                 )
 
-                if (!permissionIntroShown) {
+                if (permissionIntroShown == false) {
                     LiquidGlassPermissionDialog(
                         title = "Permissions required",
                         message = "Linea needs Phone and Phone State to place calls, Microphone for call recording and call audio, " +
@@ -104,6 +106,22 @@ class MainActivity : ComponentActivity() {
                             requestAllPermissionsUpfront()
                         },
                         dismissible = false
+                    )
+                } else if (permissionIntroShown == true && accessibilityPromptShown == false && !com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.isServiceEnabled(this@MainActivity)) {
+                    LiquidGlassPermissionDialog(
+                        title = "Call Audio & Recording Permission",
+                        message = "Android restricts standard apps from recording call audio to protect privacy. To capture incoming and outgoing voice audio clearly without blank recordings, Linea requires its passive Call Audio Service in Android Accessibility settings.\n\nLinea only uses this permission locally on your device to stream call audio to your private recordings. No screen content, keystrokes, or personal data are ever read or collected.",
+                        actionLabel = "Allow",
+                        dismissLabel = "Deny",
+                        icon = Icons.Filled.RecordVoiceOver,
+                        onAction = {
+                            lifecycleScope.launch { lineaPreferences.setAccessibilityPromptShown(true) }
+                            com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.openAccessibilitySettings(this@MainActivity)
+                        },
+                        dismissible = true,
+                        onDismiss = {
+                            lifecycleScope.launch { lineaPreferences.setAccessibilityPromptShown(true) }
+                        }
                     )
                 }
 

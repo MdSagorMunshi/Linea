@@ -44,6 +44,28 @@ class InCallActivity : ComponentActivity() {
     @Inject
     lateinit var callNoteDao: com.ryanshelby.linea.data.local.dao.CallNoteDao
 
+    private val requestAudioPermissionLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            callManager.onMicrophonePermissionGranted()
+        } else {
+            Toast.makeText(
+                this,
+                "Microphone permission is required for live voice monitoring and recording",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun ensureRecordAudioPermission(onGranted: () -> Unit) {
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            onGranted()
+        } else {
+            requestAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         volumeControlStream = AudioManager.STREAM_RING
@@ -76,6 +98,8 @@ class InCallActivity : ComponentActivity() {
             val recordingDuration by callManager.recordingDurationSeconds.collectAsState()
             val recordingUnavailableReason by callManager.recordingUnavailableReason.collectAsState()
             val durationWarningActive by callManager.durationWarningActive.collectAsState()
+            val audioLevelHistory by callManager.audioLevelHistory.collectAsState()
+            val callWaveformEnabled by lineaPreferences.callWaveformEnabled.collectAsState(initial = true)
 
             LaunchedEffect(recordingUnavailableReason) {
                 recordingUnavailableReason?.let {
@@ -110,6 +134,14 @@ class InCallActivity : ComponentActivity() {
                 }
             }
 
+            LaunchedEffect(currentCall?.state) {
+                if (currentCall?.state == LineaCallState.ACTIVE) {
+                    if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        requestAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+            }
+
             val themePreference by lineaPreferences.themePreference.collectAsState(initial = "DARK")
 
             CompositionLocalProvider(LocalReduceAnimations provides reduceAnimations) {
@@ -136,6 +168,8 @@ class InCallActivity : ComponentActivity() {
                                 isRecording = isRecording,
                                 recordingDurationSeconds = recordingDuration,
                                 durationWarningActive = durationWarningActive,
+                                audioLevelHistory = audioLevelHistory,
+                                callWaveformEnabled = callWaveformEnabled,
                                 existingNotes = notes,
                                 preCallNote = preCallNote,
                                 onDisconnect = { callManager.disconnectCall() },
@@ -156,7 +190,19 @@ class InCallActivity : ComponentActivity() {
                                     }
                                     startActivity(intent)
                                 },
-                                onToggleRecord = { callManager.toggleRecording() },
+                                onToggleRecord = {
+                                    if (!com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.isServiceEnabled(this@InCallActivity)) {
+                                        Toast.makeText(
+                                            this@InCallActivity,
+                                            "Call recording requires Linea Call Audio Service. You must enable it from Linea Settings before calls.",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    } else {
+                                        ensureRecordAudioPermission {
+                                            callManager.toggleRecording()
+                                        }
+                                    }
+                                },
                                 onSaveNote = { noteText ->
                                     this@InCallActivity.lifecycleScope.launch {
                                         callNoteDao.insertNote(

@@ -81,6 +81,8 @@ class LineaPreferences @Inject constructor(
         val KEY_PROXIMITY_WAVE_TO_SILENCE = booleanPreferencesKey("proximity_wave_to_silence")
         val KEY_DIALPAD_HAPTIC_PROFILE = stringPreferencesKey("dialpad_haptic_profile") // TITANIUM_GLASS, MECHANICAL_RELAY, STEALTH, CLASSIC
         val KEY_PERMISSION_INTRO_SHOWN = booleanPreferencesKey("permission_intro_shown")
+        val KEY_ACCESSIBILITY_PROMPT_SHOWN = booleanPreferencesKey("accessibility_rationale_v2_shown")
+        val KEY_CALL_WAVEFORM_ENABLED = booleanPreferencesKey("call_waveform_enabled")
 
         // Quantum Vault & Anti-Brute-Force Keys
 
@@ -134,6 +136,8 @@ class LineaPreferences @Inject constructor(
     val proximityWaveToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_PROXIMITY_WAVE_TO_SILENCE] ?: false }
     val dialpadHapticProfile: Flow<String> = dataStore.data.map { it[KEY_DIALPAD_HAPTIC_PROFILE] ?: DialpadHapticProfile.TITANIUM_GLASS }
     val permissionIntroShown: Flow<Boolean> = dataStore.data.map { it[KEY_PERMISSION_INTRO_SHOWN] ?: false }
+    val accessibilityPromptShown: Flow<Boolean> = dataStore.data.map { it[KEY_ACCESSIBILITY_PROMPT_SHOWN] ?: false }
+    val callWaveformEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_WAVEFORM_ENABLED] ?: true }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -147,12 +151,20 @@ class LineaPreferences @Inject constructor(
     override val vaultFailedAttempts: Flow<Int> = dataStore.data.map { it[KEY_VAULT_FAILED_ATTEMPTS] ?: 0 }
     override val vaultLockoutUntil: Flow<Long> = dataStore.data.map { it[KEY_VAULT_LOCKOUT_UNTIL] ?: 0L }
 
+    suspend fun setCallWaveformEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_CALL_WAVEFORM_ENABLED] = enabled }
+    }
+
     suspend fun setFlipToSilence(enabled: Boolean) {
         dataStore.edit { it[KEY_FLIP_TO_SILENCE] = enabled }
     }
 
     suspend fun setPermissionIntroShown(shown: Boolean) {
         dataStore.edit { it[KEY_PERMISSION_INTRO_SHOWN] = shown }
+    }
+
+    suspend fun setAccessibilityPromptShown(shown: Boolean) {
+        dataStore.edit { it[KEY_ACCESSIBILITY_PROMPT_SHOWN] = shown }
     }
 
     suspend fun setProximityWaveToSilence(enabled: Boolean) {

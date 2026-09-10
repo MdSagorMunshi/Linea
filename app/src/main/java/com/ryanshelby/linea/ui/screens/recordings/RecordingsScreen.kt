@@ -32,6 +32,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -40,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -101,6 +105,56 @@ fun RecordingsScreen(
                         style = LineaTypography.bodySmall.copy(fontFeatureSettings = "tnum"),
                         color = LineaColors.TextSecondary
                     )
+                }
+            }
+
+            val isAccessibilityEnabled = remember {
+                com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.isServiceEnabled(context)
+            }
+
+            if (!isAccessibilityEnabled) {
+                FrostedGlassBox(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    borderColor = LineaColors.Warning.copy(alpha = 0.6f)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.WarningAmber,
+                                contentDescription = null,
+                                tint = LineaColors.Warning,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Call Audio Service Required",
+                                style = LineaTypography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = LineaColors.Warning
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "On Android 10+, the system silences call audio recordings unless Linea Call Audio Service is enabled in Accessibility settings.",
+                            style = LineaTypography.bodySmall,
+                            color = LineaColors.TextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Button(
+                            onClick = {
+                                com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.openAccessibilitySettings(context)
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = LineaColors.TitaniumBlue,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text("Open Accessibility Settings", style = LineaTypography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                        }
+                    }
                 }
             }
 

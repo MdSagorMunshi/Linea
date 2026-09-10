@@ -30,6 +30,9 @@ import androidx.compose.ui.window.DialogProperties
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaTypography
 
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.vector.ImageVector
+
 /** A compact, app-styled replacement for platform Material permission alerts. */
 @Composable
 fun LiquidGlassPermissionDialog(
@@ -38,7 +41,9 @@ fun LiquidGlassPermissionDialog(
     actionLabel: String,
     onAction: () -> Unit,
     dismissible: Boolean,
-    onDismiss: () -> Unit = {}
+    onDismiss: () -> Unit = {},
+    dismissLabel: String? = null,
+    icon: ImageVector = Icons.Filled.Security
 ) {
     Dialog(
         onDismissRequest = { if (dismissible) onDismiss() },
@@ -77,7 +82,7 @@ fun LiquidGlassPermissionDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Security,
+                            imageVector = icon,
                             contentDescription = null,
                             tint = LineaColors.TitaniumBlue,
                             modifier = Modifier.size(22.dp)
@@ -91,7 +96,19 @@ fun LiquidGlassPermissionDialog(
                 Text(message, style = LineaTypography.bodyMedium, color = LineaColors.TextSecondary)
                 Spacer(Modifier.height(22.dp))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (dismissLabel != null) {
+                        TextButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text(dismissLabel, color = LineaColors.TextSecondary)
+                        }
+                    }
                     Button(
                         onClick = onAction,
                         colors = ButtonDefaults.buttonColors(

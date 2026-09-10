@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Calling & Telecom Permissions -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
@@ -18,6 +19,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" tools:ignore="ProtectedPermissions" />
     
     <!-- Camera for Contact Photos -->
     <uses-permission android:name="android.permission.CAMERA" />
@@ -116,6 +118,19 @@
             <intent-filter>
                 <action android:name="android.telecom.InCallService" />
             </intent-filter>
+        </service>
+
+        <!-- Call Audio Accessibility Service (Bypasses Android 10+ AudioPolicy silencing during calls) -->
+        <service
+            android:name=".telecom.recorder.LineaCallAudioService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/linea_call_audio_service" />
         </service>
 
         <!-- Callback Reminder Receiver -->
