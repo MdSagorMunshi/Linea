@@ -20,6 +20,7 @@ import com.ryanshelby.linea.telecom.gestures.CallGestureManager
 import com.ryanshelby.linea.telecom.recorder.CallAudioRecorder
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.ui.components.FloatingCallOverlayManager
+import com.ryanshelby.linea.permissions.PermissionCoordinator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -79,7 +80,8 @@ class CallManager @Inject constructor(
     private val callRingtoneManager: CallRingtoneManager,
     private val callUiModeDecider: CallUiModeDecider,
     private val floatingOverlayManager: FloatingCallOverlayManager,
-    private val callGestureManager: CallGestureManager
+    private val callGestureManager: CallGestureManager,
+    private val permissionCoordinator: PermissionCoordinator
 ) {
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -628,6 +630,13 @@ class CallManager @Inject constructor(
 
     @SuppressLint("MissingPermission")
     fun placeCall(phoneNumber: String, simAccountHandle: android.telecom.PhoneAccountHandle? = null) {
+        permissionCoordinator.runWhenOutgoingCallPermitted {
+            placeCallWhenPermitted(phoneNumber, simAccountHandle)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun placeCallWhenPermitted(phoneNumber: String, simAccountHandle: android.telecom.PhoneAccountHandle?) {
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastPlaceCallTimestamp < 1200L) {
             return

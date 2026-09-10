@@ -80,6 +80,7 @@ class LineaPreferences @Inject constructor(
         val KEY_FLIP_TO_SILENCE = booleanPreferencesKey("flip_to_silence")
         val KEY_PROXIMITY_WAVE_TO_SILENCE = booleanPreferencesKey("proximity_wave_to_silence")
         val KEY_DIALPAD_HAPTIC_PROFILE = stringPreferencesKey("dialpad_haptic_profile") // TITANIUM_GLASS, MECHANICAL_RELAY, STEALTH, CLASSIC
+        val KEY_PERMISSION_INTRO_SHOWN = booleanPreferencesKey("permission_intro_shown")
 
         // Quantum Vault & Anti-Brute-Force Keys
 
@@ -132,6 +133,7 @@ class LineaPreferences @Inject constructor(
     val flipToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_FLIP_TO_SILENCE] ?: false }
     val proximityWaveToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_PROXIMITY_WAVE_TO_SILENCE] ?: false }
     val dialpadHapticProfile: Flow<String> = dataStore.data.map { it[KEY_DIALPAD_HAPTIC_PROFILE] ?: DialpadHapticProfile.TITANIUM_GLASS }
+    val permissionIntroShown: Flow<Boolean> = dataStore.data.map { it[KEY_PERMISSION_INTRO_SHOWN] ?: false }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -147,6 +149,10 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setFlipToSilence(enabled: Boolean) {
         dataStore.edit { it[KEY_FLIP_TO_SILENCE] = enabled }
+    }
+
+    suspend fun setPermissionIntroShown(shown: Boolean) {
+        dataStore.edit { it[KEY_PERMISSION_INTRO_SHOWN] = shown }
     }
 
     suspend fun setProximityWaveToSilence(enabled: Boolean) {
