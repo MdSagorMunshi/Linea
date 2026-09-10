@@ -407,7 +407,6 @@ class CallManager @Inject constructor(
             }
 
             audioRecorder.stopCapture()
-            wasSpeakerForcedByRecording = false
 
             // If secondary call is waiting or active, promote it
             if (secondary != null) {
@@ -533,10 +532,6 @@ class CallManager @Inject constructor(
                 }
 
                 if (shouldRecord) {
-                    if (_audioRoute.value != LineaAudioRoute.SPEAKER) {
-                        wasSpeakerForcedByRecording = true
-                        setSpeakerphone(true)
-                    }
                     audioRecorder.startRecording(
                         phoneNumber = number,
                         contactId = contact?.id,
@@ -745,8 +740,6 @@ class CallManager @Inject constructor(
         refreshOngoingCallNotification()
     }
 
-    private var wasSpeakerForcedByRecording = false
-
     fun setSpeakerphone(enable: Boolean) {
         val newRoute = if (enable) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_EARPIECE
         val routeEnum = if (enable) LineaAudioRoute.SPEAKER else LineaAudioRoute.EARPIECE
@@ -765,9 +758,6 @@ class CallManager @Inject constructor(
     fun toggleSpeaker() {
         val willBeSpeaker = _audioRoute.value != LineaAudioRoute.SPEAKER
         userSelectedSpeaker = willBeSpeaker
-        if (!willBeSpeaker) {
-            wasSpeakerForcedByRecording = false
-        }
         setSpeakerphone(willBeSpeaker)
     }
 
@@ -855,10 +845,6 @@ class CallManager @Inject constructor(
     fun toggleRecording() {
         if (audioRecorder.isCurrentlyRecording()) {
             audioRecorder.stopRecording()
-            if (wasSpeakerForcedByRecording && !userSelectedSpeaker) {
-                wasSpeakerForcedByRecording = false
-                setSpeakerphone(false)
-            }
         } else {
             if (!com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.isServiceEnabled(context)) {
                 scope.launch(Dispatchers.Main) {
@@ -871,10 +857,6 @@ class CallManager @Inject constructor(
                 return
             }
             val phone = _currentCall.value?.phoneNumber ?: return
-            if (_audioRoute.value != LineaAudioRoute.SPEAKER) {
-                wasSpeakerForcedByRecording = true
-                setSpeakerphone(true)
-            }
             scope.launch {
                 val normalized = phone.filter { it.isDigit() }
                 val matchedNumber = contactDao.findNumberByNormalized(normalized)
