@@ -27,7 +27,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-import com.ryanshelby.linea.data.local.dao.CallRecordingDao
 import com.ryanshelby.linea.telecom.reminder.CallbackReminderScheduler
 
 import com.ryanshelby.linea.data.local.dao.ContactDao
@@ -43,7 +42,6 @@ class HistoryViewModel @Inject constructor(
     private val callNoteDao: CallNoteDao,
     private val callbackReminderDao: CallbackReminderDao,
     private val blockedNumberDao: BlockedNumberDao,
-    private val recordingDao: CallRecordingDao,
     private val reminderScheduler: CallbackReminderScheduler,
     private val contactDao: ContactDao,
     private val preferences: LineaPreferences
@@ -83,7 +81,6 @@ class HistoryViewModel @Inject constructor(
 
     val dateGroups: StateFlow<List<DateGroup>> = combine(
         rawCallRecords,
-        recordingDao.getAllRecordings(),
         _searchQuery,
         _selectedFilter,
         _expandedItemIds,
@@ -91,25 +88,18 @@ class HistoryViewModel @Inject constructor(
     ) { args: Array<Any?> ->
         @Suppress("UNCHECKED_CAST")
         val records = args[0] as List<CallRecordEntity>
+        val query = args[1] as String
+        val filter = args[2] as HistoryFilter
         @Suppress("UNCHECKED_CAST")
-        val recordings = args[1] as List<com.ryanshelby.linea.data.local.entities.CallRecordingEntity>
-        val query = args[2] as String
-        val filter = args[3] as HistoryFilter
-        @Suppress("UNCHECKED_CAST")
-        val expandedIds = args[4] as Set<String>
-        val privateUnlocked = args[5] as Boolean
+        val expandedIds = args[3] as Set<String>
+        val privateUnlocked = args[4] as Boolean
         val safeRecords = if (privateUnlocked) records else records.filter { !it.isPrivateContact }
-        val recordedNumbers = recordings.map { it.phoneNumber.filter { c -> c.isDigit() } }.toSet()
 
         // 1. Filter by category
         val filteredByCategory = when (filter) {
             HistoryFilter.ALL -> safeRecords
             HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
             HistoryFilter.BLOCKED -> safeRecords.filter { it.callType == CallDirectionType.BLOCKED }
-            HistoryFilter.RECORDINGS -> safeRecords.filter {
-                it.notes?.contains("recording", ignoreCase = true) == true ||
-                recordedNumbers.contains(it.phoneNumber.filter { c -> c.isDigit() })
-            }
         }
 
         // 2. Filter by search query (name, number, or date)
@@ -149,9 +139,6 @@ class HistoryViewModel @Inject constructor(
             HistoryFilter.ALL -> safeRecords
             HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
             HistoryFilter.BLOCKED -> safeRecords.filter { it.callType == CallDirectionType.BLOCKED }
-            HistoryFilter.RECORDINGS -> safeRecords.filter {
-                it.notes?.contains("recording", ignoreCase = true) == true
-            }
         }
         val filteredByQuery = if (query.isBlank()) {
             filteredByCategory

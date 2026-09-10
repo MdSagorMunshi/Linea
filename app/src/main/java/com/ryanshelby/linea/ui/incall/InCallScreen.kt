@@ -3,11 +3,6 @@ package com.ryanshelby.linea.ui.incall
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -41,7 +36,6 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
@@ -80,7 +74,6 @@ import com.ryanshelby.linea.telecom.LineaCallState
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.components.PreCallNoteBanner
 import com.ryanshelby.linea.ui.incall.components.ContactPosterBackground
-import com.ryanshelby.linea.ui.incall.components.LiveAudioWaveform
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -94,11 +87,7 @@ fun InCallScreen(
     audioRoute: LineaAudioRoute = callInfo.audioRoute,
     canAddCall: Boolean? = null,
     canMerge: Boolean? = null,
-    isRecording: Boolean = false,
-    recordingDurationSeconds: Long = 0L,
     durationWarningActive: Boolean = false,
-    audioLevelHistory: FloatArray = FloatArray(32),
-    callWaveformEnabled: Boolean = true,
     preCallNote: String? = null,
     existingNotes: List<CallNoteEntity> = emptyList(),
     onDisconnect: () -> Unit,
@@ -108,7 +97,6 @@ fun InCallScreen(
     onDtmfPress: (Char) -> Unit,
     onDtmfRelease: () -> Unit,
     onAddCall: () -> Unit,
-    onToggleRecord: () -> Unit = {},
     onSaveNote: (String) -> Unit = {},
     onAnswerWaitingHold: () -> Unit = {},
     onAnswerWaitingEnd: () -> Unit = {},
@@ -153,18 +141,6 @@ fun InCallScreen(
         LineaCallState.IDLE -> ""
     }
 
-    // Pulsing recording dot animation
-    val infiniteTransition = rememberInfiniteTransition(label = "RecPulse")
-    val recPulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(600),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "RecPulseAlpha"
-    )
-
     Box(modifier = modifier.fillMaxSize()) {
         // Full-Screen Frosted Contact Poster Background
         ContactPosterBackground(
@@ -187,39 +163,6 @@ fun InCallScreen(
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Active Recording Pill Indicator
-                AnimatedVisibility(
-                    visible = isRecording,
-                    enter = fadeIn() + slideInVertically(),
-                    exit = fadeOut() + slideOutVertically()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(LineaColors.Danger.copy(alpha = 0.2f))
-                            .border(1.dp, LineaColors.Danger.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(LineaColors.Danger.copy(alpha = if (reduceAnimations) 1f else recPulseAlpha))
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "REC ${formatDuration(recordingDurationSeconds)}",
-                                style = LineaTypography.bodySmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontFeatureSettings = "tnum"
-                                ),
-                                color = LineaColors.Danger
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
 
                 // Call Duration Warning Banner
                 AnimatedVisibility(
@@ -527,25 +470,7 @@ fun InCallScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(0.5f))
-
-            // Live Audio Waveform (Heartbeat / Medical ECG Visualizer)
-            if (callWaveformEnabled) {
-                LiveAudioWaveform(
-                    isActiveCall = (callInfo.state == LineaCallState.ACTIVE),
-                    isMuted = isMuted,
-                    isHeld = (callInfo.state == LineaCallState.HOLDING || callInfo.isHeld),
-                    isRecording = isRecording,
-                    audioLevelHistory = audioLevelHistory,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                )
-            } else {
-                Spacer(modifier = Modifier.height(56.dp))
-            }
-
-            Spacer(modifier = Modifier.weight(0.5f))
+            Spacer(modifier = Modifier.weight(1f))
 
             // Middle Section: Controls Grid (2 Rows)
             FrostedGlassBox(
@@ -601,19 +526,11 @@ fun InCallScreen(
                         )
                     }
 
-                    // Row 2: Record, Notes, Add Call (if supported), Swap / Merge (if available)
+                    // Row 2: Notes, Add Call (if supported), Swap / Merge (if available)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        InCallActionButton(
-                            icon = Icons.Filled.FiberManualRecord,
-                            label = if (isRecording) "Recording" else "Record",
-                            isActive = isRecording,
-                            activeColor = LineaColors.Danger,
-                            onClick = onToggleRecord
-                        )
-
                         InCallActionButton(
                             icon = Icons.Filled.EditNote,
                             label = "Notes",
@@ -655,7 +572,7 @@ fun InCallScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(0.5f))
+            Spacer(modifier = Modifier.weight(1f))
 
             // Bottom Section: End Call Button
             EndCallButton(

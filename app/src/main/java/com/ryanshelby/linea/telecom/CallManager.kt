@@ -18,8 +18,6 @@ import com.ryanshelby.linea.ui.incall.InCallActivity
 import com.ryanshelby.linea.telecom.screening.CallScreeningEngine
 import com.ryanshelby.linea.telecom.screening.ScreeningDecision
 import com.ryanshelby.linea.telecom.gestures.CallGestureManager
-import com.ryanshelby.linea.telecom.recorder.CallAudioLevelMonitor
-import com.ryanshelby.linea.telecom.recorder.CallAudioRecorder
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.ui.components.FloatingCallOverlayManager
 import com.ryanshelby.linea.permissions.PermissionCoordinator
@@ -77,8 +75,6 @@ class CallManager @Inject constructor(
     private val proximitySensorManager: ProximitySensorManager,
     private val screeningEngine: CallScreeningEngine,
     private val preferences: LineaPreferences,
-    private val audioRecorder: CallAudioRecorder,
-    private val audioLevelMonitor: CallAudioLevelMonitor,
     private val contactDao: ContactDao,
     private val contactLookupHelper: ContactLookupHelper,
     private val callRingtoneManager: CallRingtoneManager,
@@ -105,11 +101,6 @@ class CallManager @Inject constructor(
 
     private val _isMuted = MutableStateFlow(false)
     val isMuted: StateFlow<Boolean> = _isMuted.asStateFlow()
-
-    val isRecording: StateFlow<Boolean> = audioRecorder.isRecording
-    val recordingDurationSeconds: StateFlow<Long> = audioRecorder.recordingDurationSeconds
-    val recordingUnavailableReason: StateFlow<String?> = audioRecorder.recordingUnavailableReason
-    val audioLevelHistory: StateFlow<FloatArray> = audioLevelMonitor.audioLevelHistory
 
     private val _durationWarningActive = MutableStateFlow(false)
     val durationWarningActive: StateFlow<Boolean> = _durationWarningActive.asStateFlow()
@@ -406,7 +397,7 @@ class CallManager @Inject constructor(
                 }
             }
 
-            audioRecorder.stopCapture()
+
 
             // If secondary call is waiting or active, promote it
             if (secondary != null) {
@@ -509,34 +500,12 @@ class CallManager @Inject constructor(
         if (state == LineaCallState.ACTIVE) {
             callRingtoneManager.stopRinging()
             dismissFloatingCall()
-            scope.launch {
-                audioRecorder.startCapture()
-            }
         }
 
         if (previousCallState != LineaCallState.ACTIVE && state == LineaCallState.ACTIVE) {
             scope.launch {
                 if (preferences.callVibrationEnabled.first()) {
                     vibrateFeedback(longArrayOf(0, 80))
-                }
-                val normalized = number.filter { it.isDigit() }
-                val matchedNumber = contactDao.findNumberByNormalized(normalized)
-                    ?: if (normalized.length > 7) contactDao.findNumberByNormalized(normalized.takeLast(7)) else null
-                val contact = if (matchedNumber != null) contactDao.getContactById(matchedNumber.contactId) else null
-                val isPrivate = contact?.isPrivate == true
-
-                val shouldRecord = if (isPrivate) {
-                    audioRecorder.shouldAutoRecordPrivateSafe()
-                } else {
-                    audioRecorder.shouldAutoRecord(isContact = matchedNumber != null)
-                }
-
-                if (shouldRecord) {
-                    audioRecorder.startRecording(
-                        phoneNumber = number,
-                        contactId = contact?.id,
-                        isPrivateContact = isPrivate
-                    )
                 }
             }
         } else if (previousCallState == LineaCallState.ACTIVE && state == LineaCallState.DISCONNECTED) {
@@ -842,51 +811,4 @@ class CallManager @Inject constructor(
         _secondaryCall.value = null
     }
 
-    fun toggleRecording() {
-        if (audioRecorder.isCurrentlyRecording()) {
-            audioRecorder.stopRecording()
-        } else {
-            if (!com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.isServiceEnabled(context)) {
-                scope.launch(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        "Call recording requires Linea Call Audio Service. You must enable it from Linea Settings before calls.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-                return
-            }
-            val phone = _currentCall.value?.phoneNumber ?: return
-            scope.launch {
-                val normalized = phone.filter { it.isDigit() }
-                val matchedNumber = contactDao.findNumberByNormalized(normalized)
-                    ?: if (normalized.length > 7) contactDao.findNumberByNormalized(normalized.takeLast(7)) else null
-                val contact = if (matchedNumber != null) contactDao.getContactById(matchedNumber.contactId) else null
-                val isPrivate = contact?.isPrivate == true
-
-                val success = audioRecorder.startRecording(
-                    phoneNumber = phone,
-                    contactId = contact?.id,
-                    isPrivateContact = isPrivate
-                )
-                if (success) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            context,
-                            "Call recording started",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            }
-        }
-    }
-
-    fun onMicrophonePermissionGranted() {
-        if (_currentCall.value?.state == LineaCallState.ACTIVE) {
-            scope.launch {
-                audioRecorder.startCapture()
-            }
-        }
-    }
 }

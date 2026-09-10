@@ -427,43 +427,7 @@ fun PrivateSafeScreen(
                 }
             },
             text = {
-                val autoRecordPrivateSafe by viewModel.autoRecordPrivateSafe.collectAsState()
-
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Option 0: Auto Call Record Toggle for Private Safe
-                    FrostedGlassBox(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Filled.FiberManualRecord, contentDescription = null, tint = LineaColors.Danger)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Auto Record Calls", style = LineaTypography.titleSmall, color = LineaColors.TextPrimary)
-                                Text(
-                                    "Automatically record calls with private contacts",
-                                    style = LineaTypography.bodySmall,
-                                    color = LineaColors.TextSecondary
-                                )
-                            }
-                            Switch(
-                                checked = autoRecordPrivateSafe,
-                                onCheckedChange = { viewModel.setAutoRecordPrivateSafe(it) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = LineaColors.MutedSageGreen,
-                                    uncheckedThumbColor = LineaColors.TextTertiary,
-                                    uncheckedTrackColor = LineaColors.GlassFill
-                                )
-                            )
-                        }
-                    }
-
                     // Option 1: Change 6-Digit PIN
                     FrostedGlassBox(
                         modifier = Modifier

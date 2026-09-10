@@ -32,7 +32,6 @@ import javax.inject.Inject
 
 import android.content.Context
 import com.ryanshelby.linea.data.local.dao.CallRecordDao
-import com.ryanshelby.linea.data.local.dao.CallRecordingDao
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -41,7 +40,6 @@ class ContactsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val contactDao: ContactDao,
     private val callRecordDao: CallRecordDao,
-    private val recordingDao: CallRecordingDao,
     private val contactSyncRepository: ContactSyncRepository,
     private val callManager: CallManager,
     private val phoneAccountManager: PhoneAccountManager,
@@ -128,12 +126,11 @@ class ContactsViewModel @Inject constructor(
                 )
             )
 
-            // Mark past call logs as private and recordings as encrypted
+            // Mark past call logs as private
             val numbers = contactDao.getNumbersForContact(contactId).first()
             for (num in numbers) {
                 val norm = num.number.filter { it.isDigit() }
                 callRecordDao.markRecordsAsPrivate(num.number, norm)
-                recordingDao.markRecordingsAsEncrypted(contactId, num.number)
                 // Delete from Android system call log to protect privacy
                 try {
                     context.contentResolver.delete(
@@ -177,7 +174,6 @@ class ContactsViewModel @Inject constructor(
             for (num in numbers) {
                 val norm = num.number.filter { it.isDigit() }
                 callRecordDao.markRecordsAsPublic(num.number, norm)
-                recordingDao.markRecordingsAsDecrypted(contactId, num.number)
             }
 
             contactSyncRepository.loadContacts()
@@ -212,14 +208,6 @@ class ContactsViewModel @Inject constructor(
         callManager.placeCall(number, simHandle)
     }
 
-    val autoRecordPrivateSafe: StateFlow<Boolean> = preferences.autoRecordPrivateSafe
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    fun setAutoRecordPrivateSafe(enabled: Boolean) {
-        viewModelScope.launch {
-            preferences.setAutoRecordPrivateSafe(enabled)
-        }
-    }
 
     val preCallNoteForSelected: StateFlow<CallNoteEntity?> = _selectedContactForDetail
         .flatMapLatest { contact ->

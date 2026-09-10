@@ -259,7 +259,6 @@ fun HistoryScreen(
                             HistoryFilter.ALL -> "All Calls"
                             HistoryFilter.MISSED -> "Missed"
                             HistoryFilter.BLOCKED -> "Blocked"
-                            HistoryFilter.RECORDINGS -> "Recordings"
                         },
                         style = LineaTypography.labelSmall.copy(
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal

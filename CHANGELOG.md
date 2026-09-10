@@ -9,23 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0] - 2026-09-11
 
-### Added
-- **Linea Call Audio Service (Accessibility Exemption)**:
-  - Created passive accessibility service (`LineaCallAudioService`) registered with `BIND_ACCESSIBILITY_SERVICE`.
-  - Android `AudioPolicyService` exempts accessibility clients from active call audio silencing, capturing incoming and outgoing audio clearly without silent recordings.
-  - Multi-tier service validation combining official `AccessibilityManager.getEnabledAccessibilityServiceList` with `Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES`.
-- **Pre-Request Rationale Dialog**:
-  - Implemented explicit rationale dialog (`LiquidGlassPermissionDialog`) on first launch explaining why accessibility is needed for call audio recording.
-  - User can tap **Allow** to open Android Accessibility settings, or **Deny** to dismiss without requesting.
-- **Settings Accessibility Management & Auto-Record Guard**:
-  - Added dedicated **Call Audio Service (Accessibility)** status card in Settings displaying real-time `ACTIVE` or `REQUIRED` badges.
-  - Guarded **Auto-Record All Calls** switch: blocks activation and displays the rationale dialog if the accessibility service is not enabled.
-- **In-Call Recording Guard**:
-  - Tapping **Record** during an active call without accessibility service displays an informative toast instructing the user to enable the service from Linea Settings before calls.
-  - Prevents confusing in-call system navigation and blocks recording blank audio.
-- **Unified Single-AudioRecord Pipeline**:
-  - Unified file recorder and live ECG voice visualizer into a single 16kHz 16-bit mono WAV engine with 3.0x digital gain boost.
-  - Real-time RMS monitoring directly feeds the live medical ECG heartbeat visualizer with zero hardware microphone contention.
+### Removed
+- **Call Recording & Accessibility Service**:
+  - Completely removed call recording functionality, auto-record triggers, and associated accessibility services due to Fucking Android API restrictions and carrier-level audio silencing imposed by AOSP `AudioPolicyService`.
+  - Removed accessibility service declarations, rationale dialogs, and permission flows.
+- **In-Call Audio Waving / ECG Waveform**:
+  - Removed real-time audio waving/waveform ECG visualizer, background level monitors, and in-call waveform toggle preferences to eliminate mic contention and streamline active call UI performance.
 
 ---
 

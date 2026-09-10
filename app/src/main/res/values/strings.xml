@@ -20,7 +20,4 @@
     <!-- Status -->
     <string name="phase0_badge">PHASE 0: FOUNDATION</string>
 
-    <!-- Call Audio Accessibility Service -->
-    <string name="accessibility_service_name">Linea Call Audio Service</string>
-    <string name="accessibility_service_description">Bypasses Android system call audio silencing to enable live ECG voice monitoring and acoustic call recording during phone calls.</string>
 </resources>

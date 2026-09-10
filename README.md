@@ -53,7 +53,7 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 | T9 Smart Dialpad | Active In-Call Screen | Contacts Directory | Contact Profile & Controls |
 |:---:|:---:|:---:|:---:|
 | <img src="docs/assets/screenshots/dialpad_t9.png" width="220" /> | <img src="docs/assets/screenshots/incall_dialing.png" width="220" /> | <img src="docs/assets/screenshots/contacts_directory.png" width="220" /> | <img src="docs/assets/screenshots/contact_dashboard.png" width="220" /> |
-| *Instant T9 matching with inline contact resolution* | *Hardware audio routes, DTMF pad, and call recording* | *A-Z haptic scrubber rail with dual-sync persistence* | *SIM affinity, per-contact rules, and complete deletion* |
+| *Instant T9 matching with inline contact resolution* | *Hardware audio routes, DTMF pad, and in-call notes* | *A-Z haptic scrubber rail with dual-sync persistence* | *SIM affinity, per-contact rules, and complete deletion* |
 
 | Dual SIM Manager | Call Screening Engine | Settings & Preferences Hub | About & System Diagnostics |
 |:---:|:---:|:---:|:---:|
@@ -91,43 +91,38 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 - **Default Outgoing Slot**: Select SIM 1, SIM 2, or Always Ask before placing outgoing calls.
 - **Cancelable Countdown Dialog**: Optional 3s / 5s / 10s auto-dial countdown timer allowing instant slot swapping before the call connects.
 
-### 6. In-Call Audio Recording & Waveforms
-- **Local Audio Recording**: Record cellular calls directly to private, protected app storage with zero cloud uploads.
-- **Waveform Metering**: Real-time amplitude visualizer during active calls and playback scrub bar in the recording player.
-
-### 7. Visual Voicemail & Carrier Tools
+### 6. Visual Voicemail & Carrier Tools
 - **On-Device Voicemail**: Visual playback slider, instant callback actions, and read/unread status management.
 - **Carrier MMI Codes**: Built-in management for Call Forwarding (`*21*`, `*61*`) and Call Barring (`*33*`, `*35*`).
 
-### 8. Private Vault & Security
+### 7. Private Vault & Security
 - **PIN-Protected Safe**: Keep confidential contacts and sensitive call notes in a private vault hidden from public directory views.
 - **Hardware-Backed AES-256-GCM**: Cryptographic master keys are stored securely inside Android's hardware `AndroidKeyStore`.
 
-### 9. Live Audio Waveform on Active Call Screen
-- **Fluid Multi-Harmonic Metering**: 32-bar liquid glass visualizer embedded right into the in-call display.
-- **Call-State Responsive Cadence**: Reacts dynamically to speaking cadence (radiant cyan), mute (soft amber flatline), holding (rhythmic pulse), and recording (crimson glow).
-
-### 10. Full-Screen Frosted Contact Posters
+### 8. Full-Screen Frosted Contact Posters
 - **Cinematic Contact Backgrounds**: Renders full-screen blurred photo backdrops (`20.dp` Gaussian blur) with subtle breathing scale animations and vignette scrims.
 - **Zero-Latency In-Memory LRU**: Uses LINEA's native 16MB bitmap cache for 0ms transition delays.
 - **Architectural Fallback**: Monogram typographic watermarks for numbers without contact photos.
 
-### 11. Haptic Audio Dialpad Profiles
+### 9. Call Recording Removal Notice
+- **Removed Due to Android API Restrictions**: Call recording functionality and audio waving visualizer were completely removed due to Fucking Android API limitations and carrier-level audio silencing imposed by AOSP `AudioPolicyService`. LINEA focuses purely on zero-latency, private, and dependable cellular telephony.
+
+### 10. Haptic Audio Dialpad Profiles
 - **4 Selectable Acoustic & Tactile Profiles**:
   - *Titanium Glass*: Crisp dual-micro clicks (`PRIMITIVE_CLICK`) with bright DTMF tones.
   - *Mechanical Relay*: Heavy tactile relay thump (`EFFECT_HEAVY_CLICK`) with classic relay acoustics.
   - *Stealth*: Subtle near-silent micro-vibrations with muted audio.
   - *Classic*: Standard Android dialpad feedback.
 
-### 12. "Flip to Silence" & Proximity Wave Gestures
+### 11. "Flip to Silence" & Proximity Wave Gestures
 - **Zero-Touch Ringer Silencing**: Turn the device face-down or wave your hand over the top proximity sensor to immediately mute incoming ringtones.
 - **Battery-Safe Sensor Lifecycle**: Sensors register strictly while the ringer is actively playing and immediately unregister when answered, rejected, or disconnected.
 - **User Toggleable**: Defaulted to OFF; independently manageable under Settings &rarr; Motion & Call Gestures.
 
-### 13. Quick Decline Glass Action Sheet
+### 12. Quick Decline Glass Action Sheet
 - **Swipe-Up Rejection with SMS**: Quickly decline incoming calls with 1-tap pre-canned response chips or custom text replies directly sent via Android Telecom.
 
-### 14. International Time Zone Preview & Country Detection
+### 13. International Time Zone Preview & Country Detection
 - **Dialpad Destination Intelligence**: Instant country code detection across 40+ nations, displaying flag, country name, live local destination time, and late-night warnings.
 
 ---

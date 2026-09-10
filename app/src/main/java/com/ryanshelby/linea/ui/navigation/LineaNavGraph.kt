@@ -41,7 +41,6 @@ enum class SettingsSubScreen {
     BLOCKING,
     DUAL_SIM,
     PERMISSIONS,
-    RECORDINGS,
     VOICEMAIL,
     CALL_FORWARDING,
     CALL_BARRING_FDN,
@@ -148,7 +147,6 @@ fun LineaNavGraph(
                         onNavigateToBlocking = { settingsSubScreen = SettingsSubScreen.BLOCKING },
                         onNavigateToDualSim = { settingsSubScreen = SettingsSubScreen.DUAL_SIM },
                         onNavigateToPermissions = { settingsSubScreen = SettingsSubScreen.PERMISSIONS },
-                        onNavigateToRecordings = { settingsSubScreen = SettingsSubScreen.RECORDINGS },
                         onNavigateToVoicemail = { settingsSubScreen = SettingsSubScreen.VOICEMAIL },
                         onNavigateToCallForwarding = { settingsSubScreen = SettingsSubScreen.CALL_FORWARDING },
                         onNavigateToCallBarring = { settingsSubScreen = SettingsSubScreen.CALL_BARRING_FDN },
@@ -271,11 +269,6 @@ fun LineaNavGraph(
                         PermissionsScreen(
                             isDefaultDialer = isDefaultDialer,
                             onRequestDefaultDialer = onRequestDefaultDialer,
-                            onNavigateBack = { settingsSubScreen = null }
-                        )
-                    }
-                    SettingsSubScreen.RECORDINGS -> {
-                        com.ryanshelby.linea.ui.screens.recordings.RecordingsScreen(
                             onNavigateBack = { settingsSubScreen = null }
                         )
                     }

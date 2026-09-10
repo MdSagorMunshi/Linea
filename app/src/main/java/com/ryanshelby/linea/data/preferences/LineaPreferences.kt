@@ -56,8 +56,6 @@ class LineaPreferences @Inject constructor(
         val KEY_CALL_COUNTDOWN_SECONDS = intPreferencesKey("call_countdown_seconds") // 0, 3, 5, 10
         val KEY_DONT_INTERRUPT_ME = booleanPreferencesKey("dont_interrupt_me")
         val KEY_REPEAT_CALL_OVERRIDE = booleanPreferencesKey("repeat_call_override")
-        val KEY_AUTO_RECORD_CALLS = booleanPreferencesKey("auto_record_calls")
-        val KEY_AUTO_RECORD_CONTACTS_ONLY = booleanPreferencesKey("auto_record_contacts_only")
         val KEY_CALL_DURATION_WARNING_MINUTES = intPreferencesKey("call_duration_warning_minutes") // 0 = off, 5, 10, 15, 30
         val KEY_VOICEMAIL_NUMBER = stringPreferencesKey("voicemail_number")
         val KEY_COMPACT_DIALPAD = booleanPreferencesKey("compact_dialpad")
@@ -75,14 +73,11 @@ class LineaPreferences @Inject constructor(
         val KEY_LAST_CONTACT_ACCOUNT_NAME = stringPreferencesKey("last_contact_account_name")
         val KEY_LAST_CONTACT_ACCOUNT_TYPE = stringPreferencesKey("last_contact_account_type")
         val KEY_OPT_IN_LOCATION_TAG = booleanPreferencesKey("opt_in_location_tag")
-        val KEY_AUTO_RECORD_PRIVATE_SAFE = booleanPreferencesKey("auto_record_private_safe")
         val KEY_RINGTONE_TYPE = stringPreferencesKey("ringtone_type") // "APP_DEFAULT", "SYSTEM_DEFAULT"
         val KEY_FLIP_TO_SILENCE = booleanPreferencesKey("flip_to_silence")
         val KEY_PROXIMITY_WAVE_TO_SILENCE = booleanPreferencesKey("proximity_wave_to_silence")
         val KEY_DIALPAD_HAPTIC_PROFILE = stringPreferencesKey("dialpad_haptic_profile") // TITANIUM_GLASS, MECHANICAL_RELAY, STEALTH, CLASSIC
         val KEY_PERMISSION_INTRO_SHOWN = booleanPreferencesKey("permission_intro_shown")
-        val KEY_ACCESSIBILITY_PROMPT_SHOWN = booleanPreferencesKey("accessibility_rationale_v2_shown")
-        val KEY_CALL_WAVEFORM_ENABLED = booleanPreferencesKey("call_waveform_enabled")
 
         // Quantum Vault & Anti-Brute-Force Keys
 
@@ -109,8 +104,6 @@ class LineaPreferences @Inject constructor(
     val callCountdownSeconds: Flow<Int> = dataStore.data.map { it[KEY_CALL_COUNTDOWN_SECONDS] ?: 0 }
     val dontInterruptMe: Flow<Boolean> = dataStore.data.map { it[KEY_DONT_INTERRUPT_ME] ?: false }
     val repeatCallOverride: Flow<Boolean> = dataStore.data.map { it[KEY_REPEAT_CALL_OVERRIDE] ?: true }
-    val autoRecordCalls: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_CALLS] ?: false }
-    val autoRecordContactsOnly: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_CONTACTS_ONLY] ?: false }
     val callDurationWarningMinutes: Flow<Int> = dataStore.data.map { it[KEY_CALL_DURATION_WARNING_MINUTES] ?: 0 }
     val voicemailNumber: Flow<String> = dataStore.data.map { it[KEY_VOICEMAIL_NUMBER] ?: "123" }
     val blockUnknown: Flow<Boolean> = dataStore.data.map { it[KEY_BLOCK_UNKNOWN] ?: false }
@@ -129,15 +122,12 @@ class LineaPreferences @Inject constructor(
     val lastContactAccountName: Flow<String?> = dataStore.data.map { it[KEY_LAST_CONTACT_ACCOUNT_NAME] }
     val lastContactAccountType: Flow<String?> = dataStore.data.map { it[KEY_LAST_CONTACT_ACCOUNT_TYPE] }
     val optInLocationTag: Flow<Boolean> = dataStore.data.map { it[KEY_OPT_IN_LOCATION_TAG] ?: false }
-    val autoRecordPrivateSafe: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_RECORD_PRIVATE_SAFE] ?: false }
     val ringtoneType: Flow<String> = dataStore.data.map { it[KEY_RINGTONE_TYPE] ?: RingtoneType.APP_DEFAULT }
     val navbarMode: Flow<String> = dataStore.data.map { it[KEY_NAVBAR_MODE] ?: NavbarMode.COLLAPSED }
     val flipToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_FLIP_TO_SILENCE] ?: false }
     val proximityWaveToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_PROXIMITY_WAVE_TO_SILENCE] ?: false }
     val dialpadHapticProfile: Flow<String> = dataStore.data.map { it[KEY_DIALPAD_HAPTIC_PROFILE] ?: DialpadHapticProfile.TITANIUM_GLASS }
     val permissionIntroShown: Flow<Boolean> = dataStore.data.map { it[KEY_PERMISSION_INTRO_SHOWN] ?: false }
-    val accessibilityPromptShown: Flow<Boolean> = dataStore.data.map { it[KEY_ACCESSIBILITY_PROMPT_SHOWN] ?: false }
-    val callWaveformEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_WAVEFORM_ENABLED] ?: true }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -151,20 +141,12 @@ class LineaPreferences @Inject constructor(
     override val vaultFailedAttempts: Flow<Int> = dataStore.data.map { it[KEY_VAULT_FAILED_ATTEMPTS] ?: 0 }
     override val vaultLockoutUntil: Flow<Long> = dataStore.data.map { it[KEY_VAULT_LOCKOUT_UNTIL] ?: 0L }
 
-    suspend fun setCallWaveformEnabled(enabled: Boolean) {
-        dataStore.edit { it[KEY_CALL_WAVEFORM_ENABLED] = enabled }
-    }
-
     suspend fun setFlipToSilence(enabled: Boolean) {
         dataStore.edit { it[KEY_FLIP_TO_SILENCE] = enabled }
     }
 
     suspend fun setPermissionIntroShown(shown: Boolean) {
         dataStore.edit { it[KEY_PERMISSION_INTRO_SHOWN] = shown }
-    }
-
-    suspend fun setAccessibilityPromptShown(shown: Boolean) {
-        dataStore.edit { it[KEY_ACCESSIBILITY_PROMPT_SHOWN] = shown }
     }
 
     suspend fun setProximityWaveToSilence(enabled: Boolean) {
@@ -243,14 +225,6 @@ class LineaPreferences @Inject constructor(
         dataStore.edit { it[KEY_THEME] = theme }
     }
 
-    suspend fun setAutoRecordCalls(enabled: Boolean) {
-        dataStore.edit { it[KEY_AUTO_RECORD_CALLS] = enabled }
-    }
-
-    suspend fun setAutoRecordContactsOnly(enabled: Boolean) {
-        dataStore.edit { it[KEY_AUTO_RECORD_CONTACTS_ONLY] = enabled }
-    }
-
     suspend fun setCallDurationWarningMinutes(minutes: Int) {
         dataStore.edit { it[KEY_CALL_DURATION_WARNING_MINUTES] = minutes }
     }
@@ -298,9 +272,7 @@ class LineaPreferences @Inject constructor(
         dataStore.edit { it[KEY_OPT_IN_LOCATION_TAG] = enabled }
     }
 
-    suspend fun setAutoRecordPrivateSafe(enabled: Boolean) {
-        dataStore.edit { it[KEY_AUTO_RECORD_PRIVATE_SAFE] = enabled }
-    }
+
 
     suspend fun setRingtoneType(type: String) {
         dataStore.edit { it[KEY_RINGTONE_TYPE] = type }

@@ -34,14 +34,12 @@ data class SettingsUiState(
     val blockedRulesCount: Int = 0,
     val isQuietHoursActive: Boolean = false,
     val unreadMissedCalls: Int = 0,
-    val autoRecordCalls: Boolean = false,
     val callDurationWarningMinutes: Int = 0,
     val voicemailNumber: String = "123",
     val ringtoneType: String = com.ryanshelby.linea.data.preferences.LineaPreferences.RingtoneType.APP_DEFAULT,
     val flipToSilence: Boolean = false,
     val proximityWaveToSilence: Boolean = false,
-    val dialpadHapticProfile: String = com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS,
-    val callWaveformEnabled: Boolean = true
+    val dialpadHapticProfile: String = com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS
 )
 
 @HiltViewModel
@@ -70,14 +68,12 @@ class SettingsViewModel @Inject constructor(
         blockedNumberDao.getAllBlockedNumbers(),
         callRuleDao.getAllRules(),
         callRecordDao.getUnreadMissedCallCount(),
-        preferences.autoRecordCalls,
         preferences.callDurationWarningMinutes,
         preferences.voicemailNumber,
         preferences.ringtoneType,
         preferences.flipToSilenceEnabled,
         preferences.proximityWaveToSilenceEnabled,
-        preferences.dialpadHapticProfile,
-        preferences.callWaveformEnabled
+        preferences.dialpadHapticProfile
     ) { args ->
         val defaultSim = args[0] as Int
         val askSim = args[1] as Boolean
@@ -95,14 +91,12 @@ class SettingsViewModel @Inject constructor(
         val blockedList = args[13] as List<*>
         val rulesList = args[14] as List<*>
         val missedCount = args[15] as Int
-        val autoRecord = args[16] as Boolean
-        val durationWarn = args[17] as Int
-        val vmNumber = args[18] as String
-        val ringtone = args[19] as String
-        val flip = args[20] as Boolean
-        val proxWave = args[21] as Boolean
-        val hapticProfile = args[22] as String
-        val callWaveform = args[23] as Boolean
+        val durationWarn = args[16] as Int
+        val vmNumber = args[17] as String
+        val ringtone = args[18] as String
+        val flip = args[19] as Boolean
+        val proxWave = args[20] as Boolean
+        val hapticProfile = args[21] as String
 
         val quietRule = rulesList.filterIsInstance<com.ryanshelby.linea.data.local.entities.CallRuleEntity>()
             .firstOrNull { it.name.contains("Quiet", ignoreCase = true) || it.name.contains("Night", ignoreCase = true) }
@@ -125,24 +119,18 @@ class SettingsViewModel @Inject constructor(
             blockedRulesCount = blockedList.size,
             isQuietHoursActive = quietRule?.isEnabled ?: false,
             unreadMissedCalls = missedCount,
-            autoRecordCalls = autoRecord,
             callDurationWarningMinutes = durationWarn,
             voicemailNumber = vmNumber,
             ringtoneType = ringtone,
             flipToSilence = flip,
             proximityWaveToSilence = proxWave,
-            dialpadHapticProfile = hapticProfile,
-            callWaveformEnabled = callWaveform
+            dialpadHapticProfile = hapticProfile
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Lazily,
         initialValue = SettingsUiState()
     )
-
-    fun setCallWaveformEnabled(enabled: Boolean) {
-        viewModelScope.launch { preferences.setCallWaveformEnabled(enabled) }
-    }
 
     fun setFlipToSilence(enabled: Boolean) {
         viewModelScope.launch { preferences.setFlipToSilence(enabled) }
@@ -158,10 +146,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setRingtoneType(type: String) {
         viewModelScope.launch { preferences.setRingtoneType(type) }
-    }
-
-    fun setAutoRecordCalls(enabled: Boolean) {
-        viewModelScope.launch { preferences.setAutoRecordCalls(enabled) }
     }
 
     fun setCallDurationWarningMinutes(minutes: Int) {

@@ -10,8 +10,7 @@ import java.time.format.DateTimeFormatter
 enum class HistoryFilter {
     ALL,
     MISSED,
-    BLOCKED,
-    RECORDINGS
+    BLOCKED
 }
 
 data class CallHistoryItem(
