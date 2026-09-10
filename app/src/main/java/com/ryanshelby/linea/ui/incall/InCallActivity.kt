@@ -7,6 +7,7 @@ import android.media.AudioManager
 import com.ryanshelby.linea.MainActivity
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -73,7 +74,14 @@ class InCallActivity : ComponentActivity() {
             val audioRoute by callManager.audioRoute.collectAsState()
             val isRecording by callManager.isRecording.collectAsState()
             val recordingDuration by callManager.recordingDurationSeconds.collectAsState()
+            val recordingUnavailableReason by callManager.recordingUnavailableReason.collectAsState()
             val durationWarningActive by callManager.durationWarningActive.collectAsState()
+
+            LaunchedEffect(recordingUnavailableReason) {
+                recordingUnavailableReason?.let {
+                    Toast.makeText(this@InCallActivity, it, Toast.LENGTH_LONG).show()
+                }
+            }
 
             // System back gesture safely minimizes in-call task instead of terminating cellular call
             BackHandler {

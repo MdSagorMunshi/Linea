@@ -1,6 +1,7 @@
 package com.ryanshelby.linea.telecom.recorder
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.media.MediaScannerConnection
 import android.os.Build
@@ -46,13 +47,19 @@ class CallAudioRecorder @Inject constructor(
     private val _currentFilePath = MutableStateFlow<String?>(null)
     val currentFilePath: StateFlow<String?> = _currentFilePath.asStateFlow()
 
+    private val _recordingUnavailableReason = MutableStateFlow<String?>(null)
+    /** Non-null when Android/OEM policy prevents cellular call-audio capture. */
+    val recordingUnavailableReason: StateFlow<String?> = _recordingUnavailableReason.asStateFlow()
+
     private var mediaRecorder: MediaRecorder? = null
     private var timerJob: Job? = null
+    private var signalCheckJob: Job? = null
     private var currentPhone: String = ""
     private var currentContactId: Long? = null
     private var currentCallRecordId: Long? = null
     private var recordingStartTime: Long = 0L
     private var isCurrentRecordingPrivate: Boolean = false
+    private var discardCurrentRecording: Boolean = false
 
     fun isCurrentlyRecording(): Boolean = _isRecording.value
 
@@ -106,14 +113,22 @@ class CallAudioRecorder @Inject constructor(
     }
 
     @Synchronized
-    fun startRecording(phoneNumber: String, contactId: Long? = null, callRecordId: Long? = null, isPrivateContact: Boolean = false) {
-        if (_isRecording.value) return
+    fun startRecording(phoneNumber: String, contactId: Long? = null, callRecordId: Long? = null, isPrivateContact: Boolean = false): Boolean {
+        if (_isRecording.value) return true
+
+        if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            _recordingUnavailableReason.value =
+                "Microphone permission is required to record this call."
+            return false
+        }
+        _recordingUnavailableReason.value = null
 
         currentPhone = phoneNumber
         currentContactId = contactId
         currentCallRecordId = callRecordId
         recordingStartTime = System.currentTimeMillis()
         isCurrentRecordingPrivate = isPrivateContact
+        discardCurrentRecording = false
 
         // Private contacts use internal encrypted storage; public contacts use Music/Linea
         val recordingsDir = if (isPrivateContact) getPrivateRecordingsDirectory() else getRecordingsDirectory()
@@ -130,15 +145,18 @@ class CallAudioRecorder @Inject constructor(
             }
 
             try {
-                recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+                recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_CALL)
             } catch (_: Exception) {
-                recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+                _recordingUnavailableReason.value = "The device refused the cellular call-audio source."
+                recorder.release()
+                _currentFilePath.value = null
+                return false
             }
 
             recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             recorder.setAudioEncodingBitRate(64000)
-            recorder.setAudioSamplingRate(44100)
+            recorder.setAudioSamplingRate(16000)
             recorder.setOutputFile(outputFile.absolutePath)
             recorder.prepare()
             recorder.start()
@@ -150,7 +168,8 @@ class CallAudioRecorder @Inject constructor(
                 outputFile.delete()
             }
             _currentFilePath.value = null
-            return
+            _recordingUnavailableReason.value = "Unable to start call recording: ${e.javaClass.simpleName}."
+            return false
         }
 
         _isRecording.value = true
@@ -164,6 +183,26 @@ class CallAudioRecorder @Inject constructor(
                 _recordingDurationSeconds.value = (System.currentTimeMillis() - startMs) / 1000
             }
         }
+        // Some OEMs expose VOICE_CALL to the default dialer while others start the recorder but
+        // feed it zeros. Verify actual samples before retaining a convincing-but-silent M4A.
+        signalCheckJob?.cancel()
+        signalCheckJob = scope.launch {
+            delay(5_000)
+            val firstPeak = synchronized(this@CallAudioRecorder) {
+                runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
+            }
+            delay(5_000)
+            val secondPeak = synchronized(this@CallAudioRecorder) {
+                runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
+            }
+            if (_isRecording.value && firstPeak == 0 && secondPeak == 0) {
+                discardCurrentRecording = true
+                _recordingUnavailableReason.value =
+                    "This device blocked call audio. The silent recording was discarded."
+                stopRecording()
+            }
+        }
+        return true
     }
 
     @Synchronized
@@ -172,6 +211,8 @@ class CallAudioRecorder @Inject constructor(
 
         timerJob?.cancel()
         timerJob = null
+        signalCheckJob?.cancel()
+        signalCheckJob = null
 
         val durationMs = System.currentTimeMillis() - recordingStartTime
 
@@ -201,7 +242,7 @@ class CallAudioRecorder @Inject constructor(
             val file = File(filePath)
             val fileSize = if (file.exists()) file.length() else 0L
 
-            if (fileSize > 0L) {
+            if (fileSize > 0L && !discardCurrentRecording) {
                 if (isPrivate) {
                     // Encrypt the raw recording file in-place for private contacts
                     scope.launch {
