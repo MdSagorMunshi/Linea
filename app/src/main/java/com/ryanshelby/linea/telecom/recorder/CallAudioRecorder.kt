@@ -6,6 +6,7 @@ import android.media.MediaRecorder
 import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
+import android.util.Log
 import com.ryanshelby.linea.data.local.dao.CallRecordingDao
 import com.ryanshelby.linea.data.local.entities.CallRecordingEntity
 import com.ryanshelby.linea.data.preferences.LineaPreferences
@@ -30,14 +31,52 @@ import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Multi-source call audio recorder with automatic fallback.
+ *
+ * Android restricts [MediaRecorder.AudioSource.VOICE_CALL] to system/privileged apps on most
+ * OEMs since Android 9+.  Instead of failing outright, this recorder uses a cascade:
+ *
+ *  1. **VOICE_CALL** – ideal (both sides captured natively). Works on some Samsung, Xiaomi, etc.
+ *  2. **VOICE_COMMUNICATION** – captures microphone via the telephony voice path; on many
+ *     chipsets this also picks up the remote party at lower gain.
+ *  3. **MIC** – raw hardware microphone; always available.  Captures the user's voice and,
+ *     when speakerphone is active, the remote party as well.
+ *
+ * After each source is started, a signal-verification job samples [MediaRecorder.getMaxAmplitude]
+ * twice over 4 seconds.  If both readings are zero the source is considered silent and the
+ * recorder automatically restarts with the next source in the chain.
+ */
 @Singleton
 class CallAudioRecorder @Inject constructor(
     @ApplicationContext private val context: Context,
     private val recordingDao: CallRecordingDao,
     private val preferences: LineaPreferences
 ) {
+    companion object {
+        private const val TAG = "CallAudioRecorder"
+
+        /**
+         * Ordered audio-source fallback chain.  Each entry is tried in sequence; the first one
+         * that both (a) does not throw when set and (b) produces non-zero amplitude wins.
+         */
+        private val AUDIO_SOURCE_CHAIN = listOf(
+            MediaRecorder.AudioSource.VOICE_CALL,
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            MediaRecorder.AudioSource.MIC
+        )
+
+        private fun audioSourceLabel(source: Int): String = when (source) {
+            MediaRecorder.AudioSource.VOICE_CALL -> "VOICE_CALL"
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION -> "VOICE_COMMUNICATION"
+            MediaRecorder.AudioSource.MIC -> "MIC"
+            else -> "UNKNOWN($source)"
+        }
+    }
+
     private val scope = CoroutineScope(Dispatchers.IO + Job())
 
+    // ── Public observable state ──────────────────────────────────────────
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
@@ -51,6 +90,7 @@ class CallAudioRecorder @Inject constructor(
     /** Non-null when Android/OEM policy prevents cellular call-audio capture. */
     val recordingUnavailableReason: StateFlow<String?> = _recordingUnavailableReason.asStateFlow()
 
+    // ── Internal state ───────────────────────────────────────────────────
     private var mediaRecorder: MediaRecorder? = null
     private var timerJob: Job? = null
     private var signalCheckJob: Job? = null
@@ -61,8 +101,15 @@ class CallAudioRecorder @Inject constructor(
     private var isCurrentRecordingPrivate: Boolean = false
     private var discardCurrentRecording: Boolean = false
 
+    /** Index into [AUDIO_SOURCE_CHAIN] for the source currently in use. */
+    private var currentSourceIndex: Int = 0
+
+    /** The audio source that is currently active and recording. */
+    private var activeAudioSource: Int = MediaRecorder.AudioSource.VOICE_CALL
+
     fun isCurrentlyRecording(): Boolean = _isRecording.value
 
+    // ── Auto-record preferences ──────────────────────────────────────────
     suspend fun shouldAutoRecord(isContact: Boolean): Boolean {
         val autoAll = preferences.autoRecordCalls.first()
         val contactsOnly = preferences.autoRecordContactsOnly.first()
@@ -74,6 +121,7 @@ class CallAudioRecorder @Inject constructor(
         return preferences.autoRecordPrivateSafe.first()
     }
 
+    // ── Directory helpers ────────────────────────────────────────────────
     private fun getRecordingsDirectory(): File {
         // Primary: Shared Music/Linea folder on external storage
         try {
@@ -112,11 +160,20 @@ class CallAudioRecorder @Inject constructor(
         }
     }
 
+    // ── Core recording methods ───────────────────────────────────────────
+
     @Synchronized
-    fun startRecording(phoneNumber: String, contactId: Long? = null, callRecordId: Long? = null, isPrivateContact: Boolean = false): Boolean {
+    fun startRecording(
+        phoneNumber: String,
+        contactId: Long? = null,
+        callRecordId: Long? = null,
+        isPrivateContact: Boolean = false
+    ): Boolean {
         if (_isRecording.value) return true
 
-        if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
             _recordingUnavailableReason.value =
                 "Microphone permission is required to record this call."
             return false
@@ -129,14 +186,33 @@ class CallAudioRecorder @Inject constructor(
         recordingStartTime = System.currentTimeMillis()
         isCurrentRecordingPrivate = isPrivateContact
         discardCurrentRecording = false
+        currentSourceIndex = 0
 
-        // Private contacts use internal encrypted storage; public contacts use Music/Linea
-        val recordingsDir = if (isPrivateContact) getPrivateRecordingsDirectory() else getRecordingsDirectory()
-        val safeNum = phoneNumber.replace("+", "").filter { it.isDigit() }.ifBlank { "unknown" }
+        return startRecordingWithSource(0)
+    }
+
+    /**
+     * Attempts to start recording using the audio source at [sourceIndex] in [AUDIO_SOURCE_CHAIN].
+     * If the source throws on [MediaRecorder.setAudioSource] or [MediaRecorder.prepare], we
+     * immediately try the next source.  Returns `true` if any source succeeds.
+     */
+    @Synchronized
+    private fun startRecordingWithSource(sourceIndex: Int): Boolean {
+        // Clean up any prior recorder from a failed/silent attempt
+        releaseRecorderQuietly()
+
+        val recordingsDir = if (isCurrentRecordingPrivate) getPrivateRecordingsDirectory()
+                            else getRecordingsDirectory()
+        val safeNum = currentPhone.replace("+", "").filter { it.isDigit() }.ifBlank { "unknown" }
+
+        // Each retry gets a fresh output file so we don't append to a partially-silent file
         val outputFile = File(recordingsDir, "rec_${recordingStartTime}_${safeNum}.m4a")
         _currentFilePath.value = outputFile.absolutePath
 
-        try {
+        for (idx in sourceIndex until AUDIO_SOURCE_CHAIN.size) {
+            val audioSource = AUDIO_SOURCE_CHAIN[idx]
+            val label = audioSourceLabel(audioSource)
+
             val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(context)
             } else {
@@ -145,64 +221,138 @@ class CallAudioRecorder @Inject constructor(
             }
 
             try {
-                recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_CALL)
-            } catch (_: Exception) {
-                _recordingUnavailableReason.value = "The device refused the cellular call-audio source."
+                recorder.setAudioSource(audioSource)
+                Log.d(TAG, "setAudioSource($label) accepted")
+            } catch (e: Exception) {
+                Log.w(TAG, "setAudioSource($label) rejected: ${e.message}")
                 recorder.release()
-                _currentFilePath.value = null
-                return false
+                continue   // try next source
             }
 
-            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            recorder.setAudioEncodingBitRate(64000)
-            recorder.setAudioSamplingRate(16000)
-            recorder.setOutputFile(outputFile.absolutePath)
-            recorder.prepare()
-            recorder.start()
+            try {
+                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                recorder.setAudioEncodingBitRate(128_000)
+                recorder.setAudioSamplingRate(44_100)
+                recorder.setOutputFile(outputFile.absolutePath)
+                recorder.prepare()
+                recorder.start()
 
-            mediaRecorder = recorder
-        } catch (e: Exception) {
-            e.printStackTrace()
-            if (outputFile.exists()) {
-                outputFile.delete()
+                mediaRecorder = recorder
+                currentSourceIndex = idx
+                activeAudioSource = audioSource
+                Log.i(TAG, "Recording started with source $label")
+            } catch (e: Exception) {
+                Log.w(TAG, "prepare/start failed for $label: ${e.message}")
+                e.printStackTrace()
+                try { recorder.release() } catch (_: Exception) {}
+                if (outputFile.exists()) outputFile.delete()
+                continue   // try next source
             }
-            _currentFilePath.value = null
-            _recordingUnavailableReason.value = "Unable to start call recording: ${e.javaClass.simpleName}."
-            return false
+
+            // We have a working recorder – set up timer & signal verification
+            _isRecording.value = true
+            _recordingDurationSeconds.value = 0L
+
+            startTimerJob()
+            startSignalCheckJob(idx)
+            return true
         }
 
-        _isRecording.value = true
-        _recordingDurationSeconds.value = 0L
+        // All sources exhausted
+        _currentFilePath.value = null
+        _recordingUnavailableReason.value =
+            "Call recording is not available on this device. All audio sources were blocked."
+        Log.e(TAG, "All audio sources exhausted – recording unavailable")
+        return false
+    }
 
+    /**
+     * Ticks every second to update [_recordingDurationSeconds].
+     */
+    private fun startTimerJob() {
         timerJob?.cancel()
         timerJob = scope.launch {
             val startMs = System.currentTimeMillis()
             while (isActive && _isRecording.value) {
-                delay(1000)
-                _recordingDurationSeconds.value = (System.currentTimeMillis() - startMs) / 1000
+                delay(1_000)
+                _recordingDurationSeconds.value = (System.currentTimeMillis() - startMs) / 1_000
             }
         }
-        // Some OEMs expose VOICE_CALL to the default dialer while others start the recorder but
-        // feed it zeros. Verify actual samples before retaining a convincing-but-silent M4A.
+    }
+
+    /**
+     * Verifies the active source is actually producing audio.  After 3 s we sample
+     * [MediaRecorder.getMaxAmplitude] twice with a 2 s gap.  If both readings are zero
+     * the source is deemed silent and we escalate to the next source in the chain.
+     *
+     * For the **last** source in the chain (MIC) we skip this check because the mic is
+     * guaranteed to capture at least ambient noise; silence there simply means the call
+     * hasn't started producing sound yet.
+     */
+    private fun startSignalCheckJob(sourceIndex: Int) {
         signalCheckJob?.cancel()
+
+        // Don't silence-check the last source – it's our final fallback and always works
+        if (sourceIndex >= AUDIO_SOURCE_CHAIN.lastIndex) {
+            Log.d(TAG, "Skipping signal check for final fallback source ${audioSourceLabel(AUDIO_SOURCE_CHAIN[sourceIndex])}")
+            return
+        }
+
         signalCheckJob = scope.launch {
-            delay(5_000)
+            delay(3_000)
             val firstPeak = synchronized(this@CallAudioRecorder) {
                 runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
             }
-            delay(5_000)
+            delay(2_000)
             val secondPeak = synchronized(this@CallAudioRecorder) {
                 runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
             }
-            if (_isRecording.value && firstPeak == 0 && secondPeak == 0) {
-                discardCurrentRecording = true
-                _recordingUnavailableReason.value =
-                    "This device blocked call audio. The silent recording was discarded."
-                stopRecording()
+
+            if (!_isRecording.value) return@launch
+
+            val label = audioSourceLabel(AUDIO_SOURCE_CHAIN[sourceIndex])
+
+            if (firstPeak == 0 && secondPeak == 0) {
+                Log.w(TAG, "$label produced silence – escalating to next source")
+
+                // Stop the current recorder and delete the silent file
+                synchronized(this@CallAudioRecorder) {
+                    releaseRecorderQuietly()
+                    _currentFilePath.value?.let { path ->
+                        val f = File(path)
+                        if (f.exists()) f.delete()
+                    }
+                }
+
+                // Try the next source
+                val success = synchronized(this@CallAudioRecorder) {
+                    startRecordingWithSource(sourceIndex + 1)
+                }
+                if (!success) {
+                    _isRecording.value = false
+                    _recordingDurationSeconds.value = 0L
+                    _recordingUnavailableReason.value =
+                        "Call recording is not available on this device. All audio sources produced silence."
+                }
+            } else {
+                Log.d(TAG, "$label producing audio – peaks: $firstPeak, $secondPeak")
             }
         }
-        return true
+    }
+
+    /**
+     * Releases the current [MediaRecorder] silently, swallowing any exceptions.
+     */
+    private fun releaseRecorderQuietly() {
+        try {
+            mediaRecorder?.let {
+                try { it.stop() } catch (_: Exception) {}
+                try { it.reset() } catch (_: Exception) {}
+                it.release()
+            }
+        } catch (_: Exception) {}
+        mediaRecorder = null
     }
 
     @Synchronized
@@ -301,6 +451,8 @@ class CallAudioRecorder @Inject constructor(
             }
         }
     }
+
+    // ── Encryption ───────────────────────────────────────────────────────
 
     /**
      * Encrypts a recording file with AES-256-GCM using a key derived from a device-unique seed.
