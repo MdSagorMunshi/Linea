@@ -1,14 +1,17 @@
 package com.ryanshelby.linea.telecom
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.TelecomManager
+import androidx.core.content.ContextCompat
 import android.widget.Toast
 import com.ryanshelby.linea.data.local.dao.ContactDao
 import com.ryanshelby.linea.data.local.entities.CallDirectionType
@@ -107,6 +110,49 @@ class CallManager @Inject constructor(
 
     private val _incomingFloatingCall = MutableStateFlow<ActiveCallInfo?>(null)
     val incomingFloatingCall: StateFlow<ActiveCallInfo?> = _incomingFloatingCall.asStateFlow()
+
+    private val _isRingerSilenced = MutableStateFlow(false)
+    val isRingerSilenced: StateFlow<Boolean> = _isRingerSilenced.asStateFlow()
+
+    val isRinging: Boolean
+        get() = (_currentCall.value?.state == LineaCallState.RINGING && _currentCall.value?.isIncoming == true) ||
+                (_secondaryCall.value?.state == LineaCallState.RINGING && _secondaryCall.value?.isIncoming == true) ||
+                (inCallService?.calls?.any { it.state == Call.STATE_RINGING } == true)
+
+    private var isScreenOffReceiverRegistered = false
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                if (isRinging) {
+                    silenceRinger()
+                }
+            }
+        }
+    }
+
+    private fun registerScreenOffReceiver() {
+        if (!isScreenOffReceiverRegistered) {
+            try {
+                val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+                ContextCompat.registerReceiver(context, screenOffReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+                isScreenOffReceiverRegistered = true
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun unregisterScreenOffReceiver() {
+        if (isScreenOffReceiverRegistered) {
+            try {
+                context.unregisterReceiver(screenOffReceiver)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isScreenOffReceiverRegistered = false
+            }
+        }
+    }
 
     fun dismissFloatingCall() {
         _incomingFloatingCall.value = null
@@ -282,6 +328,8 @@ class CallManager @Inject constructor(
                     updateCallState(call, initialName = resolvedName, initialPhoto = resolvedPhoto)
 
                     // Play ringtone and vibrate (respects ringerMode normal/vibrate/silent)
+                    _isRingerSilenced.value = false
+                    registerScreenOffReceiver()
                     callRingtoneManager.startRinging(number, contactLookup.customRingtoneUri)
                     callGestureManager.startListening {
                         silenceRinger()
@@ -363,6 +411,8 @@ class CallManager @Inject constructor(
     }
 
     fun onCallRemoved(call: Call) {
+        _isRingerSilenced.value = false
+        unregisterScreenOffReceiver()
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
@@ -498,6 +548,8 @@ class CallManager @Inject constructor(
         proximitySensorManager.onCallStateOrAudioChanged(state == LineaCallState.ACTIVE, isSpeaker)
 
         if (state == LineaCallState.ACTIVE) {
+            _isRingerSilenced.value = false
+            unregisterScreenOffReceiver()
             callRingtoneManager.stopRinging()
             dismissFloatingCall()
         }
@@ -629,6 +681,8 @@ class CallManager @Inject constructor(
     }
 
     fun answerCall() {
+        _isRingerSilenced.value = false
+        unregisterScreenOffReceiver()
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
@@ -636,6 +690,8 @@ class CallManager @Inject constructor(
     }
 
     fun rejectCall(rejectWithMessage: Boolean = false, textMessage: String? = null) {
+        _isRingerSilenced.value = false
+        unregisterScreenOffReceiver()
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
@@ -643,6 +699,8 @@ class CallManager @Inject constructor(
     }
 
     fun silenceRinger() {
+        _isRingerSilenced.value = true
+        unregisterScreenOffReceiver()
         callRingtoneManager.silence()
         callGestureManager.stopListening()
         try {

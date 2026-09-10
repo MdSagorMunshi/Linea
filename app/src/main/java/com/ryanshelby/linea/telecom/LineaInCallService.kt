@@ -27,6 +27,11 @@ class LineaInCallService : InCallService() {
         callManager.onCallRemoved(call)
     }
 
+    override fun onSilenceRinger() {
+        super.onSilenceRinger()
+        callManager.silenceRinger()
+    }
+
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         super.onCallAudioStateChanged(audioState)
         callManager.onAudioStateChanged(audioState)

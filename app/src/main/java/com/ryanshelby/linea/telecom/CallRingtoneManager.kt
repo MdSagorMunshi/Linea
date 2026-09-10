@@ -36,16 +36,22 @@ class CallRingtoneManager @Inject constructor(
     private var activeRingtone: Ringtone? = null
     private var activeMediaPlayer: MediaPlayer? = null
     private var isRinging = false
+    private var isSilenced = false
+    private var ringJob: Job? = null
     private var loopJob: Job? = null
 
     @Synchronized
     fun startRinging(phoneNumber: String, customRingtoneUri: String? = null) {
         if (isRinging) return
         isRinging = true
+        isSilenced = false
 
-        scope.launch {
+        ringJob?.cancel()
+        ringJob = scope.launch {
             val ringerMode = audioManager.ringerMode
             val vibrateEnabled = preferences.callVibrationEnabled.first()
+
+            if (isSilenced || !isRinging) return@launch
 
             when (ringerMode) {
                 AudioManager.RINGER_MODE_SILENT -> {
@@ -54,12 +60,16 @@ class CallRingtoneManager @Inject constructor(
                 }
                 AudioManager.RINGER_MODE_VIBRATE -> {
                     // Only vibrate, no sound
-                    startVibration()
+                    if (!isSilenced && isRinging) {
+                        startVibration()
+                    }
                 }
                 AudioManager.RINGER_MODE_NORMAL -> {
                     // Play sound + vibrate if enabled
-                    playRingtoneSound(customRingtoneUri)
-                    if (vibrateEnabled) {
+                    if (!isSilenced && isRinging) {
+                        playRingtoneSound(customRingtoneUri)
+                    }
+                    if (vibrateEnabled && !isSilenced && isRinging) {
                         startVibration()
                     }
                 }
@@ -68,9 +78,11 @@ class CallRingtoneManager @Inject constructor(
     }
 
     private suspend fun playRingtoneSound(customUriStr: String?) {
+        if (isSilenced || !isRinging) return
         try {
             stopRingtoneSound()
             val ringtoneType = preferences.ringtoneType.first()
+            if (isSilenced || !isRinging) return
 
             if (!customUriStr.isNullOrBlank()) {
                 // Contact assigned a specific custom ringtone
@@ -90,6 +102,7 @@ class CallRingtoneManager @Inject constructor(
     }
 
     private fun playAppDefaultRingtone() {
+        if (isSilenced || !isRinging) return
         try {
             val afd = context.resources.openRawResourceFd(R.raw.linea_ringtone) ?: return
             val audioAttributes = AudioAttributes.Builder()
@@ -106,9 +119,13 @@ class CallRingtoneManager @Inject constructor(
                 isLooping = true
                 setVolume(1.0f, 1.0f)
                 prepare()
-                start()
             }
             afd.close()
+            if (isSilenced || !isRinging) {
+                player.release()
+                return
+            }
+            player.start()
             activeMediaPlayer = player
         } catch (e: Exception) {
             e.printStackTrace()
@@ -116,6 +133,7 @@ class CallRingtoneManager @Inject constructor(
     }
 
     private fun playUriRingtone(uri: Uri) {
+        if (isSilenced || !isRinging) return
         try {
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
@@ -124,6 +142,7 @@ class CallRingtoneManager @Inject constructor(
                 .build()
 
             val ringtone = RingtoneManager.getRingtone(context, uri)
+            if (isSilenced || !isRinging) return
             if (ringtone != null) {
                 ringtone.audioAttributes = audioAttributes
                 @Suppress("DEPRECATION")
@@ -132,15 +151,16 @@ class CallRingtoneManager @Inject constructor(
                     ringtone.isLooping = true
                     ringtone.volume = 1.0f
                 }
+                if (isSilenced || !isRinging) return
                 ringtone.play()
                 activeRingtone = ringtone
 
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
                     loopJob?.cancel()
                     loopJob = scope.launch {
-                        while (isActive && isRinging) {
+                        while (isActive && isRinging && !isSilenced) {
                             delay(1000)
-                            if (isRinging && activeRingtone?.isPlaying == false) {
+                            if (isRinging && !isSilenced && activeRingtone?.isPlaying == false) {
                                 activeRingtone?.play()
                             }
                         }
@@ -155,8 +175,12 @@ class CallRingtoneManager @Inject constructor(
                     isLooping = true
                     setVolume(1.0f, 1.0f)
                     prepare()
-                    start()
                 }
+                if (isSilenced || !isRinging) {
+                    player.release()
+                    return
+                }
+                player.start()
                 activeMediaPlayer = player
             }
         } catch (e: Exception) {
@@ -165,9 +189,11 @@ class CallRingtoneManager @Inject constructor(
     }
 
     private fun startVibration() {
+        if (isSilenced || !isRinging) return
         try {
             val vibrator = getVibrator() ?: return
             if (!vibrator.hasVibrator()) return
+            if (isSilenced || !isRinging) return
 
             val pattern = longArrayOf(0, 1000, 1000)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -188,6 +214,11 @@ class CallRingtoneManager @Inject constructor(
 
     @Synchronized
     fun silence() {
+        isSilenced = true
+        ringJob?.cancel()
+        ringJob = null
+        loopJob?.cancel()
+        loopJob = null
         stopRingtoneSound()
         stopVibration()
     }
@@ -195,6 +226,9 @@ class CallRingtoneManager @Inject constructor(
     @Synchronized
     fun stopRinging() {
         isRinging = false
+        isSilenced = false
+        ringJob?.cancel()
+        ringJob = null
         loopJob?.cancel()
         loopJob = null
         stopRingtoneSound()

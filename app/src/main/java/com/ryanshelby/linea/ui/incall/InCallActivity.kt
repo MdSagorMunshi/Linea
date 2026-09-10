@@ -8,6 +8,7 @@ import com.ryanshelby.linea.MainActivity
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -74,6 +75,7 @@ class InCallActivity : ComponentActivity() {
             val isMuted by callManager.isMuted.collectAsState()
             val audioRoute by callManager.audioRoute.collectAsState()
             val durationWarningActive by callManager.durationWarningActive.collectAsState()
+            val isRingerSilenced by callManager.isRingerSilenced.collectAsState()
 
             // System back gesture safely minimizes in-call task instead of terminating cellular call
             BackHandler {
@@ -115,7 +117,8 @@ class InCallActivity : ComponentActivity() {
                                 onAnswer = { callManager.answerCall() },
                                 onReject = { callManager.rejectCall() },
                                 onSilence = { callManager.silenceRinger() },
-                                onQuickSms = { msg -> callManager.rejectCall(rejectWithMessage = true, textMessage = msg) }
+                                onQuickSms = { msg -> callManager.rejectCall(rejectWithMessage = true, textMessage = msg) },
+                                isSilenced = isRingerSilenced
                             )
                         } else {
                             val notes by callNoteDao.getNotesForContact(null, call.phoneNumber).collectAsState(initial = emptyList())
@@ -181,5 +184,37 @@ class InCallActivity : ComponentActivity() {
         if (intent?.action == ACTION_ANSWER_CALL) {
             callManager.answerCall()
         }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (callManager.isRinging) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP,
+                KeyEvent.KEYCODE_VOLUME_DOWN,
+                KeyEvent.KEYCODE_VOLUME_MUTE,
+                KeyEvent.KEYCODE_POWER -> {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        callManager.silenceRinger()
+                    }
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (callManager.isRinging) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP,
+                KeyEvent.KEYCODE_VOLUME_DOWN,
+                KeyEvent.KEYCODE_VOLUME_MUTE,
+                KeyEvent.KEYCODE_POWER -> {
+                    callManager.silenceRinger()
+                    return true
+                }
+            }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 }

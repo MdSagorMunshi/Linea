@@ -75,13 +75,15 @@ fun IncomingCallScreen(
     onReject: () -> Unit,
     onSilence: () -> Unit,
     onQuickSms: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSilenced: Boolean = false
 ) {
     val haptic = LocalHapticFeedback.current
     val reduceAnimations = LocalReduceAnimations.current
     var isVisible by remember { mutableStateOf(false) }
     var showSmsSheet by remember { mutableStateOf(false) }
-    var isSilenced by remember { mutableStateOf(false) }
+    var localSilenced by remember { mutableStateOf(false) }
+    val effectiveSilenced = isSilenced || localSilenced
 
     val internationalPreview = remember(callInfo.phoneNumber) {
         InternationalCountryHelper.detectCountry(callInfo.phoneNumber)
@@ -101,7 +103,7 @@ fun IncomingCallScreen(
     val ringTransition = rememberInfiniteTransition(label = "IncomingAura")
     val auraPulseScale by ringTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = if (reduceAnimations || isSilenced) 1.0f else 1.35f,
+        targetValue = if (reduceAnimations || effectiveSilenced) 1.0f else 1.35f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Restart
@@ -110,7 +112,7 @@ fun IncomingCallScreen(
     )
     val auraPulseAlpha by ringTransition.animateFloat(
         initialValue = 0.6f,
-        targetValue = if (reduceAnimations || isSilenced) 0.0f else 0.0f,
+        targetValue = if (reduceAnimations || effectiveSilenced) 0.0f else 0.0f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Restart
@@ -178,7 +180,7 @@ fun IncomingCallScreen(
                         modifier = Modifier.size(170.dp)
                     ) {
                         // Radiant incoming ring pulses
-                        if (!reduceAnimations && !isSilenced) {
+                        if (!reduceAnimations && !effectiveSilenced) {
                             Box(
                                 modifier = Modifier
                                     .size(140.dp)
@@ -245,12 +247,12 @@ fun IncomingCallScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FrostedGlassBox(
                             shape = CircleShape,
-                            borderColor = if (isSilenced) LineaColors.MutedRust.copy(alpha = 0.6f) else LineaColors.GlassBorder,
+                            borderColor = if (effectiveSilenced) LineaColors.MutedRust.copy(alpha = 0.6f) else LineaColors.GlassBorder,
                             modifier = Modifier
                                 .size(58.dp)
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    isSilenced = true
+                                    localSilenced = true
                                     onSilence()
                                 }
                         ) {
@@ -261,16 +263,16 @@ fun IncomingCallScreen(
                                 Icon(
                                     imageVector = Icons.Filled.VolumeOff,
                                     contentDescription = "Silence Ringer",
-                                    tint = if (isSilenced) LineaColors.MutedRust else LineaColors.TextPrimary,
+                                    tint = if (effectiveSilenced) LineaColors.MutedRust else LineaColors.TextPrimary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = if (isSilenced) "Silenced" else "Silence",
+                            text = if (effectiveSilenced) "Silenced" else "Silence",
                             style = LineaTypography.bodySmall,
-                            color = if (isSilenced) LineaColors.MutedRust else LineaColors.TextSecondary
+                            color = if (effectiveSilenced) LineaColors.MutedRust else LineaColors.TextSecondary
                         )
                     }
 
