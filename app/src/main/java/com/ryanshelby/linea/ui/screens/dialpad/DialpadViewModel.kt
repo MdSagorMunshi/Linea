@@ -146,7 +146,14 @@ class DialpadViewModel @Inject constructor(
     }
 
     fun selectSim(index: Int) {
-        _selectedSimIndex.value = index
+        if (index in _simAccounts.value.indices) {
+            _selectedSimIndex.value = index
+        }
+    }
+
+    fun selectSimBySubscriptionId(subscriptionId: Int) {
+        val index = _simAccounts.value.indexOfFirst { it.subscriptionId == subscriptionId }
+        if (index >= 0) _selectedSimIndex.value = index
     }
 
     private var lastPlaceCallTimestamp: Long = 0L
@@ -162,11 +169,10 @@ class DialpadViewModel @Inject constructor(
         if (numberToCall.isEmpty()) return
 
         val accounts = _simAccounts.value
-        val simHandle = if (accounts.isNotEmpty()) {
-            val idx = _selectedSimIndex.value.coerceIn(0, accounts.size - 1)
-            accounts[idx].phoneAccountHandle
-        } else null
-
-        callManager.placeCall(numberToCall, simHandle)
+        // If there are SIM choices, always send the selected account handle. A missing or
+        // removed subscription is not silently replaced with the system default.
+        val selectedAccount = accounts.getOrNull(_selectedSimIndex.value)
+        if (accounts.isNotEmpty() && selectedAccount == null) return
+        callManager.placeCall(numberToCall, selectedAccount?.phoneAccountHandle)
     }
 }

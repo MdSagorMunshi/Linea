@@ -749,8 +749,8 @@ fun DialpadScreen(
             sheetState = simSheetState,
             phoneNumber = pendingCallNumber ?: enteredNumber,
             accounts = displayedSims,
-            onSelectSim = { slot ->
-                viewModel.selectSim(slot)
+            onSelectSim = { account ->
+                viewModel.selectSimBySubscriptionId(account.subscriptionId)
                 showSimSelectSheet = false
                 if (callConfirmationEnabled) {
                     showCountdownDialog = true

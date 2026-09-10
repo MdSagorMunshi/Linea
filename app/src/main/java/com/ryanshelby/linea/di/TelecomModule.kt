@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.telecom.TelecomManager
 import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,6 +26,12 @@ object TelecomModule {
     @Singleton
     fun provideSubscriptionManager(@ApplicationContext context: Context): SubscriptionManager {
         return context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
+    }
+
+    @Provides
+    @Singleton
+    fun provideTelephonyManager(@ApplicationContext context: Context): TelephonyManager {
+        return context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
     }
 
     @Provides

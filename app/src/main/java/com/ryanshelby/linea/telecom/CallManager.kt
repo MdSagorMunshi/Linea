@@ -102,6 +102,7 @@ class CallManager @Inject constructor(
 
     val isRecording: StateFlow<Boolean> = audioRecorder.isRecording
     val recordingDurationSeconds: StateFlow<Long> = audioRecorder.recordingDurationSeconds
+    val recordingUnavailableReason: StateFlow<String?> = audioRecorder.recordingUnavailableReason
 
     private val _durationWarningActive = MutableStateFlow(false)
     val durationWarningActive: StateFlow<Boolean> = _durationWarningActive.asStateFlow()
@@ -119,6 +120,22 @@ class CallManager @Inject constructor(
     private var timerJob: Job? = null
     private var previousCallState: LineaCallState = LineaCallState.IDLE
     private var userSelectedSpeaker: Boolean = false
+    private var requestedOutgoingAccount: android.telecom.PhoneAccountHandle? = null
+
+    private fun verifySelectedPhoneAccount(call: Call) {
+        val expected = requestedOutgoingAccount ?: return
+        val actual = call.details?.accountHandle ?: return
+        if (actual != expected) {
+            // Never continue a call that Telecom assigned to the device default rather than the
+            // explicit SIM selected in Linea.
+            try {
+                call.disconnect()
+            } catch (_: Exception) {
+            }
+        } else {
+            requestedOutgoingAccount = null
+        }
+    }
 
     fun registerInCallService(service: LineaInCallService) {
         this.inCallService = service
@@ -131,6 +148,7 @@ class CallManager @Inject constructor(
     fun onCallAdded(call: Call) {
         val number = call.details?.handle?.schemeSpecificPart ?: ""
         val isIncoming = call.state == Call.STATE_RINGING
+        if (!isIncoming) verifySelectedPhoneAccount(call)
 
         call.registerCallback(object : Call.Callback() {
             override fun onStateChanged(c: Call, state: Int) {
@@ -159,6 +177,7 @@ class CallManager @Inject constructor(
             }
 
             override fun onDetailsChanged(c: Call, details: Call.Details) {
+                verifySelectedPhoneAccount(c)
                 if (_currentCall.value?.call == c) {
                     updateCallState(c)
                 }
@@ -616,6 +635,7 @@ class CallManager @Inject constructor(
         lastPlaceCallTimestamp = now
 
         val uri = Uri.fromParts("tel", phoneNumber, null)
+        requestedOutgoingAccount = simAccountHandle
         val extras = Bundle().apply {
             if (simAccountHandle != null) {
                 putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, simAccountHandle)

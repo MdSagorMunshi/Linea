@@ -41,7 +41,7 @@ fun SimSelectSheet(
     sheetState: SheetState,
     phoneNumber: String,
     accounts: List<SimAccountInfo>,
-    onSelectSim: (Int) -> Unit,
+    onSelectSim: (SimAccountInfo) -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -93,7 +93,7 @@ fun SimSelectSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                onSelectSim(acc.slotIndex)
+                                onSelectSim(acc)
                                 onDismiss()
                             }
                     ) {
@@ -140,7 +140,6 @@ fun SimSelectSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            onSelectSim(0)
                             onDismiss()
                         }
                 ) {
