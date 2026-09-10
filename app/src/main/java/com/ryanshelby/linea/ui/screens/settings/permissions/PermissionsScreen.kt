@@ -42,6 +42,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.ryanshelby.linea.ui.components.LiquidGlassPermissionDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +79,7 @@ fun PermissionsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var showAccessibilityRationaleDialog by remember { mutableStateOf(false) }
 
     val permissionItems = listOf(
         PermissionItem(
@@ -123,14 +129,18 @@ fun PermissionsScreen(
         ),
         PermissionItem(
             name = "Call Audio Service (Accessibility)",
-            description = "Bypasses Android 10+ call audio silencing for un-silenced call recording and live voice wave",
+            description = "Required to capture incoming and outgoing voice audio for call recording. Without this, recordings will be blank.",
             icon = Icons.Filled.RecordVoiceOver,
             permissionKey = null,
             isCustomCheck = { ctx ->
                 com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.isServiceEnabled(ctx)
             },
             customAction = { ctx ->
-                com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.openAccessibilitySettings(ctx)
+                if (com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.isServiceEnabled(ctx)) {
+                    android.widget.Toast.makeText(ctx, "Call Audio Service is enabled and active.", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    showAccessibilityRationaleDialog = true
+                }
             },
             isOptional = true
         ),
@@ -382,6 +392,24 @@ fun PermissionsScreen(
             }
 
             Spacer(modifier = Modifier.height(30.dp))
+        }
+
+        if (showAccessibilityRationaleDialog) {
+            LiquidGlassPermissionDialog(
+                title = "Call Audio Service Required",
+                message = "Android restricts phone call audio recording to protect privacy. To capture incoming and outgoing voice audio clearly without blank recordings, Linea requires its passive Call Audio Service enabled in Android Accessibility settings.\n\nLinea only uses this permission locally on your device to stream call audio to your recordings. No screen content, keystrokes, or personal data are ever read or collected.",
+                actionLabel = "Allow",
+                dismissLabel = "Deny",
+                icon = Icons.Filled.RecordVoiceOver,
+                onAction = {
+                    showAccessibilityRationaleDialog = false
+                    com.ryanshelby.linea.telecom.recorder.LineaCallAudioService.openAccessibilitySettings(context)
+                },
+                dismissible = true,
+                onDismiss = {
+                    showAccessibilityRationaleDialog = false
+                }
+            )
         }
     }
 }
