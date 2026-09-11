@@ -35,8 +35,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,6 +75,14 @@ fun HistoryScreen(
     val blockedNumbers by viewModel.blockedNumbers.collectAsState()
     val blockedNumberSet by viewModel.blockedNumberSet.collectAsState()
     val context = LocalContext.current
+
+    var swipedOpenItemId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(feedListState.isScrollInProgress) {
+        if (feedListState.isScrollInProgress) {
+            swipedOpenItemId = null
+        }
+    }
 
     val isNumberBlocked: (String) -> Boolean = { phone ->
         viewModel.isNumberBlocked(phone)
@@ -436,21 +448,33 @@ fun HistoryScreen(
                             HistoryRow(
                                 item = item,
                                 isBlocked = isItemBlocked,
+                                isSwipedOpen = swipedOpenItemId == item.id,
+                                onSwipeOpenChanged = { open ->
+                                    swipedOpenItemId = if (open) item.id else if (swipedOpenItemId == item.id) null else swipedOpenItemId
+                                },
                                 onClick = { viewModel.selectItemForDetail(item) },
                                 onCallBack = { record -> viewModel.callBack(record) },
                                 onToggleExpand = { viewModel.toggleItemExpanded(item.id) },
                                 onAddContact = { number ->
-                                    val addIntent = Intent(Intent.ACTION_INSERT).apply {
-                                        type = "vnd.android.cursor.dir/contact"
-                                        putExtra("phone", number)
+                                    try {
+                                        val addIntent = Intent(Intent.ACTION_INSERT).apply {
+                                            type = "vnd.android.cursor.dir/contact"
+                                            putExtra("phone", number)
+                                        }
+                                        context.startActivity(addIntent)
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(context, "Cannot open contacts", android.widget.Toast.LENGTH_SHORT).show()
                                     }
-                                    context.startActivity(addIntent)
                                 },
                                 onSendSms = { number ->
-                                    val smsIntent = Intent(Intent.ACTION_VIEW).apply {
-                                        data = Uri.parse("sms:$number")
+                                    try {
+                                        val smsIntent = Intent(Intent.ACTION_VIEW).apply {
+                                            data = Uri.parse("sms:$number")
+                                        }
+                                        context.startActivity(smsIntent)
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(context, "Cannot open SMS app", android.widget.Toast.LENGTH_SHORT).show()
                                     }
-                                    context.startActivity(smsIntent)
                                 },
                                 onBlockNumber = { number ->
                                     viewModel.blockNumber(number)

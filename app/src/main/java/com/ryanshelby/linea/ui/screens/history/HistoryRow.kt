@@ -1,6 +1,11 @@
 package com.ryanshelby.linea.ui.screens.history
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -8,14 +13,18 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,32 +34,40 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CallMade
 import androidx.compose.material.icons.automirrored.filled.CallMissed
 import androidx.compose.material.icons.automirrored.filled.CallReceived
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.SimCard
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.data.local.entities.CallDirectionType
@@ -60,8 +77,10 @@ import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryRow(
     item: CallHistoryItem,
@@ -74,140 +93,309 @@ fun HistoryRow(
     onDelete: (CallHistoryItem) -> Unit,
     modifier: Modifier = Modifier,
     isBlocked: Boolean = false,
-    onUnblockNumber: ((String) -> Unit)? = null
+    onUnblockNumber: ((String) -> Unit)? = null,
+    isSwipedOpen: Boolean = false,
+    onSwipeOpenChanged: ((Boolean) -> Unit)? = null
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { dismissValue ->
-            when (dismissValue) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    onCallBack(item.primaryRecord)
-                    false // Return back to rest position
-                }
-                SwipeToDismissBoxValue.EndToStart -> {
-                    false // Keep open or let user tap action
-                }
-                SwipeToDismissBoxValue.Settled -> false
+    val coroutineScope = rememberCoroutineScope()
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val density = LocalDensity.current
+    val viewConfig = LocalViewConfiguration.current
+    val touchSlop = viewConfig.touchSlop
+
+    val actionWidth = 204.dp
+    val actionWidthPx = remember(density) { with(density) { actionWidth.toPx() } }
+    val callBackThresholdPx = remember(density) { with(density) { 80.dp.toPx() } }
+    val callBackMaxPx = remember(density) { with(density) { 120.dp.toPx() } }
+
+    val isOpen by remember { derivedStateOf { offsetX < -10f } }
+
+    val animateOffsetTo: (Float, AnimationSpec<Float>) -> Unit = { target, spec ->
+        animationJob?.cancel()
+        animationJob = coroutineScope.launch {
+            androidx.compose.animation.core.animate(
+                initialValue = offsetX,
+                targetValue = target,
+                animationSpec = spec
+            ) { value, _ ->
+                offsetX = value
             }
         }
-    )
+    }
 
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    // Right swipe background: Call Back (Sage Green)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(LineaColors.MutedSageGreen.copy(alpha = 0.25f))
-                            .padding(horizontal = 24.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.Call,
-                                contentDescription = "Call Back",
-                                tint = LineaColors.MutedSageGreen,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Call Back",
-                                style = LineaTypography.labelMedium,
-                                color = LineaColors.MutedSageGreen
-                            )
-                        }
-                    }
-                }
-                SwipeToDismissBoxValue.EndToStart -> {
-                    // Left swipe background: Quick Actions
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(LineaColors.GlassFill)
-                            .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(16.dp))
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-                                onClick = { onAddContact(item.primaryRecord.phoneNumber) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.PersonAdd,
-                                    contentDescription = "Add Contact",
-                                    tint = LineaColors.TitaniumBlue,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            IconButton(
-                                onClick = { onSendSms(item.primaryRecord.phoneNumber) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Message,
-                                    contentDescription = "SMS",
-                                    tint = LineaColors.TextPrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            if (isBlocked && onUnblockNumber != null) {
-                                IconButton(
-                                    onClick = { onUnblockNumber(item.primaryRecord.phoneNumber) },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Block,
-                                        contentDescription = "Unblock",
-                                        tint = LineaColors.MutedSageGreen,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            } else {
-                                IconButton(
-                                    onClick = { onBlockNumber(item.primaryRecord.phoneNumber) },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Block,
-                                        contentDescription = "Block",
-                                        tint = LineaColors.MutedRust,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = { onDelete(item) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Delete,
-                                    contentDescription = "Delete",
-                                    tint = LineaColors.Danger,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                SwipeToDismissBoxValue.Settled -> Unit
-            }
-        },
+    // Synchronize open/closed state when another row is swiped or reset externally
+    LaunchedEffect(isSwipedOpen) {
+        if (!isSwipedOpen && offsetX < -10f) {
+            animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+        } else if (isSwipedOpen && offsetX >= -10f) {
+            animateOffsetTo(-actionWidthPx, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow))
+        }
+    }
+
+    // Reset offset if recycled item changes
+    LaunchedEffect(item.id) {
+        if (!isSwipedOpen && offsetX != 0f) {
+            animationJob?.cancel()
+            offsetX = 0f
+        }
+    }
+
+    Box(
         modifier = modifier.fillMaxWidth()
     ) {
+        // 1. Quick Actions Background Tray (revealed on left swipe)
+        if (offsetX <= 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(LineaColors.NeuSurfaceSunken)
+                    .border(
+                        LineaDimensions.HairlineBorder,
+                        LineaColors.NeuBorderHighlight.copy(alpha = 0.35f),
+                        RoundedCornerShape(16.dp)
+                    )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .align(if (item.isExpanded) Alignment.TopEnd else Alignment.CenterEnd)
+                        .then(
+                            if (item.isExpanded) Modifier.height(72.dp) else Modifier.fillMaxHeight()
+                        )
+                        .padding(end = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Save / Add Contact
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(LineaColors.NeuSurfaceRaised)
+                            .border(0.5.dp, LineaColors.NeuBorderHighlight.copy(alpha = 0.5f), CircleShape)
+                            .clickable {
+                                animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                onSwipeOpenChanged?.invoke(false)
+                                onAddContact(item.primaryRecord.phoneNumber)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PersonAdd,
+                            contentDescription = "Add Contact",
+                            tint = LineaColors.TitaniumBlue,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    // Send SMS
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(LineaColors.NeuSurfaceRaised)
+                            .border(0.5.dp, LineaColors.NeuBorderHighlight.copy(alpha = 0.5f), CircleShape)
+                            .clickable {
+                                animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                onSwipeOpenChanged?.invoke(false)
+                                onSendSms(item.primaryRecord.phoneNumber)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Message,
+                            contentDescription = "SMS",
+                            tint = LineaColors.TextPrimary,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    // Block / Unblock Number
+                    if (isBlocked && onUnblockNumber != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(LineaColors.NeuSurfaceRaised)
+                                .border(0.5.dp, LineaColors.MutedSageGreen.copy(alpha = 0.4f), CircleShape)
+                                .clickable {
+                                    animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                    onSwipeOpenChanged?.invoke(false)
+                                    onUnblockNumber(item.primaryRecord.phoneNumber)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Block,
+                                contentDescription = "Unblock",
+                                tint = LineaColors.MutedSageGreen,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(LineaColors.NeuSurfaceRaised)
+                                .border(0.5.dp, LineaColors.Danger.copy(alpha = 0.4f), CircleShape)
+                                .clickable {
+                                    animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                    onSwipeOpenChanged?.invoke(false)
+                                    onBlockNumber(item.primaryRecord.phoneNumber)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Block,
+                                contentDescription = "Block",
+                                tint = LineaColors.Danger,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+
+                    // Delete Call History Group
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(LineaColors.NeuSurfaceRaised)
+                            .border(0.5.dp, LineaColors.Danger.copy(alpha = 0.4f), CircleShape)
+                            .clickable {
+                                animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                onSwipeOpenChanged?.invoke(false)
+                                onDelete(item)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Delete",
+                            tint = LineaColors.Danger,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. Call Back Background (revealed on right swipe)
+        if (offsetX > 0f) {
+            val progress = (offsetX / callBackThresholdPx).coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(LineaColors.MutedSageGreen.copy(alpha = 0.15f + 0.2f * progress))
+                    .border(
+                        LineaDimensions.HairlineBorder,
+                        LineaColors.MutedSageGreen.copy(alpha = 0.3f * progress),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .padding(horizontal = 24.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Call,
+                        contentDescription = "Call Back",
+                        tint = LineaColors.MutedSageGreen,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Call Back",
+                        style = LineaTypography.labelMedium,
+                        color = LineaColors.MutedSageGreen
+                    )
+                }
+            }
+        }
+
+        // 3. Foreground Main Card (swipable)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .offset { IntOffset(offsetX.roundToInt(), 0) }
+                .pointerInput(item.id, actionWidthPx) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        var totalDx = 0f
+                        var totalDy = 0f
+                        var isDragging = false
+                        val startOffset = offsetX
+
+                        while (true) {
+                            val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull() ?: break
+
+                            if (change.pressed) {
+                                val dx = change.position.x - change.previousPosition.x
+                                val dy = change.position.y - change.previousPosition.y
+                                totalDx += dx
+                                totalDy += dy
+
+                                if (!isDragging) {
+                                    if (abs(totalDx) > touchSlop && abs(totalDx) > abs(totalDy) * 1.1f) {
+                                        isDragging = true
+                                        animationJob?.cancel()
+                                        change.consume()
+                                    } else if (abs(totalDy) > touchSlop && abs(totalDy) > abs(totalDx)) {
+                                        // Vertical scroll detected; allow LazyColumn to handle
+                                        break
+                                    }
+                                }
+
+                                if (isDragging) {
+                                    change.consume()
+                                    val target = offsetX + dx
+                                    val clamped = when {
+                                        target < -actionWidthPx -> -actionWidthPx + (target + actionWidthPx) * 0.2f
+                                        target > callBackMaxPx -> callBackMaxPx + (target - callBackMaxPx) * 0.2f
+                                        else -> target
+                                    }
+                                    offsetX = clamped
+                                }
+                            } else {
+                                // Finger lifted
+                                if (isDragging) {
+                                    change.consume()
+                                    val current = offsetX
+                                    if (current > 0f) {
+                                        if (current >= callBackThresholdPx) {
+                                            onCallBack(item.primaryRecord)
+                                        }
+                                        animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                        onSwipeOpenChanged?.invoke(false)
+                                    } else {
+                                        val shouldOpen = if (startOffset < -10f) {
+                                            !(current > -actionWidthPx * 0.7f)
+                                        } else {
+                                            current <= -actionWidthPx * 0.25f
+                                        }
+
+                                        if (shouldOpen) {
+                                            animateOffsetTo(
+                                                -actionWidthPx,
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                                    stiffness = Spring.StiffnessMediumLow
+                                                )
+                                            )
+                                            onSwipeOpenChanged?.invoke(true)
+                                        } else {
+                                            animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                            onSwipeOpenChanged?.invoke(false)
+                                        }
+                                    }
+                                }
+                                break
+                            }
+                        }
+                    }
+                }
                 .neumorphic(
                     shape = RoundedCornerShape(16.dp),
                     elevation = 3.dp,
@@ -218,7 +406,14 @@ fun HistoryRow(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onClick)
+                    .clickable {
+                        if (isOpen) {
+                            animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                            onSwipeOpenChanged?.invoke(false)
+                        } else {
+                            onClick()
+                        }
+                    }
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -297,7 +492,14 @@ fun HistoryRow(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(LineaColors.TitaniumBlue.copy(alpha = 0.25f))
-                                        .clickable { onToggleExpand() }
+                                        .clickable {
+                                            if (isOpen) {
+                                                animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                                onSwipeOpenChanged?.invoke(false)
+                                            } else {
+                                                onToggleExpand()
+                                            }
+                                        }
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -364,7 +566,14 @@ fun HistoryRow(
 
                 // Quick Call Back Button
                 IconButton(
-                    onClick = { onCallBack(item.primaryRecord) },
+                    onClick = {
+                        if (isOpen) {
+                            animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                            onSwipeOpenChanged?.invoke(false)
+                        } else {
+                            onCallBack(item.primaryRecord)
+                        }
+                    },
                     modifier = Modifier.size(38.dp)
                 ) {
                     Icon(
