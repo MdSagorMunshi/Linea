@@ -84,7 +84,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import com.ryanshelby.linea.telecom.SimAccountInfo
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.NeumorphicCard
+import com.ryanshelby.linea.ui.components.NeumorphicWell
 import com.ryanshelby.linea.ui.components.RoleBanner
+import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.screens.contacts.ContactCreateEditSheet
 import com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel
 import com.ryanshelby.linea.ui.theme.LineaColors
@@ -282,9 +285,11 @@ fun DialpadScreen(
                 // Profile Switcher Pill
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(LineaColors.GlassFill)
-                        .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(16.dp))
+                        .neumorphic(
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = 3.dp,
+                            surfaceColor = LineaColors.NeuSurfaceRaised
+                        )
                         .clickable { viewModel.switchProfile() }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
@@ -381,61 +386,68 @@ fun DialpadScreen(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Number Display Area (tabular figures, copy/paste support)
-                Box(
+                // Number Display Area (tabular figures, debossed Neumorphic well, copy/paste support)
+                NeumorphicWell(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp)
-                        .padding(horizontal = 8.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
+                        .padding(horizontal = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    depth = 2.5.dp
                 ) {
-                    if (enteredNumber.isEmpty()) {
-                        val clipText = clipboardNumber
-                        if (!clipText.isNullOrEmpty()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(LineaColors.GlassFill)
-                                    .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(16.dp))
-                                    .clickable {
-                                        val dialable = clipText.filter { it.isDigit() || it in "+*#" }
-                                        if (dialable.isNotEmpty()) {
-                                            viewModel.setNumber(dialable)
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (enteredNumber.isEmpty()) {
+                            val clipText = clipboardNumber
+                            if (!clipText.isNullOrEmpty()) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier
+                                        .neumorphic(
+                                            shape = RoundedCornerShape(14.dp),
+                                            elevation = 2.5.dp,
+                                            surfaceColor = LineaColors.NeuSurfaceRaised
+                                        )
+                                        .clickable {
+                                            val dialable = clipText.filter { it.isDigit() || it in "+*#" }
+                                            if (dialable.isNotEmpty()) {
+                                                viewModel.setNumber(dialable)
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                Toast.makeText(context, "Pasted from clipboard", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.ContentPaste,
-                                    contentDescription = "Paste",
-                                    tint = LineaColors.TitaniumBlue,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "Paste ${clipText.take(16)}${if (clipText.length > 16) "…" else ""}",
-                                    style = LineaTypography.labelSmall,
-                                    color = LineaColors.TitaniumBlue
-                                )
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.ContentPaste,
+                                        contentDescription = "Paste",
+                                        tint = LineaColors.TitaniumBlue,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Paste ${clipText.take(16)}${if (clipText.length > 16) "…" else ""}",
+                                        style = LineaTypography.labelSmall,
+                                        color = LineaColors.TitaniumBlue
+                                    )
+                                }
                             }
+                        } else {
+                            Text(
+                                text = enteredNumber,
+                                style = LineaTypography.displayLarge.copy(
+                                    fontFeatureSettings = "tnum",
+                                    fontSize = if (enteredNumber.length > 12) 26.sp else 34.sp,
+                                    letterSpacing = 1.sp
+                                ),
+                                color = LineaColors.TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
+                            )
                         }
-                    } else {
-                        Text(
-                            text = enteredNumber,
-                            style = LineaTypography.displayLarge.copy(
-                                fontFeatureSettings = "tnum",
-                                fontSize = if (enteredNumber.length > 12) 26.sp else 34.sp,
-                                letterSpacing = 1.sp
-                            ),
-                            color = LineaColors.TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
                     }
                 }
 
@@ -784,9 +796,9 @@ private fun SimSelectorPill(
     selectedIndex: Int,
     onSelectSim: (Int) -> Unit
 ) {
-    FrostedGlassBox(
+    NeumorphicWell(
         shape = RoundedCornerShape(16.dp),
-        borderColor = LineaColors.GlassBorder
+        depth = 2.dp
     ) {
         Row(
             modifier = Modifier.padding(3.dp),
@@ -796,8 +808,17 @@ private fun SimSelectorPill(
                 val isSelected = index == selectedIndex
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isSelected) LineaColors.TitaniumBlue else Color.Transparent)
+                        .then(
+                            if (isSelected) {
+                                Modifier.neumorphic(
+                                    shape = RoundedCornerShape(12.dp),
+                                    elevation = 2.5.dp,
+                                    surfaceColor = LineaColors.TitaniumBlue
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
                         .clickable { onSelectSim(index) }
                         .padding(horizontal = 10.dp, vertical = 5.dp),
                     contentAlignment = Alignment.Center
@@ -832,7 +853,7 @@ private fun CallButton(
     val reduceAnimations = LocalReduceAnimations.current
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && !reduceAnimations) 0.90f else 1.0f,
+        targetValue = if (isPressed && !reduceAnimations) 0.92f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -840,28 +861,18 @@ private fun CallButton(
         label = "CallButtonScale"
     )
 
-    val callGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF6E93B3), // Lighter titanium blue top highlight
-            Color(0xFF4A6B88)  // Deep rich titanium blue
-        )
-    )
+    val currentElevation = if (isPressed) 1.5.dp else 6.5.dp
+    val buttonColor = if (isPressed) Color(0xFF3B566E) else Color(0xFF4A6B88)
 
     Box(
         modifier = modifier
             .scale(scale)
             .size(68.dp)
-            .clip(CircleShape)
-            .background(callGradient)
-            .border(
-                1.5.dp,
-                Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.35f),
-                        Color.White.copy(alpha = 0.10f)
-                    )
-                ),
-                CircleShape
+            .neumorphic(
+                shape = CircleShape,
+                elevation = currentElevation,
+                isSunken = isPressed,
+                surfaceColor = buttonColor
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -888,32 +899,21 @@ private fun AddContactButton(
     val reduceAnimations = LocalReduceAnimations.current
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && !reduceAnimations) 0.88f else 1.0f,
+        targetValue = if (isPressed && !reduceAnimations) 0.90f else 1.0f,
         label = "AddContactScale"
     )
+
+    val currentElevation = if (isPressed) 1.dp else 4.5.dp
 
     Box(
         modifier = Modifier
             .scale(scale)
             .size(52.dp)
-            .clip(CircleShape)
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.08f),
-                        Color.White.copy(alpha = 0.03f)
-                    )
-                )
-            )
-            .border(
-                LineaDimensions.HairlineBorder,
-                Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.15f),
-                        Color.White.copy(alpha = 0.05f)
-                    )
-                ),
-                CircleShape
+            .neumorphic(
+                shape = CircleShape,
+                elevation = currentElevation,
+                isSunken = isPressed,
+                surfaceColor = LineaColors.NeuSurfaceRaised
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -942,49 +942,27 @@ private fun BackspaceButton(
     val reduceAnimations = LocalReduceAnimations.current
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && !reduceAnimations) 0.88f else 1.0f,
+        targetValue = if (isPressed && !reduceAnimations) 0.90f else 1.0f,
         label = "BackspaceScale"
     )
 
-    val bgBrush = if (isPressed) {
-        Brush.verticalGradient(
-            listOf(
-                LineaColors.MutedBrickRed.copy(alpha = 0.35f),
-                LineaColors.MutedBrickRed.copy(alpha = 0.15f)
-            )
-        )
+    val currentElevation = if (isPressed) 1.dp else 4.5.dp
+    val surfaceColor = if (isPressed) {
+        LineaColors.MutedBrickRed.copy(alpha = 0.25f)
     } else {
-        Brush.verticalGradient(
-            listOf(
-                Color.White.copy(alpha = 0.08f),
-                Color.White.copy(alpha = 0.03f)
-            )
-        )
-    }
-
-    val borderBrush = if (isPressed) {
-        Brush.verticalGradient(
-            listOf(
-                LineaColors.MutedBrickRed.copy(alpha = 0.6f),
-                LineaColors.MutedBrickRed.copy(alpha = 0.2f)
-            )
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(
-                Color.White.copy(alpha = 0.15f),
-                Color.White.copy(alpha = 0.05f)
-            )
-        )
+        LineaColors.NeuSurfaceRaised
     }
 
     Box(
         modifier = Modifier
             .scale(scale)
             .size(52.dp)
-            .clip(CircleShape)
-            .background(bgBrush)
-            .border(LineaDimensions.HairlineBorder, borderBrush, CircleShape)
+            .neumorphic(
+                shape = CircleShape,
+                elevation = currentElevation,
+                isSunken = isPressed,
+                surfaceColor = surfaceColor
+            )
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,

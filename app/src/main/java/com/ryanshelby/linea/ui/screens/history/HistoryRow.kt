@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.data.local.entities.CallDirectionType
 import com.ryanshelby.linea.data.local.entities.CallRecordEntity
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -191,9 +192,11 @@ fun HistoryRow(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(LineaColors.GlassFill)
-                .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(16.dp))
+                .neumorphic(
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = 3.dp,
+                    surfaceColor = LineaColors.NeuSurfaceRaised
+                )
         ) {
             // Main History Row
             Row(

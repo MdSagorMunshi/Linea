@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.theme.InterFontFamily
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
@@ -503,8 +504,20 @@ fun FloatingGlassNavBar(
 
                             val interactionSource = remember { MutableInteractionSource() }
 
-                            Column(
+                            Box(
                                 modifier = Modifier
+                                    .then(
+                                        if (selected) {
+                                            Modifier.neumorphic(
+                                                shape = RoundedCornerShape(14.dp),
+                                                elevation = 2.dp,
+                                                isSunken = true,
+                                                surfaceColor = LineaColors.NeuSurfaceSunken
+                                            )
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
                                     .clickable(
                                         interactionSource = interactionSource,
                                         indication = null
@@ -516,47 +529,51 @@ fun FloatingGlassNavBar(
                                             onSetTemporarilyExpanded(false)
                                         }
                                     }
-                                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = if (selected) destination.filledIcon else destination.outlineIcon
-                                        ),
-                                        contentDescription = destination.title,
-                                        tint = tintColor,
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .scale(iconScale)
-                                    )
-                                    if (destination == LineaDestination.HISTORY && unreadMissedCalls > 0) {
-                                        Box(
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Box {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (selected) destination.filledIcon else destination.outlineIcon
+                                            ),
+                                            contentDescription = destination.title,
+                                            tint = tintColor,
                                             modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .size(14.dp)
-                                                .clip(CircleShape)
-                                                .background(LineaColors.CarmineRed),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = if (unreadMissedCalls > 9) "9+" else "$unreadMissedCalls",
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = LineaColors.TextPrimary
-                                            )
+                                                .size(24.dp)
+                                                .scale(iconScale)
+                                        )
+                                        if (destination == LineaDestination.HISTORY && unreadMissedCalls > 0) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .size(14.dp)
+                                                    .clip(CircleShape)
+                                                    .background(LineaColors.CarmineRed),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = if (unreadMissedCalls > 9) "9+" else "$unreadMissedCalls",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = LineaColors.TextPrimary
+                                                )
+                                            }
                                         }
                                     }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = destination.title,
+                                        fontFamily = InterFontFamily,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = tintColor
+                                    )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = destination.title,
-                                    fontFamily = InterFontFamily,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = tintColor
-                                )
                             }
                         }
                     }

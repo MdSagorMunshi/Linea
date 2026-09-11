@@ -61,7 +61,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ryanshelby.linea.data.local.entities.ContactEntity
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.NeumorphicWell
 import com.ryanshelby.linea.ui.components.PrivatePinDialog
+import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.screens.dialpad.CallCountdownDialog
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
@@ -208,49 +210,55 @@ fun ContactsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Search Bar (with text & T9 number filtering)
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.onSearchQueryChange(it) },
-                placeholder = {
-                    Text(
-                        text = "Search contacts or dial T9...",
-                        style = LineaTypography.bodyMedium,
-                        color = LineaColors.TextTertiary
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = null,
-                        tint = LineaColors.TextSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                            Icon(
-                                imageVector = Icons.Filled.Clear,
-                                contentDescription = "Clear",
-                                tint = LineaColors.TextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                },
+            // Search Bar (with text & T9 number filtering) in a debossed Neumorphic well
+            NeumorphicWell(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
                 shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = LineaColors.GlassFill,
-                    unfocusedContainerColor = LineaColors.GlassFill,
-                    focusedBorderColor = LineaColors.TitaniumBlue,
-                    unfocusedBorderColor = LineaColors.GlassBorder,
-                    focusedTextColor = LineaColors.TextPrimary,
-                    unfocusedTextColor = LineaColors.TextPrimary
+                depth = 2.5.dp
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChange(it) },
+                    placeholder = {
+                        Text(
+                            text = "Search contacts or dial T9...",
+                            style = LineaTypography.bodyMedium,
+                            color = LineaColors.TextTertiary
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                            tint = LineaColors.TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Clear,
+                                    contentDescription = "Clear",
+                                    tint = LineaColors.TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = LineaColors.TextPrimary,
+                        unfocusedTextColor = LineaColors.TextPrimary
+                    )
                 )
-            )
+            }
 
             // Pinned / Favorite Contacts Section
             if (pinnedFavorites.isNotEmpty() && searchQuery.isEmpty()) {
@@ -383,20 +391,24 @@ fun ContactsScreen(
             }
         }
 
-        // Floating Action Button ("+" Add Contact)
-        FloatingActionButton(
-            onClick = { viewModel.openCreateSheet() },
-            containerColor = LineaColors.TitaniumBlue,
-            contentColor = Color.White,
-            shape = CircleShape,
+        // Floating Action Button ("+" Add Contact) - Tactile Neumorphic Button
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 24.dp, bottom = 106.dp)
                 .size(56.dp)
+                .neumorphic(
+                    shape = CircleShape,
+                    elevation = 6.dp,
+                    surfaceColor = LineaColors.TitaniumBlue
+                )
+                .clickable { viewModel.openCreateSheet() },
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.Add,
                 contentDescription = "Add Contact",
+                tint = Color.White,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -534,9 +546,11 @@ private fun ContactCardRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(LineaColors.GlassFill)
-            .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(14.dp))
+            .neumorphic(
+                shape = RoundedCornerShape(14.dp),
+                elevation = 3.dp,
+                surfaceColor = LineaColors.NeuSurfaceRaised
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.data.preferences.LineaPreferences
+import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -137,9 +138,11 @@ fun DialpadKey(
         modifier = modifier
             .size(size)
             .scale(scale)
-            .clip(CircleShape)
-            .background(bgBrush)
-            .border(LineaDimensions.HairlineBorder, borderBrush, CircleShape)
+            .neumorphic(
+                shape = CircleShape,
+                elevation = if (isPressed) 1.dp else 5.dp,
+                isPressed = isPressed
+            )
             .pointerInput(digit) {
                 detectTapGestures(
                     onPress = {

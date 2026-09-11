@@ -61,6 +61,7 @@ import com.ryanshelby.linea.telecom.ActiveCallInfo
 import com.ryanshelby.linea.telecom.InternationalCountryHelper
 import com.ryanshelby.linea.ui.components.ContactAvatar
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.incall.components.ContactPosterBackground
 import com.ryanshelby.linea.ui.incall.components.QuickDeclineSheet
 import com.ryanshelby.linea.ui.theme.LineaColors
@@ -243,30 +244,35 @@ fun IncomingCallScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Silence Action Glass Button
+                    // Silence Action Button
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FrostedGlassBox(
-                            shape = CircleShape,
-                            borderColor = if (effectiveSilenced) LineaColors.MutedRust.copy(alpha = 0.6f) else LineaColors.GlassBorder,
+                        Box(
                             modifier = Modifier
                                 .size(58.dp)
+                                .neumorphic(
+                                    shape = CircleShape,
+                                    elevation = if (effectiveSilenced) 1.dp else 4.dp,
+                                    isSunken = effectiveSilenced,
+                                    surfaceColor = if (effectiveSilenced) LineaColors.MutedRust.copy(alpha = 0.25f) else LineaColors.NeuSurfaceRaised
+                                )
+                                .then(
+                                    if (effectiveSilenced) {
+                                        Modifier.border(1.5.dp, LineaColors.MutedRust.copy(alpha = 0.8f), CircleShape)
+                                    } else Modifier
+                                )
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     localSilenced = true
                                     onSilence()
-                                }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.VolumeOff,
-                                    contentDescription = "Silence Ringer",
-                                    tint = if (effectiveSilenced) LineaColors.MutedRust else LineaColors.TextPrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Filled.VolumeOff,
+                                contentDescription = "Silence Ringer",
+                                tint = if (effectiveSilenced) LineaColors.MutedRust else LineaColors.TextPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -276,29 +282,28 @@ fun IncomingCallScreen(
                         )
                     }
 
-                    // Quick SMS Decline Glass Button
+                    // Quick SMS Decline Button
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FrostedGlassBox(
-                            shape = CircleShape,
-                            borderColor = LineaColors.GlassBorder,
+                        Box(
                             modifier = Modifier
                                 .size(58.dp)
+                                .neumorphic(
+                                    shape = CircleShape,
+                                    elevation = 4.dp,
+                                    surfaceColor = LineaColors.NeuSurfaceRaised
+                                )
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     showSmsSheet = true
-                                }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Message,
-                                    contentDescription = "Quick Decline SMS",
-                                    tint = LineaColors.TextPrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Filled.Message,
+                                contentDescription = "Quick Decline SMS",
+                                tint = LineaColors.TextPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -372,6 +377,8 @@ private fun TactileCallAction(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale = if (isPressed) 0.92f else 1.0f
+    val currentElevation = if (isPressed) 2.dp else 7.dp
+    val buttonColor = if (isPressed) baseColor.copy(alpha = 0.85f) else baseColor
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -381,24 +388,11 @@ private fun TactileCallAction(
             modifier = Modifier
                 .size(76.dp)
                 .scale(scale)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            baseColor.copy(alpha = 0.95f),
-                            baseColor.copy(alpha = 0.78f)
-                        )
-                    )
-                )
-                .border(
-                    width = 1.5.dp,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.45f),
-                            glowColor.copy(alpha = 0.3f)
-                        )
-                    ),
-                    shape = CircleShape
+                .neumorphic(
+                    shape = CircleShape,
+                    elevation = currentElevation,
+                    isSunken = isPressed,
+                    surfaceColor = buttonColor
                 )
                 .clickable(
                     interactionSource = interactionSource,

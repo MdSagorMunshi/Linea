@@ -31,97 +31,149 @@ data class LineaColorPalette(
     val SurfaceElevated: Color,
     val TextPrimary: Color,
     val TextSecondary: Color,
-    val TextTertiary: Color
+    val TextTertiary: Color,
+    // Neumorphic Design Tokens
+    val NeuBackground: Color,
+    val NeuLightShadow: Color,
+    val NeuDarkShadow: Color,
+    val NeuSurfaceRaised: Color,
+    val NeuSurfaceSunken: Color,
+    val NeuRaisedGradient: Brush,
+    val NeuSunkenGradient: Brush,
+    val NeuBorderHighlight: Color,
+    val NeuBorderShadow: Color
 )
 
 val DarkPalette = LineaColorPalette(
     isLight = false,
-    BackgroundTop = Color(0xFF0D0F12),
-    BackgroundBottom = Color(0xFF1A1D21),
-    BackgroundDeep = Color(0xFF0D0F12),
-    BackgroundElevated = Color(0xFF1A1D21),
+    BackgroundTop = Color(0xFF1E2228),
+    BackgroundBottom = Color(0xFF181B20),
+    BackgroundDeep = Color(0xFF15181C),
+    BackgroundElevated = Color(0xFF242930),
     BackgroundGradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF0D0F12), Color(0xFF1A1D21))
+        colors = listOf(Color(0xFF1E2228), Color(0xFF181B20))
     ),
-    GlassFill = Color.White.copy(alpha = 0.08f),
-    GlassBorder = Color.White.copy(alpha = 0.12f),
-    GlassFallbackFill = Color(0xFF14171B),
-    TitaniumBlue = Color(0xFF5C7C99),
-    DesaturatedTeal = Color(0xFF3E5C5C),
-    MutedRust = Color(0xFFC97B4A),
-    MutedBrickRed = Color(0xFFB5473F),
-    MutedSageGreen = Color(0xFF5A8F6B),
-    GlassBorderFocused = Color(0xFF5C7C99).copy(alpha = 0.6f),
-    Danger = Color(0xFFB5473F),
-    Warning = Color(0xFFC97B4A),
-    Success = Color(0xFF5A8F6B),
-    CarmineRed = Color(0xFFB5473F),
-    AccentGreen = Color(0xFF5A8F6B),
-    AccentAmber = Color(0xFFC97B4A),
-    SurfaceElevated = Color(0xFF16191D),
-    TextPrimary = Color(0xFFE8EAED),
-    TextSecondary = Color(0xFF9BA1A8),
-    TextTertiary = Color(0xFF5C6169)
+    GlassFill = Color(0xFF22262E),
+    GlassBorder = Color.White.copy(alpha = 0.09f),
+    GlassFallbackFill = Color(0xFF1E2228),
+    TitaniumBlue = Color(0xFF5C8DE6),
+    DesaturatedTeal = Color(0xFF427A7A),
+    MutedRust = Color(0xFFD4834E),
+    MutedBrickRed = Color(0xFFE05347),
+    MutedSageGreen = Color(0xFF4EAA78),
+    GlassBorderFocused = Color(0xFF5C8DE6).copy(alpha = 0.6f),
+    Danger = Color(0xFFE05347),
+    Warning = Color(0xFFE69A38),
+    Success = Color(0xFF4EAA78),
+    CarmineRed = Color(0xFFE05347),
+    AccentGreen = Color(0xFF4EAA78),
+    AccentAmber = Color(0xFFE69A38),
+    SurfaceElevated = Color(0xFF22262E),
+    TextPrimary = Color(0xFFF1F3F5),
+    TextSecondary = Color(0xFFA6ACB5),
+    TextTertiary = Color(0xFF6E7580),
+    // Neumorphic Values (Dark Neu)
+    NeuBackground = Color(0xFF1E2228),
+    NeuLightShadow = Color(0xFF2C333E),
+    NeuDarkShadow = Color(0xFF0F1216),
+    NeuSurfaceRaised = Color(0xFF21252C),
+    NeuSurfaceSunken = Color(0xFF181B20),
+    NeuRaisedGradient = Brush.linearGradient(
+        colors = listOf(Color(0xFF262B34), Color(0xFF1B1F25))
+    ),
+    NeuSunkenGradient = Brush.linearGradient(
+        colors = listOf(Color(0xFF16181D), Color(0xFF232830))
+    ),
+    NeuBorderHighlight = Color.White.copy(alpha = 0.10f),
+    NeuBorderShadow = Color.Black.copy(alpha = 0.40f)
 )
 
 val AmoledPalette = LineaColorPalette(
     isLight = false,
-    BackgroundTop = Color(0xFF000000),
-    BackgroundBottom = Color(0xFF000000),
-    BackgroundDeep = Color(0xFF000000),
-    BackgroundElevated = Color(0xFF0A0A0A),
+    BackgroundTop = Color(0xFF0C0E12),
+    BackgroundBottom = Color(0xFF08090C),
+    BackgroundDeep = Color(0xFF050608),
+    BackgroundElevated = Color(0xFF14171E),
     BackgroundGradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF000000), Color(0xFF0A0A0A))
+        colors = listOf(Color(0xFF0C0E12), Color(0xFF08090C))
     ),
-    GlassFill = Color.White.copy(alpha = 0.06f),
-    GlassBorder = Color.White.copy(alpha = 0.16f),
-    GlassFallbackFill = Color(0xFF0D0D0D),
-    TitaniumBlue = Color(0xFF6B8FA8),
-    DesaturatedTeal = Color(0xFF3E5C5C),
-    MutedRust = Color(0xFFC97B4A),
-    MutedBrickRed = Color(0xFFB5473F),
-    MutedSageGreen = Color(0xFF5A8F6B),
-    GlassBorderFocused = Color(0xFF6B8FA8).copy(alpha = 0.7f),
-    Danger = Color(0xFFB5473F),
-    Warning = Color(0xFFC97B4A),
-    Success = Color(0xFF5A8F6B),
-    CarmineRed = Color(0xFFB5473F),
-    AccentGreen = Color(0xFF5A8F6B),
-    AccentAmber = Color(0xFFC97B4A),
-    SurfaceElevated = Color(0xFF0D0D0D),
+    GlassFill = Color(0xFF111419),
+    GlassBorder = Color.White.copy(alpha = 0.08f),
+    GlassFallbackFill = Color(0xFF0C0E12),
+    TitaniumBlue = Color(0xFF6A9CE8),
+    DesaturatedTeal = Color(0xFF457E7E),
+    MutedRust = Color(0xFFD98852),
+    MutedBrickRed = Color(0xFFE25A4E),
+    MutedSageGreen = Color(0xFF55B380),
+    GlassBorderFocused = Color(0xFF6A9CE8).copy(alpha = 0.7f),
+    Danger = Color(0xFFE25A4E),
+    Warning = Color(0xFFE89E3C),
+    Success = Color(0xFF55B380),
+    CarmineRed = Color(0xFFE25A4E),
+    AccentGreen = Color(0xFF55B380),
+    AccentAmber = Color(0xFFE89E3C),
+    SurfaceElevated = Color(0xFF14171E),
     TextPrimary = Color(0xFFFFFFFF),
-    TextSecondary = Color(0xFFA0A6AD),
-    TextTertiary = Color(0xFF666C73)
+    TextSecondary = Color(0xFFA6ACB5),
+    TextTertiary = Color(0xFF6E7580),
+    // Neumorphic Values (Amoled Deep Neu)
+    NeuBackground = Color(0xFF0C0E12),
+    NeuLightShadow = Color(0xFF1C212A),
+    NeuDarkShadow = Color(0xFF020304),
+    NeuSurfaceRaised = Color(0xFF111419),
+    NeuSurfaceSunken = Color(0xFF07080A),
+    NeuRaisedGradient = Brush.linearGradient(
+        colors = listOf(Color(0xFF161A21), Color(0xFF0C0E12))
+    ),
+    NeuSunkenGradient = Brush.linearGradient(
+        colors = listOf(Color(0xFF050608), Color(0xFF13161C))
+    ),
+    NeuBorderHighlight = Color.White.copy(alpha = 0.08f),
+    NeuBorderShadow = Color.Black.copy(alpha = 0.60f)
 )
 
 val LightPalette = LineaColorPalette(
     isLight = true,
-    BackgroundTop = Color(0xFFF4F6F9),
-    BackgroundBottom = Color(0xFFE2E7ED),
-    BackgroundDeep = Color(0xFFF4F6F9),
-    BackgroundElevated = Color(0xFFFFFFFF),
+    BackgroundTop = Color(0xFFE6EBF2),
+    BackgroundBottom = Color(0xFFDCE2E9),
+    BackgroundDeep = Color(0xFFD5DCE4),
+    BackgroundElevated = Color(0xFFE4E9F0),
     BackgroundGradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFFF4F6F9), Color(0xFFE2E7ED))
+        colors = listOf(Color(0xFFE6EBF2), Color(0xFFDCE2E9))
     ),
-    GlassFill = Color.White.copy(alpha = 0.65f),
-    GlassBorder = Color.White.copy(alpha = 0.90f),
-    GlassFallbackFill = Color(0xFFF1F5F9),
-    TitaniumBlue = Color(0xFF2C5E8A),
-    DesaturatedTeal = Color(0xFF2B5B5B),
-    MutedRust = Color(0xFFB45309),
-    MutedBrickRed = Color(0xFFDC2626),
-    MutedSageGreen = Color(0xFF16A34A),
-    GlassBorderFocused = Color(0xFF2C5E8A).copy(alpha = 0.7f),
-    Danger = Color(0xFFDC2626),
-    Warning = Color(0xFFB45309),
-    Success = Color(0xFF16A34A),
-    CarmineRed = Color(0xFFDC2626),
-    AccentGreen = Color(0xFF16A34A),
-    AccentAmber = Color(0xFFB45309),
-    SurfaceElevated = Color(0xFFFFFFFF),
-    TextPrimary = Color(0xFF0F172A),
-    TextSecondary = Color(0xFF475569),
-    TextTertiary = Color(0xFF94A3B8)
+    GlassFill = Color(0xFFE0E5EC),
+    GlassBorder = Color.White.copy(alpha = 0.65f),
+    GlassFallbackFill = Color(0xFFE0E5EC),
+    TitaniumBlue = Color(0xFF2B5B92),
+    DesaturatedTeal = Color(0xFF2A6B6B),
+    MutedRust = Color(0xFFBA5D1A),
+    MutedBrickRed = Color(0xFFD32F2F),
+    MutedSageGreen = Color(0xFF2E7D32),
+    GlassBorderFocused = Color(0xFF2B5B92).copy(alpha = 0.7f),
+    Danger = Color(0xFFD32F2F),
+    Warning = Color(0xFFED6C02),
+    Success = Color(0xFF2E7D32),
+    CarmineRed = Color(0xFFD32F2F),
+    AccentGreen = Color(0xFF2E7D32),
+    AccentAmber = Color(0xFFED6C02),
+    SurfaceElevated = Color(0xFFE2E7EE),
+    TextPrimary = Color(0xFF242A36),
+    TextSecondary = Color(0xFF5C6675),
+    TextTertiary = Color(0xFF8C96A5),
+    // Neumorphic Values (Light Soft Ceramic)
+    NeuBackground = Color(0xFFE0E5EC),
+    NeuLightShadow = Color.White.copy(alpha = 0.90f),
+    NeuDarkShadow = Color(0xFFA3B1C6).copy(alpha = 0.55f),
+    NeuSurfaceRaised = Color(0xFFE2E7EE),
+    NeuSurfaceSunken = Color(0xFFD8DFE7),
+    NeuRaisedGradient = Brush.linearGradient(
+        colors = listOf(Color(0xFFF0F4F8), Color(0xFFDCE2EA))
+    ),
+    NeuSunkenGradient = Brush.linearGradient(
+        colors = listOf(Color(0xFFD5DCE5), Color(0xFFEDF2F7))
+    ),
+    NeuBorderHighlight = Color.White.copy(alpha = 0.85f),
+    NeuBorderShadow = Color(0xFFA3B1C6).copy(alpha = 0.35f)
 )
 
 object LineaColors {
@@ -200,6 +252,34 @@ object LineaColors {
     var TextTertiary by mutableStateOf(DarkPalette.TextTertiary)
         internal set
 
+    // Neumorphic Tokens
+    var NeuBackground by mutableStateOf(DarkPalette.NeuBackground)
+        internal set
+
+    var NeuLightShadow by mutableStateOf(DarkPalette.NeuLightShadow)
+        internal set
+
+    var NeuDarkShadow by mutableStateOf(DarkPalette.NeuDarkShadow)
+        internal set
+
+    var NeuSurfaceRaised by mutableStateOf(DarkPalette.NeuSurfaceRaised)
+        internal set
+
+    var NeuSurfaceSunken by mutableStateOf(DarkPalette.NeuSurfaceSunken)
+        internal set
+
+    var NeuRaisedGradient by mutableStateOf(DarkPalette.NeuRaisedGradient)
+        internal set
+
+    var NeuSunkenGradient by mutableStateOf(DarkPalette.NeuSunkenGradient)
+        internal set
+
+    var NeuBorderHighlight by mutableStateOf(DarkPalette.NeuBorderHighlight)
+        internal set
+
+    var NeuBorderShadow by mutableStateOf(DarkPalette.NeuBorderShadow)
+        internal set
+
     fun updatePalette(palette: LineaColorPalette) {
         isLight = palette.isLight
         BackgroundTop = palette.BackgroundTop
@@ -226,5 +306,14 @@ object LineaColors {
         TextPrimary = palette.TextPrimary
         TextSecondary = palette.TextSecondary
         TextTertiary = palette.TextTertiary
+        NeuBackground = palette.NeuBackground
+        NeuLightShadow = palette.NeuLightShadow
+        NeuDarkShadow = palette.NeuDarkShadow
+        NeuSurfaceRaised = palette.NeuSurfaceRaised
+        NeuSurfaceSunken = palette.NeuSurfaceSunken
+        NeuRaisedGradient = palette.NeuRaisedGradient
+        NeuSunkenGradient = palette.NeuSunkenGradient
+        NeuBorderHighlight = palette.NeuBorderHighlight
+        NeuBorderShadow = palette.NeuBorderShadow
     }
 }

@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.NeumorphicWell
+import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -95,23 +97,28 @@ fun HistoryScreen(
                 )
             }
 
-            // View Mode Toggle Pill (Feed vs Sessions)
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(LineaColors.GlassFill)
-                    .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(20.dp))
-                    .clickable { viewModel.toggleViewMode() }
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            // View Mode Toggle Pill (Feed vs Sessions) - Neumorphic debossed slider
+            NeumorphicWell(
+                shape = RoundedCornerShape(20.dp),
+                depth = 2.dp
             ) {
                 Row(
+                    modifier = Modifier.padding(3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (historyViewMode == "FEED") LineaColors.TitaniumBlue else Color.Transparent)
+                            .then(
+                                if (historyViewMode == "FEED") {
+                                    Modifier.neumorphic(
+                                        shape = RoundedCornerShape(16.dp),
+                                        elevation = 2.5.dp,
+                                        surfaceColor = LineaColors.TitaniumBlue
+                                    )
+                                } else Modifier
+                            )
+                            .clickable { if (historyViewMode != "FEED") viewModel.toggleViewMode() }
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
@@ -122,8 +129,16 @@ fun HistoryScreen(
                     }
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (historyViewMode == "SESSIONS") LineaColors.TitaniumBlue else Color.Transparent)
+                            .then(
+                                if (historyViewMode == "SESSIONS") {
+                                    Modifier.neumorphic(
+                                        shape = RoundedCornerShape(16.dp),
+                                        elevation = 2.5.dp,
+                                        surfaceColor = LineaColors.TitaniumBlue
+                                    )
+                                } else Modifier
+                            )
+                            .clickable { if (historyViewMode != "SESSIONS") viewModel.toggleViewMode() }
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
@@ -138,49 +153,55 @@ fun HistoryScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { viewModel.onSearchQueryChange(it) },
-            placeholder = {
-                Text(
-                    text = "Search by name, number, or date...",
-                    style = LineaTypography.bodyMedium,
-                    color = LineaColors.TextTertiary
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = null,
-                    tint = LineaColors.TextSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                        Icon(
-                            imageVector = Icons.Filled.Clear,
-                            contentDescription = "Clear",
-                            tint = LineaColors.TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            },
+        // Search Bar (with text filtering) in a debossed Neumorphic well
+        NeumorphicWell(
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
             shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = LineaColors.GlassFill,
-                unfocusedContainerColor = LineaColors.GlassFill,
-                focusedBorderColor = LineaColors.TitaniumBlue,
-                unfocusedBorderColor = LineaColors.GlassBorder,
-                focusedTextColor = LineaColors.TextPrimary,
-                unfocusedTextColor = LineaColors.TextPrimary
+            depth = 2.5.dp
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.onSearchQueryChange(it) },
+                placeholder = {
+                    Text(
+                        text = "Search by name, number, or date...",
+                        style = LineaTypography.bodyMedium,
+                        color = LineaColors.TextTertiary
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = null,
+                        tint = LineaColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Filled.Clear,
+                                contentDescription = "Clear",
+                                tint = LineaColors.TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedTextColor = LineaColors.TextPrimary,
+                    unfocusedTextColor = LineaColors.TextPrimary
+                )
             )
-        )
+        }
 
         // Pinned Contacts Carousel (if present and not searching)
         if (pinnedContacts.isNotEmpty() && searchQuery.isEmpty()) {
@@ -243,12 +264,10 @@ fun HistoryScreen(
                 val isSelected = filter == selectedFilter
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(if (isSelected) LineaColors.TitaniumBlue else LineaColors.GlassFill)
-                        .border(
-                            LineaDimensions.HairlineBorder,
-                            if (isSelected) LineaColors.TitaniumBlue else LineaColors.GlassBorder,
-                            RoundedCornerShape(20.dp)
+                        .neumorphic(
+                            shape = RoundedCornerShape(20.dp),
+                            elevation = if (isSelected) 3.dp else 2.dp,
+                            surfaceColor = if (isSelected) LineaColors.TitaniumBlue else LineaColors.NeuSurfaceRaised
                         )
                         .clickable { viewModel.onFilterSelect(filter) }
                         .padding(horizontal = 14.dp, vertical = 6.dp),

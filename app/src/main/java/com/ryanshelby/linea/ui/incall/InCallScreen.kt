@@ -73,6 +73,7 @@ import com.ryanshelby.linea.telecom.LineaAudioRoute
 import com.ryanshelby.linea.telecom.LineaCallState
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.components.PreCallNoteBanner
+import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.incall.components.ContactPosterBackground
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
@@ -619,22 +620,6 @@ private fun InCallActionButton(
     val reduceAnimations = LocalReduceAnimations.current
 
     val scale = if (isPressed && !reduceAnimations && enabled) 0.90f else 1.0f
-    val backgroundColor by animateColorAsState(
-        targetValue = when {
-            !enabled -> LineaColors.GlassFill.copy(alpha = 0.25f)
-            isActive -> activeColor.copy(alpha = 0.28f)
-            else -> LineaColors.GlassFill
-        },
-        label = "ButtonBgColor"
-    )
-    val borderColor by animateColorAsState(
-        targetValue = when {
-            !enabled -> LineaColors.GlassBorder.copy(alpha = 0.25f)
-            isActive -> activeColor.copy(alpha = 0.85f)
-            else -> LineaColors.GlassBorder
-        },
-        label = "ButtonBorderColor"
-    )
     val iconTint by animateColorAsState(
         targetValue = when {
             !enabled -> LineaColors.TextSecondary.copy(alpha = 0.35f)
@@ -643,6 +628,14 @@ private fun InCallActionButton(
         },
         label = "ButtonIconTint"
     )
+
+    val currentElevation = if (isActive || isPressed) 1.dp else 4.dp
+    val surfaceColor = when {
+        !enabled -> LineaColors.NeuSurfaceRaised.copy(alpha = 0.4f)
+        isActive -> activeColor.copy(alpha = 0.22f)
+        isPressed -> LineaColors.NeuSurfaceSunken
+        else -> LineaColors.NeuSurfaceRaised
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -662,24 +655,17 @@ private fun InCallActionButton(
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            backgroundColor,
-                            backgroundColor.copy(alpha = 0.4f)
-                        )
-                    )
+                .neumorphic(
+                    shape = CircleShape,
+                    elevation = currentElevation,
+                    isPressed = isPressed,
+                    isSunken = isActive,
+                    surfaceColor = surfaceColor
                 )
-                .border(
-                    width = 1.2.dp,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            borderColor,
-                            borderColor.copy(alpha = 0.35f)
-                        )
-                    ),
-                    shape = CircleShape
+                .then(
+                    if (isActive) {
+                        Modifier.border(1.5.dp, activeColor.copy(alpha = 0.85f), CircleShape)
+                    } else Modifier
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -718,29 +704,18 @@ private fun EndCallButton(
     val reduceAnimations = LocalReduceAnimations.current
 
     val scale = if (isPressed && !reduceAnimations) 0.92f else 1.0f
+    val currentElevation = if (isPressed) 2.dp else 7.dp
+    val buttonColor = if (isPressed) Color(0xFF8B2527) else LineaColors.MutedBrickRed
 
     Box(
         modifier = modifier
             .scale(scale)
             .size(72.dp)
-            .clip(CircleShape)
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        LineaColors.Danger.copy(alpha = 0.95f),
-                        LineaColors.MutedBrickRed.copy(alpha = 0.85f)
-                    )
-                )
-            )
-            .border(
-                width = 1.5.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.5f),
-                        LineaColors.Danger.copy(alpha = 0.3f)
-                    )
-                ),
-                shape = CircleShape
+            .neumorphic(
+                shape = CircleShape,
+                elevation = currentElevation,
+                isSunken = isPressed,
+                surfaceColor = buttonColor
             )
             .clickable(
                 interactionSource = interactionSource,
