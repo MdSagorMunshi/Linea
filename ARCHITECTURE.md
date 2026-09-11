@@ -12,7 +12,7 @@ LINEA is structured according to **Clean Architecture** and **Unidirectional Dat
 ┌─────────────────────────────────────────────────────────────┐
 │                    PRESENTATION LAYER                       │
 │    Jetpack Compose UI • ViewModels • Navigation Graph       │
-│    (LineaTheme, FrostedGlassBox, Scrubber, Tabular Figures) │
+│    (LineaTheme, NeumorphicEngine, Scrubber, Tabular Figures)│
 └──────────────────────────────┬──────────────────────────────┘
                                │ StateFlow / Events
 ┌──────────────────────────────▼──────────────────────────────┐
@@ -82,16 +82,19 @@ The persistence layer is powered by **Room 2.6.1** over SQLite (`linea_database.
 
 ---
 
-## 3. UI/UX Design System: Industrial Glassmorphism
+## 3. UI/UX Design System: Tactile Neumorphism (Soft UI)
 
-LINEA does not use standard Material palettes. All composables utilize custom design primitives defined in `ui/theme/` and `ui/incall/components/`:
+LINEA does not use standard Material palettes or flat surfaces. All composables utilize a custom Neumorphic physics engine defined in `ui/components/Neumorphic.kt` and `ui/theme/`:
 
-- **Frosted Surfaces**: `FrostedGlassBox` overlays a subtle translucent surface (`Color.White.copy(alpha = 0.08f)`) with a hairline titanium border (`Color.White.copy(alpha = 0.12f)`).
+- **Dual-Shadow Light Engine**: `Modifier.neumorphic()`, `NeumorphicCard`, `NeumorphicWell`, and `NeumorphicButton` harness Android's native graphics canvas `Paint.setShadowLayer` to draw opposing directional specular highlights (`NeuLightShadow`, top-left) and ambient occlusion shadows (`NeuDarkShadow`, bottom-right) for authentic 3D physical depth.
+- **Physical Key Depression**: Dialpad digit keys physically depress from raised extruded surfaces into sunken debossed wells on touch with spring compression physics (`ScaleCompressSpring`) and micro-haptic ticks.
+- **Debossed Sunken Wells**: Search bars, digit entry fields, and active navigation tab indicators use debossed inner shadows (`NeuSurfaceSunken`) to establish clear tactile interaction hierarchy.
+- **Extruded Action Surfaces**: Floating navigation pill, contact cards, call history rows, and bottom sheets are extruded physical bodies with rim specular highlight borders.
 - **Tabular Figures**: All durations, phone numbers, and time counters explicitly use `FontFeature("tnum")` to prevent horizontal jitter during active call duration increments.
 - **Dynamic Glows & Ring Auras**: Dialing and incoming call states render multi-ring radial expanding pulses reflecting caller state.
-- **Live Audio Waveform**: Multi-harmonic 32-bar fluid liquid glass visualizer (`LiveAudioWaveform`) reacting in real time to speech, mute flatlines, holding pulses, and recording glows.
-- **Full-Screen Frosted Contact Posters**: Gaussian photo blur backdrop (`ContactPosterBackground`) with subtle breathing scale animations, backed by a 16MB in-memory LRU cache.
-- **Tactile Call Controls**: Custom circular glass action buttons with spring micro-press physics and glowing state borders.
-- **Quick Decline Action Sheet**: Swipe-up frosted glass bottom sheet (`QuickDeclineSheet`) with 1-tap quick SMS preset chips and direct custom message input.
-- **Haptic Audio Dialpad Profiles**: Selectable acoustic and tactile profiles (`Titanium Glass`, `Mechanical Relay`, `Stealth`, `Classic`) adjusting both DTMF tone parameters and vibration effect primitives.
+- **Full-Screen Cinematic Contact Posters**: Gaussian photo blur backdrop (`ContactPosterBackground`) with subtle breathing scale animations, backed by a 16MB in-memory LRU cache.
+- **Tactile Call Controls**: Custom circular Neumorphic action buttons with physical depression into debossed wells and illuminated state rings.
+- **Quick Decline Neumorphic Action Sheet**: Swipe-up extruded bottom sheet (`QuickDeclineSheet`) with debossed message input wells and 1-tap quick SMS preset chips.
+- **Haptic Audio Dialpad Profiles**: Selectable acoustic and tactile profiles (`Tactile Neumorphic`, `Mechanical Relay`, `Stealth`, `Classic`) adjusting DTMF tone parameters and vibration effect primitives.
+
 

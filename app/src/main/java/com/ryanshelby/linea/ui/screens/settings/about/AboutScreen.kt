@@ -62,7 +62,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.R
-import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.NeumorphicCard
+import com.ryanshelby.linea.ui.components.NeumorphicWell
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -223,9 +224,10 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Hero Brand Identity Card
-            FrostedGlassBox(
+            NeumorphicCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp)
+                shape = RoundedCornerShape(24.dp),
+                elevation = 6.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -307,6 +309,8 @@ fun AboutScreen(
                         FeatureChip(label = "Zero Telemetry")
                         Spacer(modifier = Modifier.width(6.dp))
                         FeatureChip(label = "AES-256 Vault")
+                        Spacer(modifier = Modifier.width(6.dp))
+                        FeatureChip(label = "Tactile Soft UI")
                     }
                 }
             }
@@ -314,9 +318,10 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Developer Info Card
-            FrostedGlassBox(
+            NeumorphicCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(20.dp),
+                elevation = 5.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -370,46 +375,49 @@ fun AboutScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Contact Email Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LineaColors.SurfaceElevated.copy(alpha = 0.6f))
-                            .border(1.dp, LineaColors.GlassBorder, RoundedCornerShape(12.dp))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Contact Email Row (Sunken Neumorphic Well)
+                    NeumorphicWell(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        depth = 2.dp
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Email,
-                            contentDescription = null,
-                            tint = LineaColors.TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Official Support Email",
-                                style = LineaTypography.labelSmall,
-                                color = LineaColors.TextTertiary
-                            )
-                            Text(
-                                text = SUPPORT_EMAIL,
-                                style = LineaTypography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = LineaColors.TextPrimary
-                            )
-                        }
-                        IconButton(
-                            onClick = { copyToClipboard(SUPPORT_EMAIL, "Support email copied to clipboard") },
-                            modifier = Modifier.size(36.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.ContentCopy,
-                                contentDescription = "Copy Email",
+                                imageVector = Icons.Filled.Email,
+                                contentDescription = null,
                                 tint = LineaColors.TextSecondary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Official Support Email",
+                                    style = LineaTypography.labelSmall,
+                                    color = LineaColors.TextTertiary
+                                )
+                                Text(
+                                    text = SUPPORT_EMAIL,
+                                    style = LineaTypography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = LineaColors.TextPrimary
+                                )
+                            }
+                            IconButton(
+                                onClick = { copyToClipboard(SUPPORT_EMAIL, "Support email copied to clipboard") },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ContentCopy,
+                                    contentDescription = "Copy Email",
+                                    tint = LineaColors.TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
@@ -444,9 +452,10 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // FOSS & Source Code Card
-            FrostedGlassBox(
+            NeumorphicCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(20.dp),
+                elevation = 5.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -500,47 +509,50 @@ fun AboutScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Repo Link Box
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LineaColors.SurfaceElevated.copy(alpha = 0.6f))
-                            .border(1.dp, LineaColors.GlassBorder, RoundedCornerShape(12.dp))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Repo Link Box (Sunken Neumorphic Well)
+                    NeumorphicWell(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        depth = 2.dp
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Code,
-                            contentDescription = null,
-                            tint = LineaColors.TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Git Repository URL",
-                                style = LineaTypography.labelSmall,
-                                color = LineaColors.TextTertiary
-                            )
-                            Text(
-                                text = FOSS_REPO_URL,
-                                style = LineaTypography.bodySmall,
-                                fontWeight = FontWeight.Normal,
-                                color = LineaColors.TextPrimary,
-                                maxLines = 1
-                            )
-                        }
-                        IconButton(
-                            onClick = { copyToClipboard(FOSS_REPO_URL, "FOSS repository link copied to clipboard") },
-                            modifier = Modifier.size(36.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.ContentCopy,
-                                contentDescription = "Copy Repo URL",
+                                imageVector = Icons.Filled.Code,
+                                contentDescription = null,
                                 tint = LineaColors.TextSecondary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Git Repository URL",
+                                    style = LineaTypography.labelSmall,
+                                    color = LineaColors.TextTertiary
+                                )
+                                Text(
+                                    text = FOSS_REPO_URL,
+                                    style = LineaTypography.bodySmall,
+                                    fontWeight = FontWeight.Normal,
+                                    color = LineaColors.TextPrimary,
+                                    maxLines = 1
+                                )
+                            }
+                            IconButton(
+                                onClick = { copyToClipboard(FOSS_REPO_URL, "FOSS repository link copied to clipboard") },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ContentCopy,
+                                    contentDescription = "Copy Repo URL",
+                                    tint = LineaColors.TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
@@ -580,7 +592,7 @@ fun AboutScreen(
                                 .weight(1f)
                                 .height(44.dp),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, LineaColors.GlassBorder),
+                            border = BorderStroke(1.dp, LineaColors.NeuBorderHighlight.copy(alpha = 0.35f)),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = LineaColors.TextPrimary
                             )
@@ -603,9 +615,10 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Architecture & Privacy Pillars Card
-            FrostedGlassBox(
+            NeumorphicCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(20.dp),
+                elevation = 5.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -627,6 +640,14 @@ fun AboutScreen(
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
+
+                    ArchitectureItem(
+                        icon = Icons.Filled.Security,
+                        title = "Tactile Neumorphism (Soft UI)",
+                        description = "Physical dual-shadow light physics, key depressions, and debossed sunken wells."
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     ArchitectureItem(
                         icon = Icons.Filled.VerifiedUser,
@@ -663,9 +684,10 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // System Diagnostics Quick Copy Card
-            FrostedGlassBox(
+            NeumorphicCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(20.dp),
+                elevation = 5.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -692,6 +714,7 @@ fun AboutScreen(
                     DiagnosticRow(label = "Target SDK", value = targetSdkLabel)
                     DiagnosticRow(label = "Running OS", value = runningOsLabel)
                     DiagnosticRow(label = "Minimum SDK", value = minSdkLabel)
+                    DiagnosticRow(label = "UI Design System", value = "Tactile Neumorphism (Soft UI)")
                     DiagnosticRow(label = "Architecture", value = "Jetpack Compose • Room • Hilt • Telecom")
                     DiagnosticRow(label = "License", value = "Open Source (FOSS)")
 
@@ -703,7 +726,7 @@ fun AboutScreen(
                             .fillMaxWidth()
                             .height(42.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, LineaColors.GlassBorder),
+                        border = BorderStroke(1.dp, LineaColors.NeuBorderHighlight.copy(alpha = 0.35f)),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = LineaColors.TextPrimary
                         )
@@ -754,7 +777,7 @@ private fun FeatureChip(label: String) {
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .background(LineaColors.SurfaceElevated)
-            .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, RoundedCornerShape(8.dp))
+            .border(LineaDimensions.HairlineBorder, LineaColors.NeuBorderHighlight.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
         Text(

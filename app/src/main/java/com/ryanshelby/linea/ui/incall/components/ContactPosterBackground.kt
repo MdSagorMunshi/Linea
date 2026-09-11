@@ -92,7 +92,7 @@ fun ContactPosterBackground(
                         )
                     )
             ) {
-                // Architectural Frosted Monogram Watermark
+                // Architectural Neumorphic Monogram Watermark
                 val initial = displayName?.trim()?.firstOrNull()?.uppercaseChar()?.toString() ?: "L"
                 Text(
                     text = initial,

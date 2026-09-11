@@ -33,9 +33,9 @@ import com.ryanshelby.linea.ui.theme.LineaTypography
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.vector.ImageVector
 
-/** A compact, app-styled replacement for platform Material permission alerts. */
+/** Tactile Neumorphic replacement for platform Material permission alerts. */
 @Composable
-fun LiquidGlassPermissionDialog(
+fun NeumorphicPermissionDialog(
     title: String,
     message: String,
     actionLabel: String,
@@ -49,15 +49,12 @@ fun LiquidGlassPermissionDialog(
         onDismissRequest = { if (dismissible) onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        FrostedGlassBox(
+        NeumorphicCard(
             modifier = Modifier
                 .fillMaxWidth(0.90f)
                 .clip(RoundedCornerShape(28.dp)),
             shape = RoundedCornerShape(28.dp),
-            borderWidth = 1.dp,
-            borderColor = LineaColors.GlassBorderFocused,
-            fillColor = LineaColors.GlassFill.copy(alpha = 0.22f),
-            fallbackFillColor = LineaColors.SurfaceElevated
+            elevation = 6.dp
         ) {
             Column(
                 modifier = Modifier
@@ -121,4 +118,28 @@ fun LiquidGlassPermissionDialog(
             }
         }
     }
+}
+
+/** Backwards-compatible alias for [NeumorphicPermissionDialog]. */
+@Composable
+fun LiquidGlassPermissionDialog(
+    title: String,
+    message: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+    dismissible: Boolean,
+    onDismiss: () -> Unit = {},
+    dismissLabel: String? = null,
+    icon: ImageVector = Icons.Filled.Security
+) {
+    NeumorphicPermissionDialog(
+        title = title,
+        message = message,
+        actionLabel = actionLabel,
+        onAction = onAction,
+        dismissible = dismissible,
+        onDismiss = onDismiss,
+        dismissLabel = dismissLabel,
+        icon = icon
+    )
 }

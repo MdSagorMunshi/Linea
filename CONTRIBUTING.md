@@ -19,9 +19,9 @@ Every feature and contribution submitted to LINEA must strictly adhere to our co
    - Never bypass native Android telephony contracts.
    - Calling features must integrate through Android's `TelecomManager`, `InCallService`, `ConnectionService`, and `PhoneAccount` APIs.
 
-3. **Industrial Glassmorphic Aesthetics**:
-   - UI contributions must follow the established design language: deep graphite background (`#0D0F12` to `#1A1D21`), frosted glass surfaces (8% fill, 12% hairline borders), tabular figures (`FontFeature("tnum")`), and designated status accents.
-   - Avoid generic Material Design themes or arbitrary colors.
+3. **Tactile Neumorphic (Soft UI) Aesthetics**:
+   - UI contributions must follow the established design language: deep graphite background (`#181B20` to `#1E2228`), extruded physical surfaces with dual directional shadows (opposing top-left light highlight and bottom-right shadow), debossed sunken wells for inputs and active selections, tabular figures (`FontFeature("tnum")`), and designated status accents.
+   - Avoid generic Material Design themes, flat borders, or arbitrary colors.
 
 4. **User Privacy & Security**:
    - Contact numbers and call records must remain encrypted and isolated.

@@ -179,7 +179,7 @@ fun FloatingGlassNavBar(
             )
         }
 
-        // Main morphing glass container
+        // Main morphing Neumorphic container
         Box(
             modifier = Modifier
                 .width(navWidth)
@@ -355,7 +355,7 @@ fun FloatingGlassNavBar(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // Glass surface with frosted background blur and translucent border
+            // Tactile Neumorphic surface with dual directional shadows
             FrostedGlassBox(
                 modifier = Modifier
                     .fillMaxWidth()

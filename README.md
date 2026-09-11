@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>The Sovereign, Privacy-Preserving Cellular Dialer for Android 17 (API 37)</strong><br />
-  <em>Industrial Glassmorphic Aesthetics • Native Telecom Framework • 100% On-Device • Zero Cloud Dependency</em>
+  <em>Tactile Neumorphic (Soft UI) Aesthetics • Native Telecom Framework • 100% On-Device • Zero Cloud Dependency</em>
 </p>
 
 <p align="center">
@@ -47,7 +47,7 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 ## Interface Showcase
 
 <p align="center">
-  <em>An industrial glassmorphic visual language featuring deep graphite gradients, frosted titanium panels, and monospaced tabular figures.</em>
+  <em>A tactile Neumorphic (Soft UI) visual language featuring dual-shadow extruded surfaces, debossed wells, and monospaced tabular figures.</em>
 </p>
 
 | T9 Smart Dialpad | Active In-Call Screen | Contacts Directory | Contact Profile & Controls |
@@ -99,7 +99,7 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 - **PIN-Protected Safe**: Keep confidential contacts and sensitive call notes in a private vault hidden from public directory views.
 - **Hardware-Backed AES-256-GCM**: Cryptographic master keys are stored securely inside Android's hardware `AndroidKeyStore`.
 
-### 8. Full-Screen Frosted Contact Posters
+### 8. Full-Screen Cinematic Contact Posters
 - **Cinematic Contact Backgrounds**: Renders full-screen blurred photo backdrops (`20.dp` Gaussian blur) with subtle breathing scale animations and vignette scrims.
 - **Zero-Latency In-Memory LRU**: Uses LINEA's native 16MB bitmap cache for 0ms transition delays.
 - **Architectural Fallback**: Monogram typographic watermarks for numbers without contact photos.
@@ -109,7 +109,7 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 
 ### 10. Haptic Audio Dialpad Profiles
 - **4 Selectable Acoustic & Tactile Profiles**:
-  - *Titanium Glass*: Crisp dual-micro clicks (`PRIMITIVE_CLICK`) with bright DTMF tones.
+  - *Tactile Neumorphic*: Crisp dual-micro clicks (`PRIMITIVE_CLICK`) with bright DTMF tones.
   - *Mechanical Relay*: Heavy tactile relay thump (`EFFECT_HEAVY_CLICK`) with classic relay acoustics.
   - *Stealth*: Subtle near-silent micro-vibrations with muted audio.
   - *Classic*: Standard Android dialpad feedback.
@@ -119,7 +119,7 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 - **Battery-Safe Sensor Lifecycle**: Sensors register strictly while the ringer is actively playing and immediately unregister when answered, rejected, or disconnected.
 - **User Toggleable**: Defaulted to OFF; independently manageable under Settings &rarr; Motion & Call Gestures.
 
-### 12. Quick Decline Glass Action Sheet
+### 12. Quick Decline Neumorphic Action Sheet
 - **Swipe-Up Rejection with SMS**: Quickly decline incoming calls with 1-tap pre-canned response chips or custom text replies directly sent via Android Telecom.
 
 ### 13. International Time Zone Preview & Country Detection
@@ -129,16 +129,18 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 
 ## Design System
 
-LINEA adheres strictly to an **Industrial Glassmorphic** aesthetic, engineered for visual clarity, low-light legibility, and OLED power efficiency:
+LINEA adheres strictly to a **Tactile Neumorphic (Soft UI)** aesthetic, engineered for physical dialer tactility, visual clarity, low-light legibility, and OLED power efficiency:
 
 | Design Token | Specification | Hex / Value | Visual Application |
 |---|---|---|---|
-| **Primary Background** | Dark Graphite Gradient | `#0D0F12` &rarr; `#1A1D21` | Edge-to-edge dark workspace |
-| **Glass Panel Surface** | Semi-transparent fill | `Color.White.copy(alpha = 0.08f)` | Cards, dialogs, bottom sheets |
-| **Glass Panel Border** | Precision hairline stroke | `1.dp`, `Color.White.copy(alpha = 0.12f)` | Precision bounding borders |
-| **Primary Accent** | Titanium Blue | `#5C7C99` | Primary action buttons, badges |
+| **Primary Background** | Dark Graphite Workspace | `#181B20` &rarr; `#1E2228` | Edge-to-edge dark canvas |
+| **Neumorphic Raised Surface** | Extruded physical body | `#1E2228` with dual directional shadows | Cards, dialogs, dialpad keys, sheets |
+| **Neumorphic Sunken Well** | Recessed debossed well | `#14171B` with inverted inner shadows | Search bars, input fields, active wells |
+| **Top-Left Specular Light** | Directional specular highlight | `Color.White.copy(alpha = 0.09f)` | Raised rim lighting & upper surface edge |
+| **Bottom-Right Ambient Shadow**| Ambient occlusion drop shadow | `Color.Black.copy(alpha = 0.65f)` | Natural 3D depth and elevation blur |
+| **Primary Accent** | Titanium Blue | `#5C8DE6` | Primary action buttons, badges |
 | **Success / Connect** | Sage Green | `#5A8F6B` | Call connect, incoming status |
-| **Danger / Block** | Rust / Brick Red | `#B5473F` / `#8C3B35` | End call, delete contact, block rules |
+| **Danger / Block** | Brick Red | `#B5473F` / `#8C3B35` | End call, delete contact, block rules |
 | **Warning / Pinned** | Amber Gold | `#D4A359` | Emergency overrides, pinned contacts |
 | **Numerics & Timers** | Tabular Figures | `fontFeatureSettings = "tnum"` | Dialpad digits, call duration timers |
 

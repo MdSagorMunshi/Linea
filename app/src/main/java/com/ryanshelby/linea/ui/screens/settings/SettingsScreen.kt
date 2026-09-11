@@ -462,7 +462,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = when (uiState.dialpadHapticProfile) {
-                        LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS -> "Titanium Glass: Crisp dual-micro clicks with high fidelity tones"
+                        LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS -> "Tactile Neumorphic: Crisp dual-micro clicks with high fidelity tones"
                         LineaPreferences.DialpadHapticProfile.MECHANICAL_RELAY -> "Mechanical Relay: Heavy tactile thump with classic relay acoustics"
                         LineaPreferences.DialpadHapticProfile.STEALTH -> "Stealth: Subtle near-silent haptics with muted tones"
                         else -> "Classic: Standard Android dialpad vibration"
@@ -477,7 +477,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     SelectionPill(
-                        label = "Titanium",
+                        label = "Tactile",
                         isSelected = uiState.dialpadHapticProfile == LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS,
                         onClick = { viewModel.setDialpadHapticProfile(LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS) }
                     )

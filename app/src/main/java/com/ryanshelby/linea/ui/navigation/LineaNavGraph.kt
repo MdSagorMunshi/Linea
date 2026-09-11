@@ -175,7 +175,7 @@ fun LineaNavGraph(
             )
         }
 
-        // Floating Glass Bottom Navigation Bar with collapsible circle, spring morphing & gestures
+        // Floating Neumorphic Bottom Navigation Bar with collapsible circle, spring morphing & gestures
         if (activeContactDashboardId == null && settingsSubScreen == null && !isPrivateSafeOpen) {
             FloatingGlassNavBar(
                 currentDestination = currentDestination,

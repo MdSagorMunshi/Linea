@@ -61,3 +61,29 @@ fun FrostedGlassBox(
         content = content
     )
 }
+
+/** Neumorphic Extruded Surface Box rendering tactile dual shadows. */
+@Composable
+fun NeumorphicSurfaceBox(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(LineaDimensions.PanelCornerRadius),
+    borderWidth: Dp = LineaDimensions.HairlineBorder,
+    borderColor: Color = LineaColors.NeuBorderHighlight,
+    fillColor: Color = LineaColors.NeuSurfaceRaised,
+    fallbackFillColor: Color = LineaColors.NeuSurfaceRaised,
+    elevation: Dp = 5.dp,
+    animateMaterialization: Boolean = true,
+    content: @Composable BoxScope.() -> Unit
+) {
+    FrostedGlassBox(
+        modifier = modifier,
+        shape = shape,
+        borderWidth = borderWidth,
+        borderColor = borderColor,
+        fillColor = fillColor,
+        fallbackFillColor = fallbackFillColor,
+        animateMaterialization = animateMaterialization,
+        content = content
+    )
+}
+

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0] - 2026-09-11
 
+### Added
+- **Tactile Neumorphism (Soft UI) Overhaul**:
+  - Replaced legacy UI styling with an architectural Neumorphic design system.
+  - Engineered dual-shadow lighting engine (`Modifier.neumorphic()`, `NeumorphicCard`, `NeumorphicWell`, `NeumorphicButton`) utilizing opposing top-left specular highlight and bottom-right ambient drop shadows via Android native canvas `Paint.setShadowLayer`.
+  - Dialpad digit keys depress physically into sunken wells on tap with tactile spring dynamics (`ScaleCompressSpring`) and haptic confirmation.
+  - Active call controls depress into illuminated debossed wells with active status rings.
+  - Replaced floating navigation bar with extruded pill container and sunken debossed active tab well.
+  - Restyled all search bars, filter chips, call history tiles, contact cards, and bottom sheets to extruded and debossed physical surfaces.
+
 ### Removed
 - **Call Recording & Accessibility Service**:
   - Completely removed call recording functionality, auto-record triggers, and associated accessibility services due to Fucking Android API restrictions and carrier-level audio silencing imposed by AOSP `AudioPolicyService`.
@@ -24,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped `versionCode` to `2` and `versionName` to `2.0.0`.
 - Updated version display across **Settings** footer and **About** screen to reflect v2.0.0.
 - Consolidated all v1.1.0 feature additions (waveform, contact posters, haptic profiles, gestures,
-  quick-decline sheet, international time-zone preview, and next-gen glassmorphism call UI) into the
+  quick-decline sheet, international time-zone preview, and next-gen call UI) into the
   official **v2.0.0 major release** on GitHub.
 
 ---
@@ -37,13 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Dynamically modulates continuous P-Q-R-S-T medical heartbeat waves based on real-time audio volume from caller and receiver.
   - Features an absolute straight horizontal line when silent (no audio detected) or muted/held.
   - Added user toggle in **Settings &rarr; Appearance & Motion** ("In-Call Heartbeat Waveform") defaulting to **ON**, allowing users on low-end devices to turn it off.
-- **Full-Screen Frosted Contact Posters**:
+- **Full-Screen Cinematic Contact Posters**:
   - Created `ContactPosterBackground` featuring photo blur (`20.dp`), subtle breathing scale animations, and layered vignette gradient scrims.
   - Integrated native `ContactPhotoHelper` 16MB LRU memory cache for 0-latency instant poster rendering with zero third-party dependencies.
   - Generative architectural monogram watermark fallback for contacts without stored photos.
 - **Haptic Audio Dialpad Profiles**:
   - Added 4 selectable dialpad sound & haptic profiles in Settings:
-    1. *Titanium Glass* (Default): Crisp dual-micro clicks (`PRIMITIVE_CLICK`) with high-fidelity DTMF tones.
+    1. *Tactile Neumorphic* (Default): Crisp dual-micro clicks (`PRIMITIVE_CLICK`) with high-fidelity DTMF tones.
     2. *Mechanical Relay*: Heavy tactile relay thump (`EFFECT_HEAVY_CLICK`) with prolonged acoustics.
     3. *Stealth*: Subtle near-silent micro-vibrations (`PRIMITIVE_TICK`) with muted tones.
     4. *Classic*: Standard legacy Android dialpad vibration.
@@ -53,15 +62,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *Proximity Wave*: Wave hand over the top proximity sensor to mute the ringer touch-free.
   - *Battery Safe Lifecycle*: Sensors strictly register on incoming ringing and instantly unregister upon answer, reject, or disconnect for 0% background battery drain.
   - Both gesture toggles are available under Settings &rarr; **Motion & Call Gestures** and default to **OFF**.
-- **Quick Decline Glass Action Sheet**:
-  - Implemented swipe-up next-gen frosted glass bottom sheet (`QuickDeclineSheet`) with 1-tap quick SMS preset chips and custom reply text input.
+- **Quick Decline Neumorphic Action Sheet**:
+  - Implemented swipe-up extruded bottom sheet (`QuickDeclineSheet`) with 1-tap quick SMS preset chips and custom reply text input.
   - Reject-with-message wired directly to Android Telecom `Call.reject(true, textMessage)`.
 - **International Time Zone Preview & Country Detection**:
   - Created `InternationalCountryHelper` with prefix mapping across 40+ countries.
-  - Live frosted pill on the dialpad displays country flag, destination name, live local time, and late-night warning badge (`🌙 Night in Country`).
+  - Live tactile pill on the dialpad displays country flag, destination name, live local time, and late-night warning badge (`🌙 Night in Country`).
   - Country and cellular badge displayed directly in incoming caller identity header.
-- **Next-Gen Call Screen Glassmorphism**:
-  - Overhauled both `IncomingCallScreen` and `InCallScreen` with layered frosted glass containers, glowing radial ring aura pulses, tactile spring physics, and high-contrast specular borders.
+- **Next-Gen Call Screen Architecture**:
+  - Overhauled both `IncomingCallScreen` and `InCallScreen` with tactile containers, glowing radial ring aura pulses, tactile spring physics, and high-contrast specular borders.
 
 ### Fixed
 - **Signature Ringtone Audio Stream Routing**:
@@ -76,8 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sovereign Android 17 Dialer Architecture**:
   - Built natively on Android Telecom framework (`InCallService`, `ConnectionService`, `CallScreeningService`).
   - Edge-to-edge support targeting Android 17 (API 37) with min SDK 30 (Android 11).
-- **Industrial Glassmorphic Design System**:
-  - Custom dark graphite gradients (`#0D0F12` &rarr; `#1A1D21`), frosted glass panels, hairline titanium borders, and tabular figures.
+- **Tactile Physical Design System**:
+  - Custom dark graphite workspace (`#181B20` &rarr; `#1E2228`), extruded panels, debossed wells, and tabular figures.
 - **Dual SIM Hardware Intelligence**:
   - Live cellular telemetry (carrier name, network technology `5G`/`LTE`, dBm signal strength).
   - Configurable SIM affinity per contact and auto-dial countdown timer.

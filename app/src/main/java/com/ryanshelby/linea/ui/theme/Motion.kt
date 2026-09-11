@@ -32,7 +32,7 @@ object LineaMotion {
         easing = FastOutSlowInEasing
     )
 
-    // 250ms materialization animation for frosted blur panels
+    // 250ms materialization animation for Neumorphic panels
     val PanelMaterializeDuration = 250
 
     fun <T> springOrFade(reduceAnimations: Boolean, springSpec: AnimationSpec<T>): AnimationSpec<T> {

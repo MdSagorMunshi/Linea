@@ -159,7 +159,7 @@ fun CallDetailSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Stats Row (Frosted glass card with Total Talk Time & Avg Duration)
+            // Stats Row (Neumorphic card with Total Talk Time & Avg Duration)
             FrostedGlassBox(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
