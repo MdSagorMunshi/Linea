@@ -1,9 +1,9 @@
 package com.ryanshelby.linea.ui.incall
 
-import android.view.MotionEvent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,16 +31,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.theme.LineaColors
-import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
+import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
 
+/**
+ * Transparent In-Call DTMF Keypad Bottom Sheet.
+ * Displays floating tactile Neumorphic digit discs with a fully transparent background.
+ */
 @Composable
 fun InCallKeypadSheet(
     onDtmfPress: (Char) -> Unit,
@@ -47,25 +55,30 @@ fun InCallKeypadSheet(
 ) {
     var typedDigits by remember { mutableStateOf("") }
 
-    FrostedGlassBox(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        borderColor = LineaColors.GlassBorder
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color.Transparent)
+            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Header: Title & Close Button
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Keypad",
                     style = LineaTypography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
                     color = LineaColors.TextPrimary
                 )
                 IconButton(onClick = onDismiss) {
@@ -77,13 +90,39 @@ fun InCallKeypadSheet(
                 }
             }
 
-            // Display typed DTMF sequence
-            Text(
-                text = typedDigits.ifEmpty { " " },
-                style = LineaTypography.headlineMedium,
-                color = LineaColors.TextPrimary,
-                modifier = Modifier.padding(vertical = 12.dp)
-            )
+            // Display typed DTMF sequence with backspace
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 38.dp)
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = typedDigits.ifEmpty { " " },
+                    style = LineaTypography.headlineMedium.copy(
+                        fontFeatureSettings = "tnum",
+                        letterSpacing = 2.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = LineaColors.TitaniumBlue
+                )
+                if (typedDigits.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(10.dp))
+                    IconButton(
+                        onClick = { typedDigits = typedDigits.dropLast(1) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Backspace,
+                            contentDescription = "Backspace",
+                            tint = LineaColors.TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
 
             val keys = listOf(
                 listOf('1', '2', '3'),
@@ -112,7 +151,7 @@ fun InCallKeypadSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
@@ -124,13 +163,31 @@ private fun DtmfKeyButton(
     onRelease: () -> Unit
 ) {
     var isPressed by remember { mutableStateOf(false) }
+    val reduceAnimations = LocalReduceAnimations.current
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && !reduceAnimations) 0.91f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "DtmfKeyScale"
+    )
 
     Box(
         modifier = Modifier
-            .size(64.dp)
-            .clip(CircleShape)
-            .background(if (isPressed) LineaColors.TitaniumBlue.copy(alpha = 0.35f) else LineaColors.GlassFill)
-            .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, CircleShape)
+            .size(68.dp)
+            .scale(scale)
+            .neumorphic(
+                shape = CircleShape,
+                elevation = if (isPressed) 1.dp else 4.dp,
+                isPressed = isPressed,
+                surfaceColor = if (isPressed) {
+                    LineaColors.TitaniumBlue.copy(alpha = 0.35f)
+                } else {
+                    LineaColors.NeuSurfaceRaised
+                }
+            )
             .pointerInput(digit) {
                 detectTapGestures(
                     onPress = {
@@ -146,8 +203,11 @@ private fun DtmfKeyButton(
     ) {
         Text(
             text = digit.toString(),
-            style = LineaTypography.titleMedium,
-            fontSize = 22.sp,
+            style = LineaTypography.titleLarge.copy(
+                fontWeight = FontWeight.Medium,
+                fontFeatureSettings = "tnum"
+            ),
+            fontSize = 24.sp,
             color = LineaColors.TextPrimary
         )
     }

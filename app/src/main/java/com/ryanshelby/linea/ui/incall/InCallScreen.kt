@@ -1,8 +1,12 @@
 package com.ryanshelby.linea.ui.incall
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -140,6 +144,11 @@ fun InCallScreen(
         LineaCallState.ACTIVE -> formatDuration(callInfo.durationSeconds)
         LineaCallState.DISCONNECTED -> "Call Ended"
         LineaCallState.IDLE -> ""
+    }
+
+    // Dismiss in-call keypad first when back gesture is pressed
+    BackHandler(enabled = showKeypad) {
+        showKeypad = false
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -473,124 +482,169 @@ fun InCallScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Lower Section: Controls Grid (Balanced 3x2 Layout)
-            FrostedGlassBox(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                borderColor = LineaColors.GlassBorder
+            // Lower Section: Controls Grid (Balanced 3x2 Layout) & End Call Button
+            // Fades out while keypad is open to keep transparent keypad backdrop clean
+            AnimatedVisibility(
+                visible = !showKeypad,
+                enter = fadeIn(animationSpec = tween(150)),
+                exit = fadeOut(animationSpec = tween(150))
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp, horizontal = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Row 1: Mute, Keypad, Speaker
-                    Row(
+                    FrostedGlassBox(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        shape = RoundedCornerShape(24.dp),
+                        borderColor = LineaColors.GlassBorder
                     ) {
-                        InCallActionButton(
-                            icon = if (isMuted) Icons.Filled.MicOff else Icons.Filled.Mic,
-                            label = if (isMuted) "Unmute" else "Mute",
-                            isActive = isMuted,
-                            activeColor = LineaColors.Danger,
-                            onClick = onToggleMute
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp, horizontal = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Row 1: Mute, Keypad, Speaker
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                InCallActionButton(
+                                    icon = if (isMuted) Icons.Filled.MicOff else Icons.Filled.Mic,
+                                    label = if (isMuted) "Unmute" else "Mute",
+                                    isActive = isMuted,
+                                    activeColor = LineaColors.Danger,
+                                    onClick = onToggleMute
+                                )
 
-                        InCallActionButton(
-                            icon = Icons.Filled.Dialpad,
-                            label = "Keypad",
-                            isActive = showKeypad,
-                            activeColor = LineaColors.TitaniumBlue,
-                            onClick = { showKeypad = !showKeypad }
-                        )
+                                InCallActionButton(
+                                    icon = Icons.Filled.Dialpad,
+                                    label = "Keypad",
+                                    isActive = showKeypad,
+                                    activeColor = LineaColors.TitaniumBlue,
+                                    onClick = { showKeypad = !showKeypad }
+                                )
 
-                        val isSpeakerOn = audioRoute == LineaAudioRoute.SPEAKER
-                        InCallActionButton(
-                            icon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown,
-                            label = if (isSpeakerOn) "Speaker On" else "Speaker",
-                            isActive = isSpeakerOn,
-                            activeColor = LineaColors.TitaniumBlue,
-                            onClick = onToggleSpeaker
-                        )
+                                val isSpeakerOn = audioRoute == LineaAudioRoute.SPEAKER
+                                InCallActionButton(
+                                    icon = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown,
+                                    label = if (isSpeakerOn) "Speaker On" else "Speaker",
+                                    isActive = isSpeakerOn,
+                                    activeColor = LineaColors.TitaniumBlue,
+                                    onClick = onToggleSpeaker
+                                )
+                            }
+
+                            // Row 2: Hold / Merge, Add Call / Swap, Notes
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                if (resolvedCanMerge) {
+                                    InCallActionButton(
+                                        icon = Icons.AutoMirrored.Filled.CallMerge,
+                                        label = "Merge",
+                                        isActive = false,
+                                        activeColor = LineaColors.AccentGreen,
+                                        onClick = onMergeConference
+                                    )
+                                } else {
+                                    val isHeld = callInfo.state == LineaCallState.HOLDING || callInfo.isHeld
+                                    InCallActionButton(
+                                        icon = if (isHeld) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                                        label = if (isHeld) "Resume" else "Hold",
+                                        isActive = isHeld,
+                                        activeColor = LineaColors.Warning,
+                                        onClick = onToggleHold
+                                    )
+                                }
+
+                                if (secondaryCall != null) {
+                                    InCallActionButton(
+                                        icon = Icons.Filled.SwapCalls,
+                                        label = "Swap",
+                                        isActive = false,
+                                        activeColor = LineaColors.TitaniumBlue,
+                                        onClick = onSwapCalls
+                                    )
+                                } else {
+                                    InCallActionButton(
+                                        icon = Icons.Filled.PersonAdd,
+                                        label = "Add Call",
+                                        isActive = false,
+                                        enabled = resolvedCanAddCall,
+                                        activeColor = LineaColors.TitaniumBlue,
+                                        onClick = onAddCall
+                                    )
+                                }
+
+                                InCallActionButton(
+                                    icon = Icons.Filled.EditNote,
+                                    label = "Notes",
+                                    isActive = showNoteSheet,
+                                    activeColor = LineaColors.TitaniumBlue,
+                                    onClick = { showNoteSheet = true }
+                                )
+                            }
+                        }
                     }
 
-                    // Row 2: Hold / Merge, Add Call / Swap, Notes
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        if (resolvedCanMerge) {
-                            InCallActionButton(
-                                icon = Icons.AutoMirrored.Filled.CallMerge,
-                                label = "Merge",
-                                isActive = false,
-                                activeColor = LineaColors.AccentGreen,
-                                onClick = onMergeConference
-                            )
-                        } else {
-                            val isHeld = callInfo.state == LineaCallState.HOLDING || callInfo.isHeld
-                            InCallActionButton(
-                                icon = if (isHeld) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                                label = if (isHeld) "Resume" else "Hold",
-                                isActive = isHeld,
-                                activeColor = LineaColors.Warning,
-                                onClick = onToggleHold
-                            )
-                        }
+                    Spacer(modifier = Modifier.height(28.dp))
 
-                        if (secondaryCall != null) {
-                            InCallActionButton(
-                                icon = Icons.Filled.SwapCalls,
-                                label = "Swap",
-                                isActive = false,
-                                activeColor = LineaColors.TitaniumBlue,
-                                onClick = onSwapCalls
-                            )
-                        } else {
-                            InCallActionButton(
-                                icon = Icons.Filled.PersonAdd,
-                                label = "Add Call",
-                                isActive = false,
-                                enabled = resolvedCanAddCall,
-                                activeColor = LineaColors.TitaniumBlue,
-                                onClick = onAddCall
-                            )
-                        }
-
-                        InCallActionButton(
-                            icon = Icons.Filled.EditNote,
-                            label = "Notes",
-                            isActive = showNoteSheet,
-                            activeColor = LineaColors.TitaniumBlue,
-                            onClick = { showNoteSheet = true }
-                        )
-                    }
+                    // Bottom Section: End Call Button
+                    EndCallButton(
+                        onClick = onDisconnect,
+                        modifier = Modifier.padding(bottom = 28.dp)
+                    )
                 }
             }
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Bottom Section: End Call Button
-            EndCallButton(
-                onClick = onDisconnect,
-                modifier = Modifier.padding(bottom = 28.dp)
-            )
         }
 
-        // Animated In-Call DTMF Keypad Bottom Sheet
+        // Animated In-Call DTMF Keypad Overlay: transparent background, tap outside to dismiss
         AnimatedVisibility(
             visible = showKeypad,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            enter = fadeIn(animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(200)),
+            modifier = Modifier.fillMaxSize()
         ) {
-            InCallKeypadSheet(
-                onDtmfPress = onDtmfPress,
-                onDtmfRelease = onDtmfRelease,
-                onDismiss = { showKeypad = false }
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { showKeypad = false }
+                    ),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                InCallKeypadSheet(
+                    onDtmfPress = onDtmfPress,
+                    onDtmfRelease = onDtmfRelease,
+                    onDismiss = { showKeypad = false },
+                    modifier = Modifier
+                        .animateEnterExit(
+                            enter = slideInVertically(
+                                initialOffsetY = { it },
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            ),
+                            exit = slideOutVertically(
+                                targetOffsetY = { it },
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            )
+                        )
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { /* Consume clicks within keypad */ }
+                        )
+                )
+            }
         }
 
         // In-Call Note Taking Sheet
