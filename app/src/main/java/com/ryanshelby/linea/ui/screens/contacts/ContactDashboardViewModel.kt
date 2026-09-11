@@ -12,6 +12,7 @@ import com.ryanshelby.linea.data.local.entities.ContactEntity
 import com.ryanshelby.linea.data.local.entities.ContactNumberEntity
 import com.ryanshelby.linea.telecom.CallManager
 import com.ryanshelby.linea.telecom.PhoneAccountManager
+import com.ryanshelby.linea.ui.screens.history.HistoryGrouper
 import com.ryanshelby.linea.telecom.logic.AvailabilityInsight
 import com.ryanshelby.linea.telecom.logic.AvailabilityInsightEngine
 import com.ryanshelby.linea.data.repository.ContactSyncRepository
@@ -127,7 +128,9 @@ class ContactDashboardViewModel @Inject constructor(
                 val normalizedRecords = callRecordDao.getCallRecordsForNumberOnce(num.normalizedNumber)
                 allRecords.addAll(normalizedRecords)
             }
-            val distinctRecords = allRecords.distinctBy { it.id }.sortedByDescending { it.timestamp }
+            val distinctRecords = HistoryGrouper.deduplicateCallRecords(
+                allRecords.distinctBy { it.id }.sortedByDescending { it.timestamp }
+            )
 
             // Pre-call note
             val primaryNum = numbers.firstOrNull()?.number ?: ""

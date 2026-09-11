@@ -435,6 +435,9 @@ class CallManager @Inject constructor(
                 CallDirectionType.OUTGOING
             }
 
+            val callStartTime = call.details?.creationTimeMillis.takeIf { it != null && it > 0L }
+                ?: (if (active.connectTimeMillis > 0L) active.connectTimeMillis else (System.currentTimeMillis() - active.durationSeconds * 1000L))
+
             scope.launch {
                 callLogRepository.logCall(
                     phoneNumber = active.phoneNumber,
@@ -442,7 +445,7 @@ class CallManager @Inject constructor(
                     callerName = active.displayName,
                     photoUri = active.photoUri,
                     direction = direction,
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = callStartTime,
                     durationSeconds = active.durationSeconds
                 )
 

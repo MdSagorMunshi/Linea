@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ryanshelby.linea.data.local.entities.CallDirectionType
 import com.ryanshelby.linea.data.local.entities.CallNoteEntity
 import com.ryanshelby.linea.data.local.entities.CallRecordEntity
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
@@ -117,6 +118,8 @@ fun CallDetailSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            val isLatestMissed = item.primaryRecord.callType == CallDirectionType.MISSED
+
             // Contact Card Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -126,14 +129,18 @@ fun CallDetailSheet(
                     modifier = Modifier
                         .size(60.dp)
                         .clip(CircleShape)
-                        .background(LineaColors.GlassFill)
-                        .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, CircleShape),
+                        .background(if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.12f) else LineaColors.GlassFill)
+                        .border(
+                            LineaDimensions.HairlineBorder,
+                            if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.45f) else LineaColors.GlassBorder,
+                            CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Person,
                         contentDescription = null,
-                        tint = LineaColors.TextSecondary,
+                        tint = if (isLatestMissed) LineaColors.Danger else LineaColors.TextSecondary,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -145,7 +152,7 @@ fun CallDetailSheet(
                         Text(
                             text = item.primaryRecord.callerName ?: item.primaryRecord.phoneNumber,
                             style = LineaTypography.headlineMedium,
-                            color = LineaColors.TextPrimary,
+                            color = if (isLatestMissed) LineaColors.Danger else LineaColors.TextPrimary,
                             fontSize = 20.sp
                         )
                         if (isBlocked) {

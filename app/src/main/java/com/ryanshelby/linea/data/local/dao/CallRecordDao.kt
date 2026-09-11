@@ -67,6 +67,12 @@ interface CallRecordDao {
     """)
     suspend fun hasRecordNearTimestamp(number: String, timestamp: Long): Int
 
+    @Query("SELECT * FROM call_records WHERE timestamp BETWEEN :minTimestamp AND :maxTimestamp")
+    suspend fun getRecordsInTimeWindow(minTimestamp: Long, maxTimestamp: Long): List<CallRecordEntity>
+
+    @Query("DELETE FROM call_records WHERE id IN (:ids)")
+    suspend fun deleteCallRecordsByIds(ids: List<Long>): Int
+
     @Query("""
         DELETE FROM call_records 
         WHERE id NOT IN (

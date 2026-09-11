@@ -425,13 +425,19 @@ fun HistoryRow(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
+                    val isLatestMissed = item.primaryRecord.callType == CallDirectionType.MISSED
+
                     // Contact Avatar or Initials
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(LineaColors.BackgroundBottom)
-                            .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, CircleShape),
+                            .background(if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.12f) else LineaColors.BackgroundBottom)
+                            .border(
+                                LineaDimensions.HairlineBorder,
+                                if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.45f) else LineaColors.GlassBorder,
+                                CircleShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         val initials = getInitials(item.primaryRecord.callerName)
@@ -439,13 +445,13 @@ fun HistoryRow(
                             Text(
                                 text = initials,
                                 style = LineaTypography.titleSmall,
-                                color = LineaColors.TextPrimary
+                                color = if (isLatestMissed) LineaColors.Danger else LineaColors.TextPrimary
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Filled.Person,
                                 contentDescription = null,
-                                tint = LineaColors.TextSecondary,
+                                tint = if (isLatestMissed) LineaColors.Danger else LineaColors.TextSecondary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -460,11 +466,7 @@ fun HistoryRow(
                                 style = LineaTypography.bodyLarge.copy(
                                     fontWeight = FontWeight.SemiBold
                                 ),
-                                color = if (item.primaryRecord.callType == CallDirectionType.MISSED) {
-                                    LineaColors.MutedRust
-                                } else {
-                                    LineaColors.TextPrimary
-                                },
+                                color = if (isLatestMissed) LineaColors.Danger else LineaColors.TextPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -648,7 +650,7 @@ fun CallTypeIcon(type: CallDirectionType, size: androidx.compose.ui.unit.Dp = 16
     val (icon, tint) = when (type) {
         CallDirectionType.INCOMING -> Icons.AutoMirrored.Filled.CallReceived to LineaColors.MutedSageGreen
         CallDirectionType.OUTGOING -> Icons.AutoMirrored.Filled.CallMade to LineaColors.TitaniumBlue
-        CallDirectionType.MISSED -> Icons.AutoMirrored.Filled.CallMissed to LineaColors.MutedRust
+        CallDirectionType.MISSED -> Icons.AutoMirrored.Filled.CallMissed to LineaColors.Danger
         CallDirectionType.REJECTED -> Icons.Filled.CallEnd to LineaColors.Danger
         CallDirectionType.BLOCKED -> Icons.Filled.Block to LineaColors.Danger
     }
@@ -694,26 +696,31 @@ fun CallSessionRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Avatar / Initials
+                val isLatestMissed = session.latestCallType == CallDirectionType.MISSED
                 val initials = getInitials(session.callerName)
                 Box(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(LineaColors.GlassFill)
-                        .border(LineaDimensions.HairlineBorder, LineaColors.GlassBorder, CircleShape),
+                        .background(if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.12f) else LineaColors.GlassFill)
+                        .border(
+                            LineaDimensions.HairlineBorder,
+                            if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.45f) else LineaColors.GlassBorder,
+                            CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     if (initials.isNotEmpty()) {
                         Text(
                             text = initials,
                             style = LineaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = LineaColors.TitaniumBlue
+                            color = if (isLatestMissed) LineaColors.Danger else LineaColors.TitaniumBlue
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Filled.Person,
                             contentDescription = null,
-                            tint = LineaColors.TextSecondary,
+                            tint = if (isLatestMissed) LineaColors.Danger else LineaColors.TextSecondary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -730,7 +737,7 @@ fun CallSessionRow(
                                 fontWeight = FontWeight.SemiBold,
                                 fontFeatureSettings = "tnum"
                             ),
-                            color = LineaColors.TextPrimary,
+                            color = if (isLatestMissed) LineaColors.Danger else LineaColors.TextPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
