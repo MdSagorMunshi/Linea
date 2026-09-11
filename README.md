@@ -105,24 +105,37 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 - **Architectural Fallback**: Monogram typographic watermarks for numbers without contact photos.
 
 ### 9. Call Recording Removal Notice
-- **Removed Due to Android API Restrictions**: Call recording functionality and audio waving visualizer were completely removed due to Fucking Android API limitations and carrier-level audio silencing imposed by AOSP `AudioPolicyService`. LINEA focuses purely on zero-latency, private, and dependable cellular telephony.
+- **Removed Due to Android API Restrictions**: Call recording functionality and audio waving visualizer were completely removed due to Android API limitations and carrier-level audio silencing imposed by AOSP `AudioPolicyService`. LINEA focuses purely on zero-latency, private, and dependable cellular telephony.
 
-### 10. Haptic Audio Dialpad Profiles
+### 10. Hardware Button Call Control & Silencing
+- **Volume Up / Down Silencing**: Pressing either Volume Up or Volume Down once during an incoming ringing call instantly silences the ringtone and vibration without rejecting or disconnecting the call.
+- **Double-Press Power to End Calls**: Rapidly pressing the hardware Power button twice immediately ends the call across all states: incoming ringing (rejects), outgoing dialing (disconnects), and active/received conversations (disconnects), confirmed with a crisp haptic pulse.
+
+### 11. Call History Quick-Action Swipe Drawer
+- **Stationary Gesture Drawer**: Swiping left on any call log entry smoothly reveals stationary Call, SMS, Add/View Contact, and Block action buttons with friction damping and tap-outside dismiss.
+- **Call Log Deduplication**: Call records are automatically deduplicated by phone number, call type, and timestamp clustering with instant state synchronization.
+- **Missed Call Red Highlighting**: The most recent unreturned missed call entries are styled with high-visibility red badge and red text indicators.
+
+### 12. Native Contact Sheet & Reactive Add-Contact Drawer
+- **Native Contacts Integration**: Seamlessly opens Android's system `ContactsContract` view or insert sheets.
+- **1-Tap Add Drawer**: Unknown callers in history can be saved immediately through a native bottom drawer without leaving the dialer.
+
+### 13. Haptic Audio Dialpad Profiles
 - **4 Selectable Acoustic & Tactile Profiles**:
   - *Tactile Neumorphic*: Crisp dual-micro clicks (`PRIMITIVE_CLICK`) with bright DTMF tones.
   - *Mechanical Relay*: Heavy tactile relay thump (`EFFECT_HEAVY_CLICK`) with classic relay acoustics.
   - *Stealth*: Subtle near-silent micro-vibrations with muted audio.
   - *Classic*: Standard Android dialpad feedback.
 
-### 11. "Flip to Silence" & Proximity Wave Gestures
+### 14. "Flip to Silence" & Proximity Wave Gestures
 - **Zero-Touch Ringer Silencing**: Turn the device face-down or wave your hand over the top proximity sensor to immediately mute incoming ringtones.
 - **Battery-Safe Sensor Lifecycle**: Sensors register strictly while the ringer is actively playing and immediately unregister when answered, rejected, or disconnected.
 - **User Toggleable**: Defaulted to OFF; independently manageable under Settings &rarr; Motion & Call Gestures.
 
-### 12. Quick Decline Neumorphic Action Sheet
+### 15. Quick Decline Neumorphic Action Sheet
 - **Swipe-Up Rejection with SMS**: Quickly decline incoming calls with 1-tap pre-canned response chips or custom text replies directly sent via Android Telecom.
 
-### 13. International Time Zone Preview & Country Detection
+### 16. International Time Zone Preview & Country Detection
 - **Dialpad Destination Intelligence**: Instant country code detection across 40+ nations, displaying flag, country name, live local destination time, and late-night warnings.
 
 ---
@@ -152,7 +165,7 @@ LINEA adheres strictly to a **Tactile Neumorphic (Soft UI)** aesthetic, engineer
 1. Download the latest release APK from the [Releases](https://github.com/MdSagorMunshi/Linea/releases) page.
 2. Install the APK to your device or emulator:
    ```bash
-   adb install -r LiNEA-v1.0.0-release.apk
+   adb install -r LiNEA-v2.1.0-release.apk
    ```
 
 ### Designate as System Default Dialer

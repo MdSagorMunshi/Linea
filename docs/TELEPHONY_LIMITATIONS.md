@@ -1,4 +1,4 @@
-# Cellular SIM selection and recording
+# Cellular SIM selection and Hardware Telephony Architecture
 
 ## SIM selection
 
@@ -15,31 +15,27 @@ SIM. If Telecom subsequently reports a different account for an explicitly
 selected outgoing call, Linea disconnects it rather than continuing it on the
 system default account.
 
-## Cellular call recording
+## Cellular call recording (Removed in v2.1.0)
 
-This app has a minimum SDK of Android 11. On Android 10 and newer, an ordinary
-third-party app cannot capture cellular call uplink/downlink audio. Android
-requires privileged `CAPTURE_AUDIO_OUTPUT` access for this. `RECORD_AUDIO` and
-`VOICE_COMMUNICATION` alone only request microphone/communications input and
-can return silence while Telecom owns the active call.
+LINEA targets Android 17 with a minimum SDK of Android 11 (API 30). On Android 10 and newer,
+ordinary userland dialers cannot reliably capture bidirectional cellular call uplink/downlink audio
+without system-privileged `CAPTURE_AUDIO_OUTPUT` permission or specialized OEM firmware hooks.
+AOSP `AudioPolicyService` enforces strict audio isolation while Android Telecom owns the cellular stream,
+returning zero-amplitude silence or conflicting with active earpiece routing.
 
-Linea attempts the proper `VOICE_CALL` source for both automatic and manual
-recording whenever microphone permission is granted. This supports OEM builds
-that authorize their default dialer without exposing the privileged permission.
-It checks for a real audio signal and deletes a silent output rather than saving
-it as a recording. On devices that enforce the standard Android policy, Linea
-reports that call audio was blocked. OEM policy and local recording-consent laws
-still apply.
+Consequently, **call recording and real-time audio waving were permanently removed in v2.1.0**.
+LINEA maintains an uncompromised focus on sovereign, zero-latency, private, and dependable cellular communications.
+Legacy Room persistence schemas (`call_recordings`) remain dormant to guarantee non-destructive database migrations for existing installations.
 
 ## Hardware validation checklist
 
 Use a physical dual-SIM device with Linea set as the default dialer:
 
-1. Set SIM 1 as Android's default calling SIM, then place a call after selecting
+1. **Dual-SIM Routing**: Set SIM 1 as Android's default calling SIM, then place a call after selecting
    SIM 2 in Linea; verify the carrier/network indicator and call log show SIM 2.
-2. Repeat in reverse, and repeat after disabling/removing one SIM. A missing SIM
+2. **SIM Fault Tolerance**: Repeat in reverse, and repeat after disabling/removing one SIM. A missing SIM
    must not be silently substituted for the default SIM.
-3. For recording, test outgoing and incoming calls on both SIMs, auto-record and
-   manual record. On an ordinary Android 10+ build, verify the explanatory
-   message and that no blank file is created. On a privileged/OEM-authorized
-   build, verify both directions contain audible audio.
+3. **Volume Button Silencing**: During incoming ringing, press Volume Up or Volume Down once. Verify ringtone
+   and vibration instantly stop while the call continues to ring silently and remains answerable.
+4. **Double-Press Power to End**: During incoming ringing, outgoing dialing, or an active conversation,
+   rapidly double-press the hardware Power button. Verify the call is terminated immediately with haptic confirmation.

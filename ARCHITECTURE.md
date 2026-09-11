@@ -39,6 +39,9 @@ LINEA is structured according to **Clean Architecture** and **Unidirectional Dat
   - *Flip to Silence*: Detects when the device is inverted face-down (`Z < -8.0 m/s²`) and triggers ringer muting with haptic confirmation.
   - *Proximity Wave*: Detects hand passing over the front proximity sensor (`distance < threshold` followed by release) to silence the ringer touch-free.
   - *Zero-Idle Lifecycle*: Strictly binds listeners only when `CallManager` enters `LineaCallState.RINGING` and unbinds immediately upon answering, declining, or silencing.
+- **Hardware Button Call Control**: Active lifecycle coordinator handling:
+  - *Volume Up / Down Silencing*: Silences ringtone audio and vibration during incoming ringing while keeping the call actively connected and answerable.
+  - *Double-Press Power Call Termination*: Rapidly double-pressing the physical Power button (120ms..1000ms threshold with debounce) ends/rejects the call across incoming, outgoing, and active conversation states.
 - **`PhoneAccountManager`**: Inspects `TelecomManager` and `SubscriptionManager` to register system `PhoneAccountHandle` instances for SIM 1 and SIM 2, enabling hardware-level dual SIM routing and live signal telemetry.
 - **`LineaConnectionService`**: Implements system connection protocols for carrier-grade telephony negotiation and MMI/USSD command delivery.
 
@@ -75,7 +78,7 @@ The persistence layer is powered by **Room 2.6.1** over SQLite (`linea_database.
 | `ContactGroupMemberEntity` | `contact_group_members` | Many-to-many junction table linking contacts and groups |
 | `CallRecordEntity` | `call_records` | Coalesced call logs, durations, SIM slot ID, and call type |
 | `CallRuleEntity` | `call_rules` | Screening rules, quiet hour intervals, and allow/block lists |
-| `CallRecordingEntity` | `call_recordings` | Metadata, audio file path, duration, and waveform data |
+| `CallRecordingEntity` | `call_recordings` | Metadata, audio file path, duration (Legacy schema retained for migration integrity; recording removed in v2.1.0) |
 | `CallNoteEntity` | `call_notes` | Contextual post-call and pre-call pop notes |
 | `BlockedNumberEntity` | `blocked_numbers` | Dedicated fast-lookup blacklist for instant rejection |
 | `DialerProfileEntity` | `dialer_profiles` | User profiles configuring SIM affinity, ringtones, and vibration |

@@ -12,18 +12,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Tactile Neumorphism (Soft UI) Overhaul**:
   - Replaced legacy UI styling with an architectural Neumorphic design system.
-  - Engineered dual-shadow lighting engine (`Modifier.neumorphic()`, `NeumorphicCard`, `NeumorphicWell`, `NeumorphicButton`) utilizing opposing top-left specular highlight and bottom-right ambient drop shadows via Android native canvas `Paint.setShadowLayer`.
+  - Engineered dual-shadow lighting engine (`Modifier.neumorphic()`, `NeumorphicCard`, `NeumorphicWell`, `NeumorphicButton`, `NeumorphicIconButton`, `NeumorphicTheme`) utilizing opposing top-left specular highlight and bottom-right ambient drop shadows via Android native canvas `Paint.setShadowLayer`.
   - Dialpad digit keys depress physically into sunken wells on tap with tactile spring dynamics (`ScaleCompressSpring`) and haptic confirmation.
   - Active call controls depress into illuminated debossed wells with active status rings.
+  - Controls balanced into an ergonomic 3x2 grid situated in the natural bottom thumb zone.
+  - Transparent in-call keypad overlay with dismiss-on-outside-tap gesture.
   - Replaced floating navigation bar with extruded pill container and sunken debossed active tab well.
   - Restyled all search bars, filter chips, call history tiles, contact cards, and bottom sheets to extruded and debossed physical surfaces.
+- **Hardware Button Call Control & Silencing**:
+  - *Volume Up / Down Silencing*: Pressing Volume Up or Volume Down once during incoming ringing immediately silences the ringtone and vibration without rejecting or ending the call, allowing the call to continue ringing normally.
+  - *Double-Press Power to End Calls*: Rapidly pressing the hardware Power button twice terminates the current call across all call states: incoming ringing (rejects/ends), outgoing dialing/connecting (disconnects), and active/received calls (disconnects), with tactile haptic confirmation.
+  - Protected with hardware debounce filtering (120ms threshold) and active call lifecycle binding.
+- **Call History Quick-Action Swipe Drawer**:
+  - Swipe left on any call history item to reveal a stationary quick-action drawer featuring Call, SMS, Add/View Contact, and Block action buttons.
+  - Enhanced gesture physics with friction damping and auto-close on outside tap.
+- **Native Contact Sheet & Reactive Add-Contact Drawer**:
+  - Integrated Android native `ContactsContract` view and insert intents.
+  - Reactive bottom drawer allowing 1-tap contact creation for unknown numbers or launching system contact cards directly.
+- **Missed Call Visual Differentiation**:
+  - Applied distinct high-visibility red badge and red text styling for the most recent unreturned missed call entries in call history.
+- **Reactive Number Blocking & Contract Sync**:
+  - Added immediate UI feedback (toast confirmation and badge state update) on block/unblock actions with bi-directional synchronization with Android's system `BlockedNumberContract`.
+
+### Changed
+- Renamed theme pill from "Light Glass" to "Light" to reflect pure Tactile Neumorphic design.
+- Modernized About screen hero card with balanced FOSS architecture specifications and resolved vertical layout constraints.
 
 ### Removed
 - **Call Recording & Accessibility Service**:
-  - Completely removed call recording functionality, auto-record triggers, and associated accessibility services due to Fucking Android API restrictions and carrier-level audio silencing imposed by AOSP `AudioPolicyService`.
-  - Removed accessibility service declarations, rationale dialogs, and permission flows.
+  - Completely removed call recording functionality, auto-record triggers, accessibility service declarations, rationale dialogs, and microphone permission dependencies due to Android AOSP audio isolation policies.
 - **In-Call Audio Waving / ECG Waveform**:
-  - Removed real-time audio waving/waveform ECG visualizer, background level monitors, and in-call waveform toggle preferences to eliminate mic contention and streamline active call UI performance.
+  - Removed real-time audio waving/waveform ECG visualizer, background level monitors, and in-call waveform toggle preferences to eliminate mic contention and optimize active call UI performance.
+
+### Fixed
+- **Call Log Deduplication**:
+  - Eliminated duplicate entries in Call History by grouping and deduplicating records by normalized phone number, call type, and timestamp clustering, with instant state synchronization on database changes.
+- **About Screen Layout**:
+  - Resolved Compose nested column measurement expansion bug that caused the hero card to balloon vertically.
+- **Telecom Number Normalization**:
+  - Sanitized telephone dial strings and normalized E.164 URIs across contact lookups, dialer actions, and system intent launches.
 
 ---
 
