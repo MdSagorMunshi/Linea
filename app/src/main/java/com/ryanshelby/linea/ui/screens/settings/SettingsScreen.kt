@@ -557,7 +557,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     SelectionPill(
-                        label = "Light Glass",
+                        label = "Light",
                         isSelected = uiState.theme.uppercase() == "LIGHT",
                         onClick = { viewModel.setTheme("LIGHT") }
                     )
