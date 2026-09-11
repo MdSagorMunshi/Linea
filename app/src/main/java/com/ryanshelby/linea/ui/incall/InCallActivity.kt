@@ -187,14 +187,21 @@ class InCallActivity : ComponentActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (callManager.isRinging) {
-            when (event.keyCode) {
-                KeyEvent.KEYCODE_VOLUME_UP,
-                KeyEvent.KEYCODE_VOLUME_DOWN,
-                KeyEvent.KEYCODE_VOLUME_MUTE,
-                KeyEvent.KEYCODE_POWER -> {
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent.KEYCODE_VOLUME_DOWN,
+            KeyEvent.KEYCODE_VOLUME_MUTE -> {
+                if (callManager.isRinging) {
                     if (event.action == KeyEvent.ACTION_DOWN) {
                         callManager.silenceRinger()
+                    }
+                    return true
+                }
+            }
+            KeyEvent.KEYCODE_POWER -> {
+                if (callManager.hasActiveOrPendingCall) {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        callManager.onPowerButtonPressed()
                     }
                     return true
                 }
@@ -204,13 +211,18 @@ class InCallActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (callManager.isRinging) {
-            when (keyCode) {
-                KeyEvent.KEYCODE_VOLUME_UP,
-                KeyEvent.KEYCODE_VOLUME_DOWN,
-                KeyEvent.KEYCODE_VOLUME_MUTE,
-                KeyEvent.KEYCODE_POWER -> {
+        when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent.KEYCODE_VOLUME_DOWN,
+            KeyEvent.KEYCODE_VOLUME_MUTE -> {
+                if (callManager.isRinging) {
                     callManager.silenceRinger()
+                    return true
+                }
+            }
+            KeyEvent.KEYCODE_POWER -> {
+                if (callManager.hasActiveOrPendingCall) {
+                    callManager.onPowerButtonPressed()
                     return true
                 }
             }

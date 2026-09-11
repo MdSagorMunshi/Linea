@@ -7,7 +7,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.TelecomManager
@@ -119,37 +121,148 @@ class CallManager @Inject constructor(
                 (_secondaryCall.value?.state == LineaCallState.RINGING && _secondaryCall.value?.isIncoming == true) ||
                 (inCallService?.calls?.any { it.state == Call.STATE_RINGING } == true)
 
-    private var isScreenOffReceiverRegistered = false
-    private val screenOffReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+    val hasActiveOrPendingCall: Boolean
+        get() = _currentCall.value != null ||
+                _secondaryCall.value != null ||
+                (inCallService?.calls?.isNotEmpty() == true)
+
+    private var lastPowerPressTimestamp = 0L
+
+    @Synchronized
+    fun onPowerButtonPressed() {
+        if (!hasActiveOrPendingCall) return
+
+        val now = SystemClock.elapsedRealtime()
+        val delta = now - lastPowerPressTimestamp
+
+        // Debounce if multiple events (e.g. key event + broadcast) fire for the same physical press
+        if (lastPowerPressTimestamp > 0L && delta < 120L) {
+            return
+        }
+
+        if (lastPowerPressTimestamp > 0L && delta <= 1000L) {
+            // Double press detected within 120ms..1000ms: end current call across all states
+            lastPowerPressTimestamp = 0L
+            endCurrentCall()
+        } else {
+            // First press of a potential double-press sequence
+            lastPowerPressTimestamp = now
+            if (isRinging && !_isRingerSilenced.value) {
+                silenceRinger()
+            }
+        }
+    }
+
+    fun endCurrentCall() {
+        _isRingerSilenced.value = false
+        callRingtoneManager.stopRinging()
+        callGestureManager.stopListening()
+        dismissFloatingCall()
+
+        vibrateFeedback(longArrayOf(0, 100))
+
+        val active = _currentCall.value?.call
+        if (active != null) {
+            try {
                 if (isRinging) {
-                    silenceRinger()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        active.reject(Call.REJECT_REASON_DECLINED)
+                    } else {
+                        active.reject(false, null)
+                    }
+                } else {
+                    active.disconnect()
+                }
+            } catch (e: Exception) {
+                try {
+                    active.disconnect()
+                } catch (_: Exception) {}
+            }
+        }
+
+        val secondary = _secondaryCall.value?.call
+        if (secondary != null) {
+            try {
+                if (secondary.state == Call.STATE_RINGING) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        secondary.reject(Call.REJECT_REASON_DECLINED)
+                    } else {
+                        secondary.reject(false, null)
+                    }
+                } else {
+                    secondary.disconnect()
+                }
+            } catch (e: Exception) {
+                try {
+                    secondary.disconnect()
+                } catch (_: Exception) {}
+            }
+        }
+
+        inCallService?.calls?.forEach { c ->
+            try {
+                if (c.state == Call.STATE_RINGING) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        c.reject(Call.REJECT_REASON_DECLINED)
+                    } else {
+                        c.reject(false, null)
+                    }
+                } else {
+                    c.disconnect()
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private var isHardwareKeyReceiverRegistered = false
+    private val hardwareKeyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF,
+                Intent.ACTION_SCREEN_ON -> {
+                    if (hasActiveOrPendingCall) {
+                        onPowerButtonPressed()
+                    }
+                }
+                "android.media.VOLUME_CHANGED_ACTION" -> {
+                    if (isRinging && !_isRingerSilenced.value) {
+                        silenceRinger()
+                    }
                 }
             }
         }
     }
 
-    private fun registerScreenOffReceiver() {
-        if (!isScreenOffReceiverRegistered) {
+    private fun registerHardwareKeyReceiver() {
+        if (!isHardwareKeyReceiverRegistered) {
             try {
-                val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
-                ContextCompat.registerReceiver(context, screenOffReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-                isScreenOffReceiverRegistered = true
+                val filter = IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_SCREEN_ON)
+                    addAction("android.media.VOLUME_CHANGED_ACTION")
+                }
+                ContextCompat.registerReceiver(
+                    context,
+                    hardwareKeyReceiver,
+                    filter,
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+                )
+                isHardwareKeyReceiverRegistered = true
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
 
-    private fun unregisterScreenOffReceiver() {
-        if (isScreenOffReceiverRegistered) {
+    private fun unregisterHardwareKeyReceiver() {
+        if (isHardwareKeyReceiverRegistered) {
             try {
-                context.unregisterReceiver(screenOffReceiver)
+                context.unregisterReceiver(hardwareKeyReceiver)
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
-                isScreenOffReceiverRegistered = false
+                isHardwareKeyReceiverRegistered = false
+                lastPowerPressTimestamp = 0L
             }
         }
     }
@@ -191,9 +304,13 @@ class CallManager @Inject constructor(
 
     fun unregisterInCallService() {
         this.inCallService = null
+        if (!hasActiveOrPendingCall) {
+            unregisterHardwareKeyReceiver()
+        }
     }
 
     fun onCallAdded(call: Call) {
+        registerHardwareKeyReceiver()
         val number = call.details?.handle?.schemeSpecificPart ?: ""
         val isIncoming = call.state == Call.STATE_RINGING
         if (!isIncoming) verifySelectedPhoneAccount(call)
@@ -333,7 +450,7 @@ class CallManager @Inject constructor(
 
                     // Play ringtone and vibrate (respects ringerMode normal/vibrate/silent)
                     _isRingerSilenced.value = false
-                    registerScreenOffReceiver()
+                    registerHardwareKeyReceiver()
                     callRingtoneManager.startRinging(number, contactLookup.customRingtoneUri)
                     callGestureManager.startListening {
                         silenceRinger()
@@ -416,7 +533,6 @@ class CallManager @Inject constructor(
 
     fun onCallRemoved(call: Call) {
         _isRingerSilenced.value = false
-        unregisterScreenOffReceiver()
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
@@ -476,10 +592,17 @@ class CallManager @Inject constructor(
                     audioManager.isSpeakerphoneOn = false
                     audioManager.isMicrophoneMute = false
                 } catch (_: Exception) {}
+
+                if (!hasActiveOrPendingCall) {
+                    unregisterHardwareKeyReceiver()
+                }
             }
         } else if (secondary?.call == call) {
             _secondaryCall.value = null
             refreshOngoingCallNotification()
+            if (!hasActiveOrPendingCall) {
+                unregisterHardwareKeyReceiver()
+            }
         }
     }
 
@@ -556,7 +679,6 @@ class CallManager @Inject constructor(
 
         if (state == LineaCallState.ACTIVE) {
             _isRingerSilenced.value = false
-            unregisterScreenOffReceiver()
             callRingtoneManager.stopRinging()
             dismissFloatingCall()
         }
@@ -664,6 +786,7 @@ class CallManager @Inject constructor(
 
     @SuppressLint("MissingPermission")
     fun placeCall(phoneNumber: String, simAccountHandle: android.telecom.PhoneAccountHandle? = null) {
+        registerHardwareKeyReceiver()
         permissionCoordinator.runWhenOutgoingCallPermitted {
             placeCallWhenPermitted(phoneNumber, simAccountHandle)
         }
@@ -694,7 +817,6 @@ class CallManager @Inject constructor(
 
     fun answerCall() {
         _isRingerSilenced.value = false
-        unregisterScreenOffReceiver()
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
@@ -703,7 +825,6 @@ class CallManager @Inject constructor(
 
     fun rejectCall(rejectWithMessage: Boolean = false, textMessage: String? = null) {
         _isRingerSilenced.value = false
-        unregisterScreenOffReceiver()
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
@@ -711,8 +832,8 @@ class CallManager @Inject constructor(
     }
 
     fun silenceRinger() {
+        if (_isRingerSilenced.value) return
         _isRingerSilenced.value = true
-        unregisterScreenOffReceiver()
         callRingtoneManager.silence()
         callGestureManager.stopListening()
         try {
