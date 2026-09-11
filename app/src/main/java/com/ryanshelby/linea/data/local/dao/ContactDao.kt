@@ -40,6 +40,9 @@ interface ContactDao {
     @Query("SELECT * FROM contact_numbers WHERE normalizedNumber = :normalizedNumber LIMIT 1")
     suspend fun findNumberByNormalized(normalizedNumber: String): ContactNumberEntity?
 
+    @Query("SELECT normalizedNumber FROM contact_numbers")
+    fun getAllNormalizedNumbers(): Flow<List<String>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertContact(contact: ContactEntity): Long
 

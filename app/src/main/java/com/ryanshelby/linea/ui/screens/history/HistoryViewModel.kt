@@ -85,6 +85,27 @@ class HistoryViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
+    val savedNumbers: StateFlow<Set<String>> = contactDao.getAllNormalizedNumbers()
+        .map { list ->
+            list.map { it.filter { ch -> ch.isDigit() } }
+                .filter { it.isNotBlank() }
+                .toSet()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun isContactSaved(phoneNumber: String, callerName: String?): Boolean {
+        if (!callerName.isNullOrBlank() && callerName.trim() != phoneNumber.trim()) return true
+        val digits = phoneNumber.filter { it.isDigit() }
+        if (digits.isBlank()) return false
+        val set = savedNumbers.value
+        if (set.contains(digits)) return true
+        if (digits.length >= 7) {
+            val suffix = digits.takeLast(7)
+            return set.any { it.endsWith(suffix) }
+        }
+        return false
+    }
+
     val notesForSelectedCall: StateFlow<List<CallNoteEntity>> = _selectedItemForDetail
         .flatMapLatest { item ->
             if (item != null) {

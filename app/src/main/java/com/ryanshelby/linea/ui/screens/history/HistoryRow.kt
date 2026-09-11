@@ -93,6 +93,7 @@ fun HistoryRow(
     onDelete: (CallHistoryItem) -> Unit,
     modifier: Modifier = Modifier,
     isBlocked: Boolean = false,
+    isContactSaved: Boolean = false,
     onUnblockNumber: ((String) -> Unit)? = null,
     isSwipedOpen: Boolean = false,
     onSwipeOpenChanged: ((Boolean) -> Unit)? = null
@@ -104,8 +105,8 @@ fun HistoryRow(
     val viewConfig = LocalViewConfiguration.current
     val touchSlop = viewConfig.touchSlop
 
-    val actionWidth = 204.dp
-    val actionWidthPx = remember(density) { with(density) { actionWidth.toPx() } }
+    val actionWidth = if (isContactSaved) 158.dp else 204.dp
+    val actionWidthPx = remember(density, isContactSaved) { with(density) { actionWidth.toPx() } }
     val callBackThresholdPx = remember(density) { with(density) { 80.dp.toPx() } }
     val callBackMaxPx = remember(density) { with(density) { 120.dp.toPx() } }
 
@@ -168,25 +169,27 @@ fun HistoryRow(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Save / Add Contact
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(LineaColors.NeuSurfaceRaised)
-                            .border(0.5.dp, LineaColors.NeuBorderHighlight.copy(alpha = 0.5f), CircleShape)
-                            .clickable {
-                                animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
-                                onSwipeOpenChanged?.invoke(false)
-                                onAddContact(item.primaryRecord.phoneNumber)
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.PersonAdd,
-                            contentDescription = "Add Contact",
-                            tint = LineaColors.TitaniumBlue,
-                            modifier = Modifier.size(19.dp)
-                        )
+                    if (!isContactSaved) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(LineaColors.NeuSurfaceRaised)
+                                .border(0.5.dp, LineaColors.NeuBorderHighlight.copy(alpha = 0.5f), CircleShape)
+                                .clickable {
+                                    animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                    onSwipeOpenChanged?.invoke(false)
+                                    onAddContact(item.primaryRecord.phoneNumber)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PersonAdd,
+                                contentDescription = "Add Contact",
+                                tint = LineaColors.TitaniumBlue,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
                     }
 
                     // Send SMS

@@ -430,12 +430,11 @@ class ContactsViewModel @Inject constructor(
     }
 
     fun callContact(phoneNumber: String, preferredSimSlot: Int?) {
-        val simAccounts = phoneAccountManager.registerPhoneAccounts()
         val simHandle = if (preferredSimSlot != null) {
+            val simAccounts = phoneAccountManager.registerPhoneAccounts()
             simAccounts.find { it.slotIndex == preferredSimSlot }?.phoneAccountHandle
-                ?: simAccounts.firstOrNull()?.phoneAccountHandle
         } else {
-            simAccounts.firstOrNull()?.phoneAccountHandle
+            null
         }
         callManager.placeCall(phoneNumber, simHandle)
     }

@@ -169,7 +169,11 @@ class CallManager @Inject constructor(
     private fun verifySelectedPhoneAccount(call: Call) {
         val expected = requestedOutgoingAccount ?: return
         val actual = call.details?.accountHandle ?: return
-        if (actual != expected) {
+        val matches = (actual == expected) || (
+            actual.componentName == expected.componentName &&
+            actual.id == expected.id
+        )
+        if (!matches) {
             // Never continue a call that Telecom assigned to the device default rather than the
             // explicit SIM selected in Linea.
             try {
@@ -670,7 +674,12 @@ class CallManager @Inject constructor(
         }
         lastPlaceCallTimestamp = now
 
-        val uri = Uri.fromParts("tel", phoneNumber, null)
+        val trimmed = phoneNumber.trim()
+        val sanitizedNumber = android.telephony.PhoneNumberUtils.stripSeparators(
+            android.telephony.PhoneNumberUtils.convertKeypadLettersToDigits(trimmed)
+        ).ifBlank { trimmed }
+
+        val uri = Uri.fromParts("tel", sanitizedNumber, null)
         requestedOutgoingAccount = simAccountHandle
         val extras = Bundle().apply {
             if (simAccountHandle != null) {

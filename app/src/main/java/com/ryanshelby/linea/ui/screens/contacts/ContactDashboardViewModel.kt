@@ -294,10 +294,13 @@ class ContactDashboardViewModel @Inject constructor(
     }
 
     fun placeCall(number: String) {
-        val simSlot = _state.value.preferredSimSlot ?: 0
-        val simAccounts = phoneAccountManager.registerPhoneAccounts()
-        val simHandle = simAccounts.find { it.slotIndex == simSlot }?.phoneAccountHandle
-            ?: simAccounts.firstOrNull()?.phoneAccountHandle
+        val simSlot = _state.value.preferredSimSlot
+        val simHandle = if (simSlot != null) {
+            val simAccounts = phoneAccountManager.registerPhoneAccounts()
+            simAccounts.find { it.slotIndex == simSlot }?.phoneAccountHandle
+        } else {
+            null
+        }
         callManager.placeCall(number, simHandle)
     }
 

@@ -57,10 +57,14 @@ import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 
+import com.ryanshelby.linea.ui.screens.contacts.ContactCreateEditSheet
+import com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel
+
 @Composable
 fun HistoryScreen(
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = hiltViewModel(),
+    contactsViewModel: ContactsViewModel = hiltViewModel(),
     sessionsListState: LazyListState = rememberLazyListState(),
     feedListState: LazyListState = rememberLazyListState()
 ) {
@@ -76,6 +80,8 @@ fun HistoryScreen(
     val blockedNumberSet by viewModel.blockedNumberSet.collectAsState()
     val context = LocalContext.current
 
+    val savedNumbers by viewModel.savedNumbers.collectAsState()
+    var createContactNumber by remember { mutableStateOf<String?>(null) }
     var swipedOpenItemId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(feedListState.isScrollInProgress) {
@@ -445,9 +451,11 @@ fun HistoryScreen(
 
                         items(dateGroup.items, key = { it.id }) { item ->
                             val isItemBlocked = isNumberBlocked(item.primaryRecord.phoneNumber)
+                            val isItemSaved = viewModel.isContactSaved(item.primaryRecord.phoneNumber, item.primaryRecord.callerName)
                             HistoryRow(
                                 item = item,
                                 isBlocked = isItemBlocked,
+                                isContactSaved = isItemSaved,
                                 isSwipedOpen = swipedOpenItemId == item.id,
                                 onSwipeOpenChanged = { open ->
                                     swipedOpenItemId = if (open) item.id else if (swipedOpenItemId == item.id) null else swipedOpenItemId
@@ -456,15 +464,7 @@ fun HistoryScreen(
                                 onCallBack = { record -> viewModel.callBack(record) },
                                 onToggleExpand = { viewModel.toggleItemExpanded(item.id) },
                                 onAddContact = { number ->
-                                    try {
-                                        val addIntent = Intent(Intent.ACTION_INSERT).apply {
-                                            type = "vnd.android.cursor.dir/contact"
-                                            putExtra("phone", number)
-                                        }
-                                        context.startActivity(addIntent)
-                                    } catch (e: Exception) {
-                                        android.widget.Toast.makeText(context, "Cannot open contacts", android.widget.Toast.LENGTH_SHORT).show()
-                                    }
+                                    createContactNumber = number
                                 },
                                 onSendSms = { number ->
                                     try {
@@ -514,6 +514,33 @@ fun HistoryScreen(
             onAddNote = { number, contactId, noteText -> viewModel.addNote(number, contactId, noteText) },
             onScheduleReminder = { number, name, delayHours -> viewModel.scheduleCallbackReminder(number, name, delayHours) },
             onScheduleReminderMs = { number, name, delayMs -> viewModel.scheduleCallbackReminderMs(number, name, delayMs) }
+        )
+    }
+
+    if (createContactNumber != null) {
+        val availableAccounts by contactsViewModel.availableAccounts.collectAsState()
+        val selectedAccount by contactsViewModel.selectedContactAccount.collectAsState()
+
+        ContactCreateEditSheet(
+            initialNumbers = listOf((createContactNumber ?: "") to "Mobile"),
+            availableAccounts = availableAccounts,
+            selectedAccount = selectedAccount,
+            onSelectAccount = { contactsViewModel.selectContactAccount(it) },
+            onDismiss = { createContactNumber = null },
+            onSave = { displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes ->
+                contactsViewModel.saveContact(
+                    displayName = displayName,
+                    company = company,
+                    numbers = numbers,
+                    emails = emails,
+                    preferredSimSlot = preferredSimSlot,
+                    notes = notes,
+                    photoUri = photoUri,
+                    photoBytes = photoBytes
+                )
+                createContactNumber = null
+                android.widget.Toast.makeText(context, "Saved $displayName", android.widget.Toast.LENGTH_SHORT).show()
+            }
         )
     }
 }
