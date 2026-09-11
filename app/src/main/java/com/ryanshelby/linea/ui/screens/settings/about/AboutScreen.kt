@@ -187,9 +187,9 @@ fun AboutScreen(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = LineaDimensions.ScreenPadding)
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
+                .padding(horizontal = LineaDimensions.ScreenPadding)
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -309,8 +309,6 @@ fun AboutScreen(
                         FeatureChip(label = "Zero Telemetry")
                         Spacer(modifier = Modifier.width(6.dp))
                         FeatureChip(label = "AES-256 Vault")
-                        Spacer(modifier = Modifier.width(6.dp))
-                        FeatureChip(label = "Tactile Soft UI")
                     }
                 }
             }
