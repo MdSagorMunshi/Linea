@@ -69,6 +69,8 @@ fun CallDetailSheet(
     onAddNote: (String, Long?, String) -> Unit,
     onScheduleReminder: (String, String?, Long) -> Unit,
     onScheduleReminderMs: ((String, String?, Long) -> Unit)? = null,
+    isBlocked: Boolean = false,
+    onUnblockNumber: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -139,12 +141,33 @@ fun CallDetailSheet(
                 Spacer(modifier = Modifier.width(16.dp))
 
                 Column {
-                    Text(
-                        text = item.primaryRecord.callerName ?: item.primaryRecord.phoneNumber,
-                        style = LineaTypography.headlineMedium,
-                        color = LineaColors.TextPrimary,
-                        fontSize = 20.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = item.primaryRecord.callerName ?: item.primaryRecord.phoneNumber,
+                            style = LineaTypography.headlineMedium,
+                            color = LineaColors.TextPrimary,
+                            fontSize = 20.sp
+                        )
+                        if (isBlocked) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(LineaColors.Danger.copy(alpha = 0.15f))
+                                    .border(0.5.dp, LineaColors.Danger.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "BLOCKED",
+                                    style = LineaTypography.bodySmall.copy(
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = LineaColors.Danger
+                                )
+                            }
+                        }
+                    }
                     if (item.primaryRecord.callerName != null) {
                         Text(
                             text = item.primaryRecord.phoneNumber,
@@ -236,7 +259,7 @@ fun CallDetailSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action Buttons Row (Call, SMS, Share, Block)
+            // Action Buttons Row (Call, SMS, Share, Block/Unblock)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -270,15 +293,25 @@ fun CallDetailSheet(
                         context.startActivity(Intent.createChooser(shareIntent, "Share Contact"))
                     }
                 )
-                DetailActionButton(
-                    icon = Icons.Filled.Block,
-                    label = "Block",
-                    tint = LineaColors.Danger,
-                    onClick = {
-                        onBlockNumber(item.primaryRecord.phoneNumber)
-                        onDismiss()
-                    }
-                )
+                if (isBlocked) {
+                    DetailActionButton(
+                        icon = Icons.Filled.Block,
+                        label = "Unblock",
+                        tint = LineaColors.MutedSageGreen,
+                        onClick = {
+                            onUnblockNumber(item.primaryRecord.phoneNumber)
+                        }
+                    )
+                } else {
+                    DetailActionButton(
+                        icon = Icons.Filled.Block,
+                        label = "Block",
+                        tint = LineaColors.Danger,
+                        onClick = {
+                            onBlockNumber(item.primaryRecord.phoneNumber)
+                        }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

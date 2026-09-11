@@ -12,6 +12,9 @@ import com.ryanshelby.linea.data.local.entities.CallRuleEntity
 import com.ryanshelby.linea.data.local.entities.RuleAction
 import com.ryanshelby.linea.data.local.entities.RuleAllowedFilter
 import com.ryanshelby.linea.data.preferences.LineaPreferences
+import android.content.Context
+import com.ryanshelby.linea.telecom.screening.SystemBlockedNumberHelper
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +39,7 @@ data class BlockingUiState(
 
 @HiltViewModel
 class BlockingViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val blockedNumberDao: BlockedNumberDao,
     private val callRuleDao: CallRuleDao,
     private val preferences: LineaPreferences
@@ -124,25 +128,34 @@ class BlockingViewModel @Inject constructor(
         durationHours: Int? = null
     ) {
         viewModelScope.launch {
+            val clean = numberOrPrefix.trim()
             val expiresAt = if (durationHours != null && durationHours > 0) {
                 System.currentTimeMillis() + (durationHours * 3600L * 1000L)
             } else null
 
             blockedNumberDao.insertBlockedNumber(
                 BlockedNumberEntity(
-                    numberOrPrefix = numberOrPrefix.trim(),
+                    numberOrPrefix = clean,
                     matchType = matchType,
                     reason = reason ?: "Manual Block",
                     expiresAt = expiresAt,
                     blockAction = action
                 )
             )
+
+            if (matchType == BlockMatchType.EXACT) {
+                SystemBlockedNumberHelper.blockNumber(context, clean)
+            }
         }
     }
 
     fun unblockRule(id: Long) {
         viewModelScope.launch {
+            val existing = blockedNumberDao.getBlockedNumberById(id)
             blockedNumberDao.deleteBlockedNumberById(id)
+            if (existing != null && existing.matchType == BlockMatchType.EXACT) {
+                SystemBlockedNumberHelper.unblockNumber(context, existing.numberOrPrefix)
+            }
         }
     }
 

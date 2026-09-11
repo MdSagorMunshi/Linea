@@ -72,7 +72,9 @@ fun HistoryRow(
     onSendSms: (String) -> Unit,
     onBlockNumber: (String) -> Unit,
     onDelete: (CallHistoryItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isBlocked: Boolean = false,
+    onUnblockNumber: ((String) -> Unit)? = null
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
@@ -159,16 +161,30 @@ fun HistoryRow(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                            IconButton(
-                                onClick = { onBlockNumber(item.primaryRecord.phoneNumber) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Block,
-                                    contentDescription = "Block",
-                                    tint = LineaColors.MutedRust,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                            if (isBlocked && onUnblockNumber != null) {
+                                IconButton(
+                                    onClick = { onUnblockNumber(item.primaryRecord.phoneNumber) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Block,
+                                        contentDescription = "Unblock",
+                                        tint = LineaColors.MutedSageGreen,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = { onBlockNumber(item.primaryRecord.phoneNumber) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Block,
+                                        contentDescription = "Block",
+                                        tint = LineaColors.MutedRust,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                             IconButton(
                                 onClick = { onDelete(item) },
@@ -254,6 +270,25 @@ fun HistoryRow(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+
+                            if (isBlocked) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(LineaColors.Danger.copy(alpha = 0.15f))
+                                        .border(0.5.dp, LineaColors.Danger.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "Blocked",
+                                        style = LineaTypography.labelSmall,
+                                        fontSize = 9.sp,
+                                        color = LineaColors.Danger,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
 
                             // Grouped Call Count Badge (e.g. ×3)
                             if (item.callCount > 1) {
@@ -430,7 +465,8 @@ fun CallSessionRow(
     onClick: () -> Unit,
     onCallBack: (CallRecordEntity) -> Unit,
     onToggleExpand: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isBlocked: Boolean = false
 ) {
     FrostedGlassBox(
         modifier = modifier
@@ -487,6 +523,25 @@ fun CallSessionRow(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
                         )
+
+                        if (isBlocked) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(LineaColors.Danger.copy(alpha = 0.15f))
+                                    .border(0.5.dp, LineaColors.Danger.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "Blocked",
+                                    style = LineaTypography.labelSmall,
+                                    fontSize = 9.sp,
+                                    color = LineaColors.Danger,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
 
                         // Call count pill
                         if (session.callCount > 1) {

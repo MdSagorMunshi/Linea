@@ -2,6 +2,7 @@ package com.ryanshelby.linea.ui.screens.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import com.ryanshelby.linea.data.local.dao.BlockedNumberDao
 import com.ryanshelby.linea.data.local.dao.CallNoteDao
 import com.ryanshelby.linea.data.local.dao.CallbackReminderDao
@@ -14,7 +15,10 @@ import com.ryanshelby.linea.data.local.entities.CallbackReminderEntity
 import com.ryanshelby.linea.data.repository.CallLogRepository
 import com.ryanshelby.linea.telecom.CallManager
 import com.ryanshelby.linea.telecom.PhoneAccountManager
+import com.ryanshelby.linea.telecom.screening.ScreeningRuleMatcher
+import com.ryanshelby.linea.telecom.screening.SystemBlockedNumberHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,6 +41,7 @@ import com.ryanshelby.linea.data.preferences.LineaPreferences
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val callLogRepository: CallLogRepository,
     private val callManager: CallManager,
     private val phoneAccountManager: PhoneAccountManager,
@@ -68,6 +74,17 @@ class HistoryViewModel @Inject constructor(
     val historyViewMode: StateFlow<String> = preferences.historyViewMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "FEED")
 
+    val blockedNumbers: StateFlow<List<BlockedNumberEntity>> = blockedNumberDao.getAllBlockedNumbers()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val blockedNumberSet: StateFlow<Set<String>> = blockedNumbers
+        .map { list ->
+            list.map { ScreeningRuleMatcher.normalize(it.numberOrPrefix) }
+                .filter { it.isNotBlank() }
+                .toSet()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
     val notesForSelectedCall: StateFlow<List<CallNoteEntity>> = _selectedItemForDetail
         .flatMapLatest { item ->
             if (item != null) {
@@ -84,7 +101,8 @@ class HistoryViewModel @Inject constructor(
         _searchQuery,
         _selectedFilter,
         _expandedItemIds,
-        preferences.privateModeUnlocked
+        preferences.privateModeUnlocked,
+        blockedNumberSet
     ) { args: Array<Any?> ->
         @Suppress("UNCHECKED_CAST")
         val records = args[0] as List<CallRecordEntity>
@@ -93,13 +111,18 @@ class HistoryViewModel @Inject constructor(
         @Suppress("UNCHECKED_CAST")
         val expandedIds = args[3] as Set<String>
         val privateUnlocked = args[4] as Boolean
+        @Suppress("UNCHECKED_CAST")
+        val blockedSet = args[5] as Set<String>
         val safeRecords = if (privateUnlocked) records else records.filter { !it.isPrivateContact }
 
         // 1. Filter by category
         val filteredByCategory = when (filter) {
             HistoryFilter.ALL -> safeRecords
             HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
-            HistoryFilter.BLOCKED -> safeRecords.filter { it.callType == CallDirectionType.BLOCKED }
+            HistoryFilter.BLOCKED -> safeRecords.filter { rec ->
+                rec.callType == CallDirectionType.BLOCKED ||
+                blockedSet.contains(ScreeningRuleMatcher.normalize(rec.phoneNumber))
+            }
         }
 
         // 2. Filter by search query (name, number, or date)
@@ -132,13 +155,26 @@ class HistoryViewModel @Inject constructor(
         _searchQuery,
         _selectedFilter,
         _expandedSessionIds,
-        preferences.privateModeUnlocked
-    ) { records, query, filter, expandedSessionIds, privateUnlocked ->
+        preferences.privateModeUnlocked,
+        blockedNumberSet
+    ) { args: Array<Any?> ->
+        @Suppress("UNCHECKED_CAST")
+        val records = args[0] as List<CallRecordEntity>
+        val query = args[1] as String
+        val filter = args[2] as HistoryFilter
+        @Suppress("UNCHECKED_CAST")
+        val expandedSessionIds = args[3] as Set<String>
+        val privateUnlocked = args[4] as Boolean
+        @Suppress("UNCHECKED_CAST")
+        val blockedSet = args[5] as Set<String>
         val safeRecords = if (privateUnlocked) records else records.filter { !it.isPrivateContact }
         val filteredByCategory = when (filter) {
             HistoryFilter.ALL -> safeRecords
             HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
-            HistoryFilter.BLOCKED -> safeRecords.filter { it.callType == CallDirectionType.BLOCKED }
+            HistoryFilter.BLOCKED -> safeRecords.filter { rec ->
+                rec.callType == CallDirectionType.BLOCKED ||
+                blockedSet.contains(ScreeningRuleMatcher.normalize(rec.phoneNumber))
+            }
         }
         val filteredByQuery = if (query.isBlank()) {
             filteredByCategory
@@ -221,15 +257,54 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
+    fun isNumberBlocked(number: String): Boolean {
+        val clean = number.trim()
+        if (clean.isBlank()) return false
+        val norm = ScreeningRuleMatcher.normalize(clean)
+        return blockedNumberSet.value.contains(norm) ||
+                blockedNumbers.value.any { rule ->
+                    rule.numberOrPrefix == clean ||
+                    (norm.isNotBlank() && ScreeningRuleMatcher.matchesBlockedRule(rule, clean, norm, false))
+                }
+    }
+
     fun blockNumber(number: String, reason: String? = "Blocked from history") {
+        val cleanNumber = number.trim()
+        if (cleanNumber.isBlank()) return
         viewModelScope.launch {
-            blockedNumberDao.insertBlockedNumber(
-                BlockedNumberEntity(
-                    numberOrPrefix = number,
-                    matchType = BlockMatchType.EXACT,
-                    reason = reason
+            val normalized = ScreeningRuleMatcher.normalize(cleanNumber)
+            val existing = blockedNumberDao.getActiveBlockedNumbers()
+            val alreadyBlocked = existing.any {
+                it.numberOrPrefix == cleanNumber ||
+                (normalized.isNotBlank() && ScreeningRuleMatcher.normalize(it.numberOrPrefix) == normalized)
+            }
+            if (!alreadyBlocked) {
+                blockedNumberDao.insertBlockedNumber(
+                    BlockedNumberEntity(
+                        numberOrPrefix = cleanNumber,
+                        matchType = BlockMatchType.EXACT,
+                        reason = reason
+                    )
                 )
-            )
+            }
+            SystemBlockedNumberHelper.blockNumber(context, cleanNumber)
+        }
+    }
+
+    fun unblockNumber(number: String) {
+        val cleanNumber = number.trim()
+        if (cleanNumber.isBlank()) return
+        viewModelScope.launch {
+            val normalized = ScreeningRuleMatcher.normalize(cleanNumber)
+            val allBlocked = blockedNumberDao.getActiveBlockedNumbers()
+            allBlocked.filter {
+                it.numberOrPrefix == cleanNumber ||
+                (normalized.isNotBlank() && ScreeningRuleMatcher.normalize(it.numberOrPrefix) == normalized)
+            }.forEach {
+                blockedNumberDao.deleteBlockedNumberById(it.id)
+            }
+            blockedNumberDao.deleteBlockedNumberByNumber(cleanNumber)
+            SystemBlockedNumberHelper.unblockNumber(context, cleanNumber)
         }
     }
 

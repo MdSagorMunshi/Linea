@@ -68,7 +68,13 @@ fun HistoryScreen(
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val selectedItemForDetail by viewModel.selectedItemForDetail.collectAsState()
     val notesForSelectedCall by viewModel.notesForSelectedCall.collectAsState()
+    val blockedNumbers by viewModel.blockedNumbers.collectAsState()
+    val blockedNumberSet by viewModel.blockedNumberSet.collectAsState()
     val context = LocalContext.current
+
+    val isNumberBlocked: (String) -> Boolean = { phone ->
+        viewModel.isNumberBlocked(phone)
+    }
 
     Column(
         modifier = modifier
@@ -343,6 +349,7 @@ fun HistoryScreen(
                     items(callSessions, key = { it.id }) { session ->
                         CallSessionRow(
                             session = session,
+                            isBlocked = isNumberBlocked(session.phoneNumber),
                             onClick = {
                                 val primary = session.calls.firstOrNull()
                                 if (primary != null) {
@@ -425,8 +432,10 @@ fun HistoryScreen(
                         }
 
                         items(dateGroup.items, key = { it.id }) { item ->
+                            val isItemBlocked = isNumberBlocked(item.primaryRecord.phoneNumber)
                             HistoryRow(
                                 item = item,
+                                isBlocked = isItemBlocked,
                                 onClick = { viewModel.selectItemForDetail(item) },
                                 onCallBack = { record -> viewModel.callBack(record) },
                                 onToggleExpand = { viewModel.toggleItemExpanded(item.id) },
@@ -443,7 +452,14 @@ fun HistoryScreen(
                                     }
                                     context.startActivity(smsIntent)
                                 },
-                                onBlockNumber = { number -> viewModel.blockNumber(number) },
+                                onBlockNumber = { number ->
+                                    viewModel.blockNumber(number)
+                                    android.widget.Toast.makeText(context, "Blocked $number", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                onUnblockNumber = { number ->
+                                    viewModel.unblockNumber(number)
+                                    android.widget.Toast.makeText(context, "Unblocked $number", android.widget.Toast.LENGTH_SHORT).show()
+                                },
                                 onDelete = { historyItem -> viewModel.deleteGroup(historyItem) }
                             )
                         }
@@ -456,12 +472,21 @@ fun HistoryScreen(
     // Call Detail Bottom Sheet
     val detailItem = selectedItemForDetail
     if (detailItem != null) {
+        val isDetailBlocked = isNumberBlocked(detailItem.primaryRecord.phoneNumber)
         CallDetailSheet(
             item = detailItem,
+            isBlocked = isDetailBlocked,
             notes = notesForSelectedCall,
             onDismiss = { viewModel.selectItemForDetail(null) },
             onCall = { record -> viewModel.callBack(record) },
-            onBlockNumber = { number -> viewModel.blockNumber(number) },
+            onBlockNumber = { number ->
+                viewModel.blockNumber(number)
+                android.widget.Toast.makeText(context, "Blocked $number", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            onUnblockNumber = { number ->
+                viewModel.unblockNumber(number)
+                android.widget.Toast.makeText(context, "Unblocked $number", android.widget.Toast.LENGTH_SHORT).show()
+            },
             onAddNote = { number, contactId, noteText -> viewModel.addNote(number, contactId, noteText) },
             onScheduleReminder = { number, name, delayHours -> viewModel.scheduleCallbackReminder(number, name, delayHours) },
             onScheduleReminderMs = { number, name, delayMs -> viewModel.scheduleCallbackReminderMs(number, name, delayMs) }

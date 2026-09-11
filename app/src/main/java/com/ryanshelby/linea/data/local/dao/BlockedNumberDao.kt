@@ -17,11 +17,20 @@ interface BlockedNumberDao {
     @Query("SELECT * FROM blocked_numbers WHERE expiresAt IS NULL OR expiresAt > :currentTime")
     suspend fun getActiveBlockedNumbers(currentTime: Long = System.currentTimeMillis()): List<BlockedNumberEntity>
 
+    @Query("SELECT * FROM blocked_numbers WHERE numberOrPrefix = :number LIMIT 1")
+    suspend fun findBlockedNumber(number: String): BlockedNumberEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBlockedNumber(blockedNumber: BlockedNumberEntity): Long
 
+    @Query("SELECT * FROM blocked_numbers WHERE id = :id LIMIT 1")
+    suspend fun getBlockedNumberById(id: Long): BlockedNumberEntity?
+
     @Query("DELETE FROM blocked_numbers WHERE id = :id")
     suspend fun deleteBlockedNumberById(id: Long)
+
+    @Query("DELETE FROM blocked_numbers WHERE numberOrPrefix = :number")
+    suspend fun deleteBlockedNumberByNumber(number: String): Int
 
     @Query("DELETE FROM blocked_numbers WHERE expiresAt IS NOT NULL AND expiresAt <= :currentTime")
     suspend fun deleteExpiredBlocks(currentTime: Long = System.currentTimeMillis()): Int
