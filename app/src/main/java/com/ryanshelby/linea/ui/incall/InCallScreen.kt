@@ -161,7 +161,7 @@ fun InCallScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
 
                 // Call Duration Warning Banner
@@ -419,8 +419,8 @@ fun InCallScreen(
                     ContactAvatar(
                         photoUri = callInfo.photoUri,
                         displayName = callInfo.displayName?.ifBlank { null } ?: callInfo.phoneNumber,
-                        size = 100.dp,
-                        initialsTextSize = 38.sp,
+                        size = 112.dp,
+                        initialsTextSize = 42.sp,
                         borderWidth = 1.5.dp,
                         borderColor = borderColor
                     )
@@ -472,21 +472,19 @@ fun InCallScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Middle Section: Controls Grid (2 Rows)
+            // Lower Section: Controls Grid (Balanced 3x2 Layout)
             FrostedGlassBox(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 borderColor = LineaColors.GlassBorder
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 14.dp, horizontal = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(vertical = 16.dp, horizontal = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Row 1: Mute, Keypad, Speaker, Hold
+                    // Row 1: Mute, Keypad, Speaker
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
@@ -515,37 +513,29 @@ fun InCallScreen(
                             activeColor = LineaColors.TitaniumBlue,
                             onClick = onToggleSpeaker
                         )
-
-                        val isHeld = callInfo.state == LineaCallState.HOLDING || callInfo.isHeld
-                        InCallActionButton(
-                            icon = if (isHeld) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                            label = if (isHeld) "Resume" else "Hold",
-                            isActive = isHeld,
-                            activeColor = LineaColors.Warning,
-                            onClick = onToggleHold
-                        )
                     }
 
-                    // Row 2: Notes, Add Call (if supported), Swap / Merge (if available)
+                    // Row 2: Hold / Merge, Add Call / Swap, Notes
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        InCallActionButton(
-                            icon = Icons.Filled.EditNote,
-                            label = "Notes",
-                            isActive = showNoteSheet,
-                            activeColor = LineaColors.TitaniumBlue,
-                            onClick = { showNoteSheet = true }
-                        )
-
-                        if (resolvedCanAddCall) {
+                        if (resolvedCanMerge) {
                             InCallActionButton(
-                                icon = Icons.Filled.PersonAdd,
-                                label = "Add Call",
+                                icon = Icons.AutoMirrored.Filled.CallMerge,
+                                label = "Merge",
                                 isActive = false,
-                                activeColor = LineaColors.TitaniumBlue,
-                                onClick = onAddCall
+                                activeColor = LineaColors.AccentGreen,
+                                onClick = onMergeConference
+                            )
+                        } else {
+                            val isHeld = callInfo.state == LineaCallState.HOLDING || callInfo.isHeld
+                            InCallActionButton(
+                                icon = if (isHeld) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                                label = if (isHeld) "Resume" else "Hold",
+                                isActive = isHeld,
+                                activeColor = LineaColors.Warning,
+                                onClick = onToggleHold
                             )
                         }
 
@@ -557,22 +547,29 @@ fun InCallScreen(
                                 activeColor = LineaColors.TitaniumBlue,
                                 onClick = onSwapCalls
                             )
-                        }
-
-                        if (resolvedCanMerge) {
+                        } else {
                             InCallActionButton(
-                                icon = Icons.AutoMirrored.Filled.CallMerge,
-                                label = "Merge",
+                                icon = Icons.Filled.PersonAdd,
+                                label = "Add Call",
                                 isActive = false,
+                                enabled = resolvedCanAddCall,
                                 activeColor = LineaColors.TitaniumBlue,
-                                onClick = onMergeConference
+                                onClick = onAddCall
                             )
                         }
+
+                        InCallActionButton(
+                            icon = Icons.Filled.EditNote,
+                            label = "Notes",
+                            isActive = showNoteSheet,
+                            activeColor = LineaColors.TitaniumBlue,
+                            onClick = { showNoteSheet = true }
+                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // Bottom Section: End Call Button
             EndCallButton(
@@ -613,6 +610,7 @@ private fun InCallActionButton(
     icon: ImageVector,
     label: String,
     isActive: Boolean,
+    enabled: Boolean = true,
     activeColor: Color = LineaColors.TitaniumBlue,
     onClick: () -> Unit
 ) {
@@ -620,17 +618,29 @@ private fun InCallActionButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val reduceAnimations = LocalReduceAnimations.current
 
-    val scale = if (isPressed && !reduceAnimations) 0.90f else 1.0f
+    val scale = if (isPressed && !reduceAnimations && enabled) 0.90f else 1.0f
     val backgroundColor by animateColorAsState(
-        targetValue = if (isActive) activeColor.copy(alpha = 0.28f) else LineaColors.GlassFill,
+        targetValue = when {
+            !enabled -> LineaColors.GlassFill.copy(alpha = 0.25f)
+            isActive -> activeColor.copy(alpha = 0.28f)
+            else -> LineaColors.GlassFill
+        },
         label = "ButtonBgColor"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isActive) activeColor.copy(alpha = 0.85f) else LineaColors.GlassBorder,
+        targetValue = when {
+            !enabled -> LineaColors.GlassBorder.copy(alpha = 0.25f)
+            isActive -> activeColor.copy(alpha = 0.85f)
+            else -> LineaColors.GlassBorder
+        },
         label = "ButtonBorderColor"
     )
     val iconTint by animateColorAsState(
-        targetValue = if (isActive) activeColor else LineaColors.TextPrimary,
+        targetValue = when {
+            !enabled -> LineaColors.TextSecondary.copy(alpha = 0.35f)
+            isActive -> activeColor
+            else -> LineaColors.TextPrimary
+        },
         label = "ButtonIconTint"
     )
 
@@ -638,10 +648,14 @@ private fun InCallActionButton(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
+            .then(
+                if (enabled) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick
+                    )
+                } else Modifier
             )
             .padding(4.dp)
     ) {
@@ -685,7 +699,11 @@ private fun InCallActionButton(
                 fontSize = 11.sp,
                 fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
             ),
-            color = if (isActive) activeColor else LineaColors.TextSecondary
+            color = when {
+                !enabled -> LineaColors.TextSecondary.copy(alpha = 0.35f)
+                isActive -> activeColor
+                else -> LineaColors.TextSecondary
+            }
         )
     }
 }
