@@ -238,31 +238,6 @@ fun DialpadScreen(
 
     val displayedSims = if (activeSims.isNotEmpty()) activeSims else simAccounts
 
-    val effectiveSims = remember(displayedSims) {
-        if (displayedSims.size >= 2) {
-            displayedSims.take(2)
-        } else {
-            val sim0 = displayedSims.getOrNull(0) ?: SimAccountInfo(
-                slotIndex = 0,
-                subscriptionId = 1,
-                displayName = "SIM 1",
-                carrierName = "Carrier 1",
-                phoneAccountHandle = android.telecom.PhoneAccountHandle(
-                    android.content.ComponentName(context, "com.ryanshelby.linea.telecom.LineaConnectionService"),
-                    "sim_0"
-                )
-            )
-            val sim1 = displayedSims.getOrNull(1) ?: SimAccountInfo(
-                slotIndex = 1,
-                subscriptionId = 2,
-                displayName = "SIM 2",
-                carrierName = "Carrier 2",
-                phoneAccountHandle = displayedSims.getOrNull(0)?.phoneAccountHandle ?: sim0.phoneAccountHandle
-            )
-            listOf(sim0, sim1)
-        }
-    }
-
     // Back gesture clears typed buffer before app exit or screen switch
     BackHandler(enabled = enteredNumber.isNotEmpty()) {
         viewModel.clearNumber()
@@ -344,13 +319,15 @@ fun DialpadScreen(
                     }
                 }
 
-                // SIM Selector Pill
-                SimSelectorPill(
-                    sims = effectiveSims,
-                    selectedIndex = selectedSimIndex,
-                    showAlwaysAsk = isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK,
-                    onSelectSim = { viewModel.selectSim(it) }
-                )
+                // SIM Selector Pill: Render if multiple SIMs are detected, or if Always Ask mode is active
+                if (displayedSims.size > 1 || (displayedSims.isNotEmpty() && (isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK))) {
+                    SimSelectorPill(
+                        sims = displayedSims,
+                        selectedIndex = selectedSimIndex,
+                        showAlwaysAsk = isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK,
+                        onSelectSim = { viewModel.selectSim(it) }
+                    )
+                }
             }
         }
 
@@ -792,7 +769,7 @@ fun DialpadScreen(
         SimSelectSheet(
             sheetState = simSheetState,
             phoneNumber = pendingCallNumber ?: enteredNumber,
-            accounts = effectiveSims,
+            accounts = displayedSims,
             onSelectSim = { account ->
                 showSimSelectSheet = false
                 if (callConfirmationEnabled) {

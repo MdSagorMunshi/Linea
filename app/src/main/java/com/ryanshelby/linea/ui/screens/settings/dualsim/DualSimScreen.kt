@@ -29,6 +29,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,6 +59,13 @@ fun DualSimScreen(
     val scope = rememberCoroutineScope()
 
     val accounts = phoneAccountManager.registerPhoneAccounts()
+    val hasSim2 = accounts.size >= 2 || accounts.any { it.slotIndex == 1 }
+
+    LaunchedEffect(hasSim2, defaultSim) {
+        if (!hasSim2 && defaultSim == 1) {
+            preferences.setDefaultSim(0)
+        }
+    }
 
     Box(
         modifier = modifier
@@ -216,19 +224,21 @@ fun DualSimScreen(
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    if (hasSim2) {
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                    SimOptionRow(
-                        title = "SIM 2",
-                        subtitle = "Use Slot 2 as primary for outgoing calls",
-                        isSelected = defaultSim == 1 && !askBeforeDial,
-                        onClick = {
-                            scope.launch {
-                                preferences.setDefaultSim(1)
-                                preferences.setAskSimBeforeDial(false)
+                        SimOptionRow(
+                            title = "SIM 2",
+                            subtitle = "Use Slot 2 as primary for outgoing calls",
+                            isSelected = defaultSim == 1 && !askBeforeDial,
+                            onClick = {
+                                scope.launch {
+                                    preferences.setDefaultSim(1)
+                                    preferences.setAskSimBeforeDial(false)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -264,7 +274,11 @@ fun DualSimScreen(
                             color = LineaColors.TextPrimary
                         )
                         Text(
-                            text = "Shows SIM 1 / SIM 2 selector overlay before dialing",
+                            text = if (hasSim2) {
+                                "Shows SIM 1 / SIM 2 selector overlay before dialing"
+                            } else {
+                                "Shows SIM selector overlay before dialing"
+                            },
                             style = LineaTypography.bodyMedium,
                             color = LineaColors.TextSecondary
                         )

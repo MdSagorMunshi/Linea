@@ -115,9 +115,10 @@ class DialpadViewModel @Inject constructor(
         viewModelScope.launch {
             val ask = preferences.askSimBeforeDial.first()
             val default = preferences.defaultSim.first()
+            val hasSim2 = _simAccounts.value.size >= 2 || _simAccounts.value.any { it.slotIndex == 1 }
             _selectedSimIndex.value = if (ask || default == -1) {
                 SIM_ALWAYS_ASK
-            } else if (default == 1) {
+            } else if (default == 1 && hasSim2) {
                 SIM_SLOT_2
             } else {
                 SIM_SLOT_1
@@ -145,7 +146,16 @@ class DialpadViewModel @Inject constructor(
     }
 
     fun loadSimAccounts() {
-        _simAccounts.value = phoneAccountManager.registerPhoneAccounts()
+        val accounts = phoneAccountManager.registerPhoneAccounts()
+        _simAccounts.value = accounts
+        val hasSim2 = accounts.size >= 2 || accounts.any { it.slotIndex == 1 }
+        if (!hasSim2) {
+            viewModelScope.launch {
+                if (preferences.defaultSim.first() == 1) {
+                    preferences.setDefaultSim(0)
+                }
+            }
+        }
     }
 
     fun loadContacts() {
