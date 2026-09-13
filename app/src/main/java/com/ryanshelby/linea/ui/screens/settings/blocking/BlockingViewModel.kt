@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -99,7 +100,7 @@ class BlockingViewModel @Inject constructor(
     init {
         // Ensure a default Quiet Hours rule exists in the database
         viewModelScope.launch {
-            val rules = callRuleDao.getActiveRules()
+            val rules = callRuleDao.getAllRules().first()
             if (rules.isEmpty()) {
                 callRuleDao.insertRule(
                     CallRuleEntity(

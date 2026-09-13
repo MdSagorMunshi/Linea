@@ -3,6 +3,7 @@ package com.ryanshelby.linea.telecom
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
+import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.SubscriptionInfo
@@ -99,6 +100,27 @@ class PhoneAccountManager @Inject constructor(
                         )
                     )
                 }
+
+            if (registeredAccounts.isEmpty()) {
+                callCapableHandles.forEachIndexed { index, handle ->
+                    val phoneAccount = telecomManager.getPhoneAccount(handle)
+                    val isSim = phoneAccount?.hasCapabilities(PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION) == true ||
+                            handle.componentName.className.contains("TelephonyConnectionService", ignoreCase = true)
+                    if (isSim) {
+                        val displayName = phoneAccount?.label?.toString() ?: "SIM ${index + 1}"
+                        val carrierName = phoneAccount?.shortDescription?.toString() ?: displayName
+                        registeredAccounts.add(
+                            SimAccountInfo(
+                                slotIndex = index,
+                                subscriptionId = index + 1,
+                                displayName = displayName,
+                                carrierName = carrierName,
+                                phoneAccountHandle = handle
+                            )
+                        )
+                    }
+                }
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }

@@ -234,7 +234,7 @@ class CallManager @Inject constructor(
                     // Ignore volume changes during the grace period right after ringing
                     // starts — these are system audio-setup events, not user key presses.
                     val elapsed = SystemClock.elapsedRealtime() - ringerStartedTimestamp
-                    if (isRinging && !_isRingerSilenced.value && elapsed > RINGER_GRACE_PERIOD_MS) {
+                    if (isRinging && !_isRingerSilenced.value && ringerStartedTimestamp > 0L && elapsed > RINGER_GRACE_PERIOD_MS) {
                         silenceRinger()
                     }
                 }
@@ -319,9 +319,14 @@ class CallManager @Inject constructor(
     }
 
     fun onCallAdded(call: Call) {
+        android.util.Log.d("CallManager", "onCallAdded: state=${call.state}, number=${call.details?.handle?.schemeSpecificPart}")
         registerHardwareKeyReceiver()
         val number = call.details?.handle?.schemeSpecificPart ?: ""
         val isIncoming = call.state == Call.STATE_RINGING
+        if (isIncoming) {
+            _isRingerSilenced.value = false
+            ringerStartedTimestamp = SystemClock.elapsedRealtime()
+        }
         if (!isIncoming) verifySelectedPhoneAccount(call)
 
         call.registerCallback(object : Call.Callback() {
@@ -542,14 +547,18 @@ class CallManager @Inject constructor(
     }
 
     fun onCallRemoved(call: Call) {
-        _isRingerSilenced.value = false
-        ringerStartedTimestamp = 0L
-        callRingtoneManager.stopRinging()
-        callGestureManager.stopListening()
-        dismissFloatingCall()
-
         val active = _currentCall.value
         val secondary = _secondaryCall.value
+
+        val remainingRinging = (active?.call != call && active?.state == LineaCallState.RINGING) ||
+                (secondary?.call != call && secondary?.state == LineaCallState.RINGING)
+        if (!remainingRinging) {
+            _isRingerSilenced.value = false
+            ringerStartedTimestamp = 0L
+            callRingtoneManager.stopRinging()
+            callGestureManager.stopListening()
+            dismissFloatingCall()
+        }
 
         if (active?.call == call) {
             timerJob?.cancel()

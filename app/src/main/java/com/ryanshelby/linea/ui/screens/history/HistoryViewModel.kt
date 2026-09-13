@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -256,10 +257,39 @@ class HistoryViewModel @Inject constructor(
     }
 
     fun callBack(record: CallRecordEntity) {
-        val simAccounts = phoneAccountManager.registerPhoneAccounts()
-        val simHandle = simAccounts.find { it.slotIndex == record.simSlot }?.phoneAccountHandle
-            ?: simAccounts.firstOrNull()?.phoneAccountHandle
-        callManager.placeCall(record.phoneNumber, simHandle)
+        viewModelScope.launch {
+            val simAccounts = phoneAccountManager.registerPhoneAccounts()
+            val askSim = preferences.askSimBeforeDial.first() || preferences.defaultSim.first() == -1
+            if (askSim && simAccounts.size > 1) {
+                _pendingCallBackRecord.value = record
+            } else {
+                val defaultSimPref = preferences.defaultSim.first()
+                val simHandle = if (defaultSimPref in 0..1) {
+                    simAccounts.find { it.slotIndex == defaultSimPref }?.phoneAccountHandle
+                } else {
+                    null
+                } ?: simAccounts.find { it.slotIndex == record.simSlot }?.phoneAccountHandle
+                  ?: simAccounts.firstOrNull()?.phoneAccountHandle
+                callManager.placeCall(record.phoneNumber, simHandle)
+            }
+        }
+    }
+
+    private val _pendingCallBackRecord = MutableStateFlow<CallRecordEntity?>(null)
+    val pendingCallBackRecord: StateFlow<CallRecordEntity?> = _pendingCallBackRecord.asStateFlow()
+
+    val askSimBeforeDial: StateFlow<Boolean> = preferences.askSimBeforeDial
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun getSimAccounts() = phoneAccountManager.registerPhoneAccounts()
+
+    fun placeCallWithSim(record: CallRecordEntity, simAccount: com.ryanshelby.linea.telecom.SimAccountInfo) {
+        _pendingCallBackRecord.value = null
+        callManager.placeCall(record.phoneNumber, simAccount.phoneAccountHandle)
+    }
+
+    fun dismissSimSelection() {
+        _pendingCallBackRecord.value = null
     }
 
     fun deleteRecord(recordId: Long) {

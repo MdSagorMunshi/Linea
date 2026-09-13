@@ -29,7 +29,12 @@ class LineaInCallService : InCallService() {
 
     override fun onSilenceRinger() {
         super.onSilenceRinger()
-        callManager.silenceRinger()
+        // Do NOT forward to callManager.silenceRinger() here.
+        // Linea manages its own ringtone via CallRingtoneManager. The system
+        // calls onSilenceRinger() during call setup which would prematurely
+        // silence the ringer before it even starts playing. User-initiated
+        // silencing (volume keys, power button, gesture) is handled separately
+        // by the hardware key receiver and gesture manager.
     }
 
     override fun onCallAudioStateChanged(audioState: CallAudioState) {

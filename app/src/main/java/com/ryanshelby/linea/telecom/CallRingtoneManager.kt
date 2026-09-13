@@ -1,5 +1,7 @@
 package com.ryanshelby.linea.telecom
 
+import android.util.Log
+
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -42,7 +44,11 @@ class CallRingtoneManager @Inject constructor(
 
     @Synchronized
     fun startRinging(phoneNumber: String, customRingtoneUri: String? = null) {
-        if (isRinging) return
+        Log.d("CallRingtoneManager", "startRinging called for $phoneNumber, isRinging=$isRinging, isSilenced=$isSilenced")
+        if (isRinging) {
+            Log.d("CallRingtoneManager", "Already ringing, returning early")
+            return
+        }
         isRinging = true
         isSilenced = false
 
@@ -51,7 +57,12 @@ class CallRingtoneManager @Inject constructor(
             val ringerMode = audioManager.ringerMode
             val vibrateEnabled = preferences.callVibrationEnabled.first()
 
-            if (isSilenced || !isRinging) return@launch
+            if (isSilenced || !isRinging) {
+                Log.d("CallRingtoneManager", "Aborted ringing: isSilenced=$isSilenced, isRinging=$isRinging")
+                return@launch
+            }
+
+            Log.d("CallRingtoneManager", "ringerMode=$ringerMode (NORMAL=${AudioManager.RINGER_MODE_NORMAL}, VIBRATE=${AudioManager.RINGER_MODE_VIBRATE}, SILENT=${AudioManager.RINGER_MODE_SILENT})")
 
             when (ringerMode) {
                 AudioManager.RINGER_MODE_SILENT -> {
@@ -78,6 +89,7 @@ class CallRingtoneManager @Inject constructor(
     }
 
     private suspend fun playRingtoneSound(customUriStr: String?) {
+        Log.d("CallRingtoneManager", "playRingtoneSound: isSilenced=$isSilenced, isRinging=$isRinging")
         if (isSilenced || !isRinging) return
         try {
             stopRingtoneSound()
@@ -102,6 +114,7 @@ class CallRingtoneManager @Inject constructor(
     }
 
     private fun playAppDefaultRingtone() {
+        Log.d("CallRingtoneManager", "playAppDefaultRingtone: isSilenced=$isSilenced, isRinging=$isRinging")
         if (isSilenced || !isRinging) return
         try {
             val afd = context.resources.openRawResourceFd(R.raw.linea_ringtone) ?: return
@@ -122,11 +135,13 @@ class CallRingtoneManager @Inject constructor(
             }
             afd.close()
             if (isSilenced || !isRinging) {
+                Log.d("CallRingtoneManager", "playAppDefaultRingtone: silenced/stopped before start, releasing player")
                 player.release()
                 return
             }
             player.start()
             activeMediaPlayer = player
+            Log.d("CallRingtoneManager", "playAppDefaultRingtone: MediaPlayer started successfully")
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -214,6 +229,7 @@ class CallRingtoneManager @Inject constructor(
 
     @Synchronized
     fun silence() {
+        Log.d("CallRingtoneManager", "silence() called")
         isSilenced = true
         ringJob?.cancel()
         ringJob = null
@@ -225,6 +241,7 @@ class CallRingtoneManager @Inject constructor(
 
     @Synchronized
     fun stopRinging() {
+        Log.d("CallRingtoneManager", "stopRinging() called")
         isRinging = false
         isSilenced = false
         ringJob?.cancel()
@@ -236,6 +253,7 @@ class CallRingtoneManager @Inject constructor(
     }
 
     private fun stopRingtoneSound() {
+        Log.d("CallRingtoneManager", "stopRingtoneSound() called, hasPlayer=${activeMediaPlayer != null}, hasRingtone=${activeRingtone != null}")
         try {
             activeMediaPlayer?.let {
                 if (it.isPlaying) {

@@ -59,7 +59,11 @@ import com.ryanshelby.linea.ui.theme.LineaTypography
 
 import com.ryanshelby.linea.ui.screens.contacts.ContactCreateEditSheet
 import com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel
+import com.ryanshelby.linea.ui.screens.dialpad.SimSelectSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberModalBottomSheetState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     modifier: Modifier = Modifier,
@@ -502,7 +506,10 @@ fun HistoryScreen(
             isBlocked = isDetailBlocked,
             notes = notesForSelectedCall,
             onDismiss = { viewModel.selectItemForDetail(null) },
-            onCall = { record -> viewModel.callBack(record) },
+            onCall = { record ->
+                viewModel.selectItemForDetail(null)
+                viewModel.callBack(record)
+            },
             onBlockNumber = { number ->
                 viewModel.blockNumber(number)
                 android.widget.Toast.makeText(context, "Blocked $number", android.widget.Toast.LENGTH_SHORT).show()
@@ -541,6 +548,23 @@ fun HistoryScreen(
                 createContactNumber = null
                 android.widget.Toast.makeText(context, "Saved $displayName", android.widget.Toast.LENGTH_SHORT).show()
             }
+        )
+    }
+
+    // SIM selection sheet for call-back when "Always Ask" mode is enabled
+    val pendingCallBack by viewModel.pendingCallBackRecord.collectAsState()
+    val pendingRecord = pendingCallBack
+    if (pendingRecord != null) {
+        val simAccounts = remember(pendingRecord) { viewModel.getSimAccounts() }
+        val simSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        SimSelectSheet(
+            sheetState = simSheetState,
+            phoneNumber = pendingRecord.phoneNumber,
+            accounts = simAccounts,
+            onSelectSim = { account ->
+                viewModel.placeCallWithSim(pendingRecord, account)
+            },
+            onDismiss = { viewModel.dismissSimSelection() }
         )
     }
 }
