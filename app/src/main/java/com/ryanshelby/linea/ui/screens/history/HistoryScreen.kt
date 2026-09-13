@@ -288,7 +288,7 @@ fun HistoryScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 2.dp)
         ) {
-            items(HistoryFilter.values()) { filter ->
+            items(HistoryFilter.entries) { filter ->
                 val isSelected = filter == selectedFilter
                 Box(
                     modifier = Modifier
@@ -305,6 +305,8 @@ fun HistoryScreen(
                         text = when (filter) {
                             HistoryFilter.ALL -> "All Calls"
                             HistoryFilter.MISSED -> "Missed"
+                            HistoryFilter.INCOMING -> "Incoming"
+                            HistoryFilter.OUTGOING -> "Outgoing"
                             HistoryFilter.BLOCKED -> "Blocked"
                         },
                         style = LineaTypography.labelSmall.copy(

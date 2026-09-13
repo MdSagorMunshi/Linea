@@ -141,6 +141,8 @@ class HistoryViewModel @Inject constructor(
         val filteredByCategory = when (filter) {
             HistoryFilter.ALL -> safeRecords
             HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
+            HistoryFilter.INCOMING -> safeRecords.filter { it.callType == CallDirectionType.INCOMING }
+            HistoryFilter.OUTGOING -> safeRecords.filter { it.callType == CallDirectionType.OUTGOING }
             HistoryFilter.BLOCKED -> safeRecords.filter { rec ->
                 rec.callType == CallDirectionType.BLOCKED ||
                 blockedSet.contains(ScreeningRuleMatcher.normalize(rec.phoneNumber))
@@ -193,6 +195,8 @@ class HistoryViewModel @Inject constructor(
         val filteredByCategory = when (filter) {
             HistoryFilter.ALL -> safeRecords
             HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
+            HistoryFilter.INCOMING -> safeRecords.filter { it.callType == CallDirectionType.INCOMING }
+            HistoryFilter.OUTGOING -> safeRecords.filter { it.callType == CallDirectionType.OUTGOING }
             HistoryFilter.BLOCKED -> safeRecords.filter { rec ->
                 rec.callType == CallDirectionType.BLOCKED ||
                 blockedSet.contains(ScreeningRuleMatcher.normalize(rec.phoneNumber))

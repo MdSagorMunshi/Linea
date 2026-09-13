@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Recent Call History Filters (Incoming & Outgoing)**:
+  - Added dedicated `Incoming` and `Outgoing` filter chips to the Recent screen filter bar.
+  - Enables 1-tap filtering of call history logs across both daily date-grouped feeds and aggregated contact sessions.
 - **Dial Pad "Always Ask" Multi-SIM Symbol**:
   - Added a dedicated Always Ask symbol icon (`?`) in the dial pad top-bar SIM selector pill when "Always Ask" mode is enabled in Settings.
   - Allows users to temporarily choose SIM 1 or SIM 2 directly from the dial pad before dialing, or remain on prompt-on-call without altering permanent settings.
