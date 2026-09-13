@@ -165,7 +165,7 @@ LINEA adheres strictly to a **Tactile Neumorphic (Soft UI)** aesthetic, engineer
 1. Download the latest release APK from the [Releases](https://github.com/MdSagorMunshi/Linea/releases) page.
 2. Install the APK to your device or emulator:
    ```bash
-   adb install -r LiNEA-v2.1.0-release.apk
+   adb install -r LiNEA-v2.2.0-release.apk
    ```
 
 ### Designate as System Default Dialer

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [2.2.0] - 2026-09-14
+
 ### Added
 - **Configurable SIM Selector Position (Middle vs Bottom)**:
   - Added a customizable display position for the "Select Calling SIM" popup, allowing users to choose between a centered floating dialog (**Middle**) with translucent frosted glass background and a traditional sliding **Bottom Sheet**.

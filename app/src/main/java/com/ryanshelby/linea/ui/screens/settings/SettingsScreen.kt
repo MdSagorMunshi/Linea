@@ -762,7 +762,7 @@ fun SettingsScreen(
                     color = LineaColors.TextPrimary
                 )
                 Text(
-                    text = "Version 2.1.0 • Free & Open Source (FOSS)",
+                    text = "Version 2.2.0 • Free & Open Source (FOSS)",
                     style = LineaTypography.labelSmall,
                     color = LineaColors.TitaniumBlue
                 )
