@@ -21,8 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dial Pad "Always Ask" Multi-SIM Symbol**:
   - Added a dedicated Always Ask symbol icon (`?`) in the dial pad top-bar SIM selector pill when "Always Ask" mode is enabled in Settings.
   - Allows users to temporarily choose SIM 1 or SIM 2 directly from the dial pad before dialing, or remain on prompt-on-call without altering permanent settings.
+- **Secret Dial Pad Fiery Call Button Easter Egg**:
+  - Added a secret 3-second tap-and-hold interaction to the Cellular Dial Pad's Call button.
+  - Features a slow-motion explosive detonation with expanding fire shockwave and shattered debris shards, followed by a magnetic vortex rewind and healing sequence that reforges the button into a permanent **Fiery Magma Style**.
+  - Custom-designed animated fiery phone icon featuring 3-layered roaring flame wings (earpiece plumes, dragon-crest spine fins, rocket exhaust jets) and an incandescent molten white-gold core.
+  - Real-time animated flame tip fluttering (`flameWobble`) and floating dancing ember sparks.
+  - State persists in DataStore across app restarts and updates; holding for 3 seconds again triggers another slow-motion blast and healing sequence to restore the default Titanium Blue style.
+  - Maintained complete secrecy with zero in-app UI or settings mentions; regular taps (<400ms) place calls instantly with zero latency.
 
 ### Changed
+- **Dynamic SIM 2 Option Visibility (Single-SIM Optimization)**:
+  - Dynamically hides the "SIM 2" selection row in **Dual SIM Management** settings when the device only has a single active SIM subscription.
+  - Omits the dual-SIM selector pill on the Cellular Dial Pad on single-SIM setups, cleanly routing calls through the active SIM slot.
 - **Dial Pad Default SIM Settings Affinity**:
   - The dial pad now strictly honors the user's default SIM preference from Settings ("SIM 1 Only", "SIM 2 Only", or "Always Ask") upon opening.
   - In-dialer SIM switching is strictly temporary and preserves the configured Settings default when the dial pad is reopened.
