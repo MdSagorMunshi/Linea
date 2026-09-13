@@ -121,6 +121,7 @@ fun DialpadScreen(
     val internationalPreview by viewModel.internationalPreview.collectAsState()
     val dialpadHapticProfile by viewModel.dialpadHapticProfile.collectAsState()
     val simSelectorPosition by viewModel.simSelectorPosition.collectAsState()
+    val isFieryCallButton by viewModel.isFieryCallButton.collectAsState()
 
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
     var selectedSheetAccount by remember { mutableStateOf<SimAccountInfo?>(null) }
@@ -715,12 +716,16 @@ fun DialpadScreen(
                 }
             }
 
-            // Call Button (Titanium Blue Gradient, 68dp)
+            // Call Button (Titanium Blue or Fiery Magma, 68dp)
             CallButton(
+                isFiery = isFieryCallButton,
                 onClick = {
                     if (enteredNumber.isNotEmpty()) {
                         initiateCall(enteredNumber)
                     }
+                },
+                onToggleFiery = {
+                    viewModel.toggleFieryCallButton()
                 }
             )
 
@@ -889,53 +894,6 @@ private fun SimSelectorPill(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun CallButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val reduceAnimations = LocalReduceAnimations.current
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && !reduceAnimations) 0.92f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "CallButtonScale"
-    )
-
-    val currentElevation = if (isPressed) 1.5.dp else 6.5.dp
-    val buttonColor = if (isPressed) Color(0xFF3B566E) else Color(0xFF4A6B88)
-
-    Box(
-        modifier = modifier
-            .scale(scale)
-            .size(68.dp)
-            .neumorphic(
-                shape = CircleShape,
-                elevation = currentElevation,
-                isSunken = isPressed,
-                surfaceColor = buttonColor
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Call,
-            contentDescription = "Call",
-            tint = Color.White,
-            modifier = Modifier.size(30.dp)
-        )
     }
 }
 

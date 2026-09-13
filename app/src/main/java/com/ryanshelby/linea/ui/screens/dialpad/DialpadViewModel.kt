@@ -97,6 +97,9 @@ class DialpadViewModel @Inject constructor(
     val simSelectorPosition: StateFlow<String> = preferences.simSelectorPosition
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LineaPreferences.SimPopupPosition.MIDDLE)
 
+    val isFieryCallButton: StateFlow<Boolean> = preferences.fieryCallButton
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val t9Matches: StateFlow<List<T9SearchResult>> = combine(
         _enteredNumber,
         _contacts
@@ -232,5 +235,11 @@ class DialpadViewModel @Inject constructor(
         if (numberToCall.isEmpty()) return
 
         callManager.placeCall(numberToCall, account.phoneAccountHandle)
+    }
+
+    fun toggleFieryCallButton() {
+        viewModelScope.launch {
+            preferences.setFieryCallButton(!isFieryCallButton.value)
+        }
     }
 }

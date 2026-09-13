@@ -84,6 +84,7 @@ class LineaPreferences @Inject constructor(
         val KEY_DIALPAD_HAPTIC_PROFILE = stringPreferencesKey("dialpad_haptic_profile") // TITANIUM_GLASS, MECHANICAL_RELAY, STEALTH, CLASSIC
         val KEY_PERMISSION_INTRO_SHOWN = booleanPreferencesKey("permission_intro_shown")
         val KEY_SIM_SELECTOR_POSITION = stringPreferencesKey("sim_selector_position") // "MIDDLE", "BOTTOM"
+        val KEY_FIERY_CALL_BUTTON = booleanPreferencesKey("fiery_call_button")
 
         // Quantum Vault & Anti-Brute-Force Keys
 
@@ -135,6 +136,7 @@ class LineaPreferences @Inject constructor(
     val dialpadHapticProfile: Flow<String> = dataStore.data.map { it[KEY_DIALPAD_HAPTIC_PROFILE] ?: DialpadHapticProfile.TITANIUM_GLASS }
     val permissionIntroShown: Flow<Boolean> = dataStore.data.map { it[KEY_PERMISSION_INTRO_SHOWN] ?: false }
     val simSelectorPosition: Flow<String> = dataStore.data.map { it[KEY_SIM_SELECTOR_POSITION] ?: SimPopupPosition.MIDDLE }
+    val fieryCallButton: Flow<Boolean> = dataStore.data.map { it[KEY_FIERY_CALL_BUTTON] ?: false }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -158,6 +160,10 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setSimSelectorPosition(position: String) {
         dataStore.edit { it[KEY_SIM_SELECTOR_POSITION] = position }
+    }
+
+    suspend fun setFieryCallButton(enabled: Boolean) {
+        dataStore.edit { it[KEY_FIERY_CALL_BUTTON] = enabled }
     }
 
     suspend fun setProximityWaveToSilence(enabled: Boolean) {
