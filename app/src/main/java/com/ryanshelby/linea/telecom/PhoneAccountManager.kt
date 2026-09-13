@@ -101,18 +101,20 @@ class PhoneAccountManager @Inject constructor(
                     )
                 }
 
-            if (registeredAccounts.isEmpty()) {
-                callCapableHandles.forEachIndexed { index, handle ->
+            val existingHandles = registeredAccounts.map { it.phoneAccountHandle }.toSet()
+            callCapableHandles.forEachIndexed { index, handle ->
+                if (!existingHandles.contains(handle)) {
                     val phoneAccount = telecomManager.getPhoneAccount(handle)
                     val isSim = phoneAccount?.hasCapabilities(PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION) == true ||
                             handle.componentName.className.contains("TelephonyConnectionService", ignoreCase = true)
                     if (isSim) {
-                        val displayName = phoneAccount?.label?.toString() ?: "SIM ${index + 1}"
+                        val slot = registeredAccounts.size
+                        val displayName = phoneAccount?.label?.toString() ?: "SIM ${slot + 1}"
                         val carrierName = phoneAccount?.shortDescription?.toString() ?: displayName
                         registeredAccounts.add(
                             SimAccountInfo(
-                                slotIndex = index,
-                                subscriptionId = index + 1,
+                                slotIndex = slot,
+                                subscriptionId = slot + 1,
                                 displayName = displayName,
                                 carrierName = carrierName,
                                 phoneAccountHandle = handle

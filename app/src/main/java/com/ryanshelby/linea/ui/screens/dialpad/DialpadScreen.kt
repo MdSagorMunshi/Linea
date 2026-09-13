@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -112,6 +113,7 @@ fun DialpadScreen(
     val soundEnabled by viewModel.soundEnabled.collectAsState()
     val vibrationEnabled by viewModel.vibrationEnabled.collectAsState()
     val askSimBeforeDial by viewModel.askSimBeforeDial.collectAsState()
+    val isAlwaysAskEnabled by viewModel.isAlwaysAskEnabled.collectAsState()
     val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
     val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
     val activeProfile by viewModel.activeProfile.collectAsState()
@@ -120,6 +122,7 @@ fun DialpadScreen(
     val dialpadHapticProfile by viewModel.dialpadHapticProfile.collectAsState()
 
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
+    var selectedSheetAccount by remember { mutableStateOf<SimAccountInfo?>(null) }
     var showCountdownDialog by remember { mutableStateOf(false) }
     var showSimSelectSheet by remember { mutableStateOf(false) }
     var showCreateContactSheet by remember { mutableStateOf(false) }
@@ -206,6 +209,7 @@ fun DialpadScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 refreshClipboard()
+                viewModel.resetToDefaultSim()
             }
         }
         val clipListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
@@ -225,10 +229,39 @@ fun DialpadScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.resetToDefaultSim()
+    }
+
     var showPasteMenu by remember { mutableStateOf(false) }
     var pasteMenuOffset by remember { mutableStateOf(Offset.Zero) }
 
     val displayedSims = if (activeSims.isNotEmpty()) activeSims else simAccounts
+
+    val effectiveSims = remember(displayedSims) {
+        if (displayedSims.size >= 2) {
+            displayedSims.take(2)
+        } else {
+            val sim0 = displayedSims.getOrNull(0) ?: SimAccountInfo(
+                slotIndex = 0,
+                subscriptionId = 1,
+                displayName = "SIM 1",
+                carrierName = "Carrier 1",
+                phoneAccountHandle = android.telecom.PhoneAccountHandle(
+                    android.content.ComponentName(context, "com.ryanshelby.linea.telecom.LineaConnectionService"),
+                    "sim_0"
+                )
+            )
+            val sim1 = displayedSims.getOrNull(1) ?: SimAccountInfo(
+                slotIndex = 1,
+                subscriptionId = 2,
+                displayName = "SIM 2",
+                carrierName = "Carrier 2",
+                phoneAccountHandle = displayedSims.getOrNull(0)?.phoneAccountHandle ?: sim0.phoneAccountHandle
+            )
+            listOf(sim0, sim1)
+        }
+    }
 
     // Back gesture clears typed buffer before app exit or screen switch
     BackHandler(enabled = enteredNumber.isNotEmpty()) {
@@ -240,7 +273,7 @@ fun DialpadScreen(
         if (now - lastInitiateCallTime >= 1000L) {
             lastInitiateCallTime = now
             pendingCallNumber = number
-            if (askSimBeforeDial && displayedSims.size > 1) {
+            if (selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK) {
                 showSimSelectSheet = true
             } else if (callConfirmationEnabled) {
                 showCountdownDialog = true
@@ -312,13 +345,12 @@ fun DialpadScreen(
                 }
 
                 // SIM Selector Pill
-                if (displayedSims.isNotEmpty()) {
-                    SimSelectorPill(
-                        sims = displayedSims,
-                        selectedIndex = selectedSimIndex,
-                        onSelectSim = { viewModel.selectSim(it) }
-                    )
-                }
+                SimSelectorPill(
+                    sims = effectiveSims,
+                    selectedIndex = selectedSimIndex,
+                    showAlwaysAsk = isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK,
+                    onSelectSim = { viewModel.selectSim(it) }
+                )
             }
         }
 
@@ -760,14 +792,14 @@ fun DialpadScreen(
         SimSelectSheet(
             sheetState = simSheetState,
             phoneNumber = pendingCallNumber ?: enteredNumber,
-            accounts = displayedSims,
+            accounts = effectiveSims,
             onSelectSim = { account ->
-                viewModel.selectSimBySubscriptionId(account.subscriptionId)
                 showSimSelectSheet = false
                 if (callConfirmationEnabled) {
+                    selectedSheetAccount = account
                     showCountdownDialog = true
                 } else {
-                    viewModel.placeCall(pendingCallNumber)
+                    viewModel.placeCallWithAccount(pendingCallNumber, account)
                 }
             },
             onDismiss = { showSimSelectSheet = false }
@@ -782,10 +814,19 @@ fun DialpadScreen(
                 showCountdownDialog = false
                 val target = pendingCallNumber ?: enteredNumber
                 if (target.isNotBlank()) {
-                    viewModel.placeCall(target)
+                    val account = selectedSheetAccount
+                    if (account != null) {
+                        viewModel.placeCallWithAccount(target, account)
+                    } else {
+                        viewModel.placeCall(target)
+                    }
                 }
+                selectedSheetAccount = null
             },
-            onCancel = { showCountdownDialog = false }
+            onCancel = {
+                showCountdownDialog = false
+                selectedSheetAccount = null
+            }
         )
     }
 }
@@ -794,6 +835,7 @@ fun DialpadScreen(
 private fun SimSelectorPill(
     sims: List<SimAccountInfo>,
     selectedIndex: Int,
+    showAlwaysAsk: Boolean = false,
     onSelectSim: (Int) -> Unit
 ) {
     NeumorphicWell(
@@ -837,6 +879,34 @@ private fun SimSelectorPill(
                             color = if (isSelected) Color.White else LineaColors.TextSecondary
                         )
                     }
+                }
+            }
+
+            if (showAlwaysAsk) {
+                val isAlwaysAskSelected = selectedIndex == DialpadViewModel.SIM_ALWAYS_ASK
+                Box(
+                    modifier = Modifier
+                        .then(
+                            if (isAlwaysAskSelected) {
+                                Modifier.neumorphic(
+                                    shape = RoundedCornerShape(12.dp),
+                                    elevation = 2.5.dp,
+                                    surfaceColor = LineaColors.TitaniumBlue
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .clickable { onSelectSim(DialpadViewModel.SIM_ALWAYS_ASK) }
+                        .padding(horizontal = 9.dp, vertical = 5.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.QuestionMark,
+                        contentDescription = "Always Ask",
+                        tint = if (isAlwaysAskSelected) Color.White else LineaColors.TextSecondary,
+                        modifier = Modifier.size(13.dp)
+                    )
                 }
             }
         }

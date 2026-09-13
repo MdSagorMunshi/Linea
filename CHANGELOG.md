@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Dial Pad "Always Ask" Multi-SIM Symbol**:
+  - Added a dedicated Always Ask symbol icon (`?`) in the dial pad top-bar SIM selector pill when "Always Ask" mode is enabled in Settings.
+  - Allows users to temporarily choose SIM 1 or SIM 2 directly from the dial pad before dialing, or remain on prompt-on-call without altering permanent settings.
+
+### Changed
+- **Dial Pad Default SIM Settings Affinity**:
+  - The dial pad now strictly honors the user's default SIM preference from Settings ("SIM 1 Only", "SIM 2 Only", or "Always Ask") upon opening.
+  - In-dialer SIM switching is strictly temporary and preserves the configured Settings default when the dial pad is reopened.
+
+### Fixed
+- **Dial Pad SIM 2 Only Default Selection**:
+  - Resolved issue where selecting "SIM 2 Only" in Settings still caused the dial pad to default to SIM 1.
+- **Incoming Call Premature Ringer Silencing**:
+  - Prevented Telecom's internal `onSilenceRinger()` setup invocation and early `VOLUME_CHANGED_ACTION` broadcasts from prematurely silencing the incoming ringtone before playback starts.
+- **History Call-Back Dual-SIM Selection**:
+  - Integrated `SimSelectSheet` prompt when initiating call-backs from Recent call logs with dual SIM and "Always Ask" enabled.
+- **Quiet Hours Rule Initialization**:
+  - Fixed database check to prevent duplicate Quiet Hours rule insertions.
+
+---
+
 ## [2.1.0] - 2026-09-11
 
 ### Added

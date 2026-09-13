@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -31,13 +32,19 @@ class DialpadViewModel @Inject constructor(
     private val preferences: LineaPreferences
 ) : ViewModel() {
 
+    companion object {
+        const val SIM_SLOT_1 = 0
+        const val SIM_SLOT_2 = 1
+        const val SIM_ALWAYS_ASK = -1
+    }
+
     private val _enteredNumber = MutableStateFlow("")
     val enteredNumber: StateFlow<String> = _enteredNumber.asStateFlow()
 
     private val _simAccounts = MutableStateFlow<List<SimAccountInfo>>(emptyList())
     val simAccounts: StateFlow<List<SimAccountInfo>> = _simAccounts.asStateFlow()
 
-    private val _selectedSimIndex = MutableStateFlow(0)
+    private val _selectedSimIndex = MutableStateFlow(SIM_SLOT_1)
     val selectedSimIndex: StateFlow<Int> = _selectedSimIndex.asStateFlow()
 
     private val _contacts = MutableStateFlow<List<T9Contact>>(emptyList())
@@ -48,8 +55,18 @@ class DialpadViewModel @Inject constructor(
     val vibrationEnabled: StateFlow<Boolean> = preferences.dialpadVibrationEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val defaultSim: StateFlow<Int> = preferences.defaultSim
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     val askSimBeforeDial: StateFlow<Boolean> = preferences.askSimBeforeDial
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val isAlwaysAskEnabled: StateFlow<Boolean> = combine(
+        preferences.askSimBeforeDial,
+        preferences.defaultSim
+    ) { ask, default ->
+        ask || default == -1
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val callConfirmationEnabled: StateFlow<Boolean> = preferences.callConfirmationEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
@@ -91,6 +108,21 @@ class DialpadViewModel @Inject constructor(
     init {
         loadSimAccounts()
         loadContacts()
+        resetToDefaultSim()
+    }
+
+    fun resetToDefaultSim() {
+        viewModelScope.launch {
+            val ask = preferences.askSimBeforeDial.first()
+            val default = preferences.defaultSim.first()
+            _selectedSimIndex.value = if (ask || default == -1) {
+                SIM_ALWAYS_ASK
+            } else if (default == 1) {
+                SIM_SLOT_2
+            } else {
+                SIM_SLOT_1
+            }
+        }
     }
 
     fun switchProfile() {
@@ -146,7 +178,7 @@ class DialpadViewModel @Inject constructor(
     }
 
     fun selectSim(index: Int) {
-        if (index in _simAccounts.value.indices) {
+        if (index in 0..1 || index == SIM_ALWAYS_ASK) {
             _selectedSimIndex.value = index
         }
     }
@@ -169,10 +201,23 @@ class DialpadViewModel @Inject constructor(
         if (numberToCall.isEmpty()) return
 
         val accounts = _simAccounts.value
-        // If there are SIM choices, always send the selected account handle. A missing or
-        // removed subscription is not silently replaced with the system default.
-        val selectedAccount = accounts.getOrNull(_selectedSimIndex.value)
-        if (accounts.isNotEmpty() && selectedAccount == null) return
+        val targetSlot = if (_selectedSimIndex.value in 0..1) _selectedSimIndex.value else 0
+        val selectedAccount = accounts.find { it.slotIndex == targetSlot }
+            ?: accounts.getOrNull(targetSlot)
+            ?: accounts.firstOrNull()
         callManager.placeCall(numberToCall, selectedAccount?.phoneAccountHandle)
+    }
+
+    fun placeCallWithAccount(phoneNumber: String? = null, account: SimAccountInfo) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastPlaceCallTimestamp < 1000L) {
+            return
+        }
+        lastPlaceCallTimestamp = now
+
+        val numberToCall = (phoneNumber ?: _enteredNumber.value).trim()
+        if (numberToCall.isEmpty()) return
+
+        callManager.placeCall(numberToCall, account.phoneAccountHandle)
     }
 }
