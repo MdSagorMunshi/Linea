@@ -114,6 +114,7 @@ fun CallbackReminderSheet(
         sheetState = sheetState,
         containerColor = LineaColors.SurfaceElevated,
         dragHandle = null,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         modifier = modifier
     ) {
         Column(

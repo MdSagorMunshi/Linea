@@ -49,14 +49,25 @@ fun SimSelectSheet(
         sheetState = sheetState,
         containerColor = LineaColors.BackgroundBottom,
         tonalElevation = 0.dp,
-        dragHandle = null
+        dragHandle = null,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = LineaDimensions.ScreenPadding, vertical = 20.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
+            // Drag handle pill
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 4.dp, bottom = 16.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(LineaColors.TextSecondary.copy(alpha = 0.35f))
+            )
+
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -85,7 +96,7 @@ fun SimSelectSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             if (accounts.isNotEmpty()) {
                 accounts.forEach { acc ->
@@ -124,8 +135,13 @@ fun SimSelectSheet(
                                     style = LineaTypography.titleMedium,
                                     color = LineaColors.TextPrimary
                                 )
+                                val subtitle = when {
+                                    acc.carrierName.isNotBlank() && !acc.carrierName.equals(acc.displayName, ignoreCase = true) -> acc.carrierName
+                                    acc.carrierName.isNotBlank() -> "Slot ${acc.slotIndex + 1} • Active"
+                                    else -> "Slot ${acc.slotIndex + 1}"
+                                }
                                 Text(
-                                    text = acc.carrierName,
+                                    text = subtitle,
                                     style = LineaTypography.bodyMedium,
                                     color = LineaColors.TextSecondary
                                 )

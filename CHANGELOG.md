@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - In-dialer SIM switching is strictly temporary and preserves the configured Settings default when the dial pad is reopened.
 
 ### Fixed
+- **Bottom Sheet Dome Clipping & Header Truncation**:
+  - Corrected `LineaShapes.extraLarge` from `CircleShape` to `RoundedCornerShape(28.dp)` to prevent Material 3 `ModalBottomSheet` and dialogs from inheriting a 50% semi-circle dome radius that clipped sheet titles ("Select Calling SIM", "Calling <number>") and action buttons.
+  - Added explicit 28.dp rounded top corners and a top drag handle pill to `SimSelectSheet`, `AddEditCallRuleSheet`, `AddBlockSheet`, and `CallbackReminderSheet` with comfortable content padding.
 - **Dial Pad SIM 2 Only Default Selection**:
   - Resolved issue where selecting "SIM 2 Only" in Settings still caused the dial pad to default to SIM 1.
 - **Incoming Call Premature Ringer Silencing**:

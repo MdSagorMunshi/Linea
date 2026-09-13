@@ -22,5 +22,5 @@ val LineaShapes = Shapes(
     small = RoundedCornerShape(12.dp),      // Buttons and chips: 12dp
     medium = RoundedCornerShape(20.dp),     // Panels and cards: 20dp
     large = RoundedCornerShape(20.dp),      // Large sheets: 20dp
-    extraLarge = CircleShape                // Circular dialpad keys
+    extraLarge = RoundedCornerShape(28.dp)  // Large bottom sheets and dialogs: 28dp
 )
