@@ -39,10 +39,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -215,6 +218,15 @@ fun CallButton(
         ),
         label = "EmberLoopTime"
     )
+    val flameWobble by infiniteTransition.animateFloat(
+        initialValue = -1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(380, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "FlameWobble"
+    )
 
     // Trigger full blast & healing sequence
     val triggerEasterEgg: () -> Unit = {
@@ -291,14 +303,15 @@ fun CallButton(
         if (isFiery && blastPhase == BlastPhase.IDLE) {
             Box(
                 modifier = Modifier
-                    .size(76.dp)
+                    .size(88.dp)
                     .scale(fieryPulse)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFFFF7043).copy(alpha = 0.55f),
-                                Color(0xFFFF3D00).copy(alpha = 0.25f),
+                                Color(0xFFFF3D00).copy(alpha = 0.65f),
+                                Color(0xFFFF9100).copy(alpha = 0.35f),
+                                Color(0xFFFFD600).copy(alpha = 0.15f),
                                 Color.Transparent
                             )
                         )
@@ -439,35 +452,53 @@ fun CallButton(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                // If fiery, apply fiery radial magma fill
+                // If fiery, apply radiant volcanic magma fill and incandescent rim
                 if (isFiery) {
-                    Box(
-                        modifier = Modifier
-                            .size(68.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        Color(0xFFFFF176), // Hot golden solar center
-                                        Color(0xFFFF9800), // Vivid orange
-                                        Color(0xFFF4511E), // Blaze red-orange
-                                        Color(0xFFB71C1C), // Deep crimson edge
-                                        Color(0xFF3E0A0A)  // Volcanic charcoal rim
-                                    ),
-                                    center = Offset(68.dp.value * 0.35f, 68.dp.value * 0.32f),
-                                    radius = 68.dp.value * 1.4f
-                                )
+                    Canvas(modifier = Modifier.size(68.dp)) {
+                        val cx = size.width * 0.44f
+                        val cy = size.height * 0.40f
+                        val radius = size.width * 0.62f
+
+                        // Volcanic magma radial gradient covering full button
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0xFFFFF9C4), // Hot white-gold core
+                                    Color(0xFFFFEA00), // Bright solar yellow
+                                    Color(0xFFFF6D00), // Intense magma orange
+                                    Color(0xFFD50000), // Volcanic scarlet
+                                    Color(0xFF5C0000), // Deep lava crimson
+                                    Color(0xFF210000)  // Obsidian volcanic rim
+                                ),
+                                center = Offset(cx, cy),
+                                radius = radius
                             )
-                    )
+                        )
+
+                        // Incandescent blazing rim ring
+                        drawCircle(
+                            color = Color(0xFFFFD54F).copy(alpha = 0.8f),
+                            radius = size.width / 2f - 1.5.dp.toPx(),
+                            style = Stroke(width = 2.dp.toPx())
+                        )
+                    }
                 }
 
-                // Call phone icon
-                Icon(
-                    imageVector = Icons.Filled.Call,
-                    contentDescription = "Call",
-                    tint = if (isFiery) Color(0xFFFFFDE7) else Color.White,
-                    modifier = Modifier.size(30.dp)
-                )
+                // Call phone icon: Crazy fiery animated icon when fiery, or clean default icon
+                if (isFiery) {
+                    FieryCrazyCallIcon(
+                        flameWobble = flameWobble,
+                        emberTime = emberLoopTime,
+                        modifier = Modifier.size(54.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Call,
+                        contentDescription = "Call",
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
             }
         }
 
@@ -675,3 +706,187 @@ private fun DrawScope.drawShard(
 
     drawPath(path = path, color = color, style = Fill)
 }
+
+/**
+ * Custom-designed crazy animated fiery call icon:
+ * - Official telephone handset transformed into molten white-gold fire relic.
+ * - Leaping flame plumes from the earpiece.
+ * - Fire dragon crest fins along the outer spine.
+ * - Exhaust flame rocket jet flaring off the mouthpiece.
+ * - Hot incandescent white core energy line.
+ * - Dynamic flame flickering and floating ember sparks.
+ */
+@Composable
+private fun FieryCrazyCallIcon(
+    flameWobble: Float,
+    emberTime: Float,
+    modifier: Modifier = Modifier
+) {
+    val handsetPath = remember {
+        PathParser().parsePathString(
+            "M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 0 0-1.01.24l-2.2 2.2a15.053 15.053 0 0 1-6.59-6.59l2.2-2.21a.96.96 0 0 0 .25-1.01A11.36 11.36 0 0 1 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z"
+        ).toPath()
+    }
+
+    Canvas(modifier = modifier) {
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val scale = size.width / 34f
+
+        withTransform({
+            translate(left = cx, top = cy)
+            scale(scaleX = scale, scaleY = scale, pivot = Offset.Zero)
+            translate(left = -12f, top = -12f)
+        }) {
+            // Layer 1: Massive outer blaze flame plumes (crimson to vivid orange)
+            drawFlameLayer(
+                scaleFactor = 1.25f,
+                topColor = Color(0xFFFF9100),
+                botColor = Color(0xFFD50000),
+                alpha = 0.82f,
+                wobble = flameWobble
+            )
+
+            // Layer 2: Radiant mid fire tongues (solar yellow to blaze orange)
+            drawFlameLayer(
+                scaleFactor = 1.10f,
+                topColor = Color(0xFFFFEA00),
+                botColor = Color(0xFFFF6D00),
+                alpha = 0.92f,
+                wobble = -flameWobble * 0.85f
+            )
+
+            // Layer 3: Inner incandescent fire crests (white to golden amber)
+            drawFlameLayer(
+                scaleFactor = 0.95f,
+                topColor = Color(0xFFFFFFFF),
+                botColor = Color(0xFFFFD600),
+                alpha = 0.96f,
+                wobble = flameWobble * 0.5f
+            )
+
+            // Handset silhouette filled with molten fiery white-gold gradient
+            val phoneBrush = Brush.linearGradient(
+                colors = listOf(
+                    Color(0xFFFFFFFF), // Pure white hot tip
+                    Color(0xFFFFF9C4), // Incandescent gold
+                    Color(0xFFFFD600), // Solar yellow
+                    Color(0xFFFF9100), // Lava orange
+                    Color(0xFFFF3D00)  // Blazing red-orange
+                ),
+                start = Offset(3f, 3f),
+                end = Offset(21f, 21f)
+            )
+
+            drawPath(
+                path = handsetPath,
+                brush = phoneBrush
+            )
+
+            // Sharp fiery electric border outline
+            drawPath(
+                path = handsetPath,
+                color = Color(0xFFFF3D00),
+                style = Stroke(width = 0.7f)
+            )
+
+            // Inner white-hot energy core line
+            val corePath = Path().apply {
+                moveTo(5f, 5f)
+                cubicTo(5f, 12f, 12f, 19f, 19f, 19f)
+            }
+            drawPath(
+                path = corePath,
+                color = Color.White.copy(alpha = 0.95f),
+                style = Stroke(width = 0.85f, cap = StrokeCap.Round)
+            )
+
+            // Micro ember spark particles dancing around the flames
+            val sparks = listOf(
+                Triple(4.5f, -7.0f, 0.75f),
+                Triple(8.5f, -5.5f, 0.6f),
+                Triple(-4.2f, 9.0f, 0.7f),
+                Triple(-3.2f, 14.0f, 0.65f),
+                Triple(27.0f, 24.5f, 0.75f),
+                Triple(25.0f, 16.5f, 0.55f),
+                Triple(1.5f, 1.0f, 0.5f),
+                Triple(10.0f, -7.0f, 0.6f)
+            )
+            sparks.forEachIndexed { i, (sx, sy, baseR) ->
+                val flicker = sin((emberTime * 2f * PI.toFloat() * 3f) + i).coerceIn(0.25f, 1f)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = flicker),
+                            Color(0xFFFFD600).copy(alpha = flicker * 0.8f),
+                            Color(0xFFFF3D00).copy(alpha = 0f)
+                        ),
+                        center = Offset(sx, sy),
+                        radius = baseR
+                    ),
+                    radius = baseR,
+                    center = Offset(sx, sy)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Draws a multi-tongue flame layer around the 24x24 handset coordinates.
+ */
+private fun DrawScope.drawFlameLayer(
+    scaleFactor: Float,
+    topColor: Color,
+    botColor: Color,
+    alpha: Float,
+    wobble: Float
+) {
+    withTransform({
+        translate(left = 12f, top = 12f)
+        scale(scaleX = scaleFactor, scaleY = scaleFactor, pivot = Offset.Zero)
+        translate(left = -12f, top = -12f)
+    }) {
+        val flameBrush = Brush.verticalGradient(
+            colors = listOf(
+                topColor.copy(alpha = alpha),
+                botColor.copy(alpha = alpha)
+            ),
+            startY = -8f,
+            endY = 24f
+        )
+
+        // Earpiece fire plumes (top-left)
+        val earpieceFlames = Path().apply {
+            moveTo(3.5f, 4.0f)
+            cubicTo(1.5f + wobble * 0.6f, 0.5f, 3.0f, -4.5f, 5.0f + wobble * 0.8f, -6.5f)
+            cubicTo(5.5f, -3.5f, 6.5f, -3.0f, 7.5f - wobble * 0.5f, -4.8f)
+            cubicTo(8.0f, -2.5f, 9.0f, -2.0f, 10.0f + wobble * 0.4f, -3.5f)
+            cubicTo(9.8f, -0.5f, 9.0f, 1.5f, 8.5f, 4.0f)
+            close()
+        }
+        drawPath(earpieceFlames, brush = flameBrush)
+
+        // Outer spine dragon-crest flames (bottom-left)
+        val spineFlames = Path().apply {
+            moveTo(3.0f, 6.0f)
+            cubicTo(0.5f, 4.5f, -2.8f + wobble * 0.5f, 6.5f, -3.5f + wobble * 0.7f, 9.5f)
+            cubicTo(-1.8f, 9.2f, -1.0f - wobble * 0.4f, 11.5f, -2.8f + wobble * 0.6f, 13.5f)
+            cubicTo(-0.8f, 13.2f, 0.5f, 14.5f, -1.5f + wobble * 0.5f, 17.0f)
+            cubicTo(0.8f, 16.2f, 2.0f, 15.0f, 3.0f, 13.0f)
+            close()
+        }
+        drawPath(spineFlames, brush = flameBrush)
+
+        // Mouthpiece jet flames (bottom-right)
+        val mouthpieceFlames = Path().apply {
+            moveTo(16.0f, 19.5f)
+            cubicTo(18.0f, 22.5f, 22.5f + wobble * 0.6f, 24.5f, 26.0f + wobble * 0.9f, 23.5f)
+            cubicTo(23.5f, 21.0f, 23.0f, 19.5f, 25.0f - wobble * 0.5f, 17.5f)
+            cubicTo(22.2f, 17.8f, 20.5f, 16.8f, 19.0f, 15.5f)
+            close()
+        }
+        drawPath(mouthpieceFlames, brush = flameBrush)
+    }
+}
+
