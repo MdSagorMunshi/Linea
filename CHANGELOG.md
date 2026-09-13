@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Configurable SIM Selector Position (Middle vs Bottom)**:
+  - Added a customizable display position for the "Select Calling SIM" popup, allowing users to choose between a centered floating dialog (**Middle**) with translucent frosted glass background and a traditional sliding **Bottom Sheet**.
+  - Set **Middle** as the default display position across the app.
+  - Added a dedicated "SIM Selector Position" card section in Settings under **Dual SIM Management** to seamlessly switch between Middle and Bottom modes.
+  - Wired position preference reactively to both the Cellular Dial Pad and Recent History call-backs.
 - **Recent Call History Filters (Incoming & Outgoing)**:
   - Added dedicated `Incoming` and `Outgoing` filter chips to the Recent screen filter bar.
   - Enables 1-tap filtering of call history logs across both daily date-grouped feeds and aggregated contact sessions.

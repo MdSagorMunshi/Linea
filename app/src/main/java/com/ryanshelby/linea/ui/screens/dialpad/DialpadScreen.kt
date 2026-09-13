@@ -120,6 +120,7 @@ fun DialpadScreen(
     val callerIdResult by viewModel.callerIdResult.collectAsState()
     val internationalPreview by viewModel.internationalPreview.collectAsState()
     val dialpadHapticProfile by viewModel.dialpadHapticProfile.collectAsState()
+    val simSelectorPosition by viewModel.simSelectorPosition.collectAsState()
 
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
     var selectedSheetAccount by remember { mutableStateOf<SimAccountInfo?>(null) }
@@ -770,6 +771,7 @@ fun DialpadScreen(
             sheetState = simSheetState,
             phoneNumber = pendingCallNumber ?: enteredNumber,
             accounts = displayedSims,
+            position = simSelectorPosition,
             onSelectSim = { account ->
                 showSimSelectSheet = false
                 if (callConfirmationEnabled) {

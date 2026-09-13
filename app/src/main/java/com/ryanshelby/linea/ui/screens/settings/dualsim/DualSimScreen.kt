@@ -56,6 +56,7 @@ fun DualSimScreen(
 ) {
     val defaultSim by preferences.defaultSim.collectAsState(initial = 0)
     val askBeforeDial by preferences.askSimBeforeDial.collectAsState(initial = false)
+    val simSelectorPosition by preferences.simSelectorPosition.collectAsState(initial = LineaPreferences.SimPopupPosition.MIDDLE)
     val scope = rememberCoroutineScope()
 
     val accounts = phoneAccountManager.registerPhoneAccounts()
@@ -294,6 +295,44 @@ fun DualSimScreen(
                             uncheckedThumbColor = LineaColors.TextSecondary,
                             uncheckedTrackColor = LineaColors.BackgroundTop
                         )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // SIM Selector Position (Middle vs Bottom)
+            Text(
+                text = "SIM Selector Position",
+                style = LineaTypography.titleSmall,
+                color = LineaColors.TextSecondary
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
+                    SimOptionRow(
+                        title = "Middle (Default)",
+                        subtitle = "Centered floating dialog with translucent frosted glass background",
+                        isSelected = simSelectorPosition == LineaPreferences.SimPopupPosition.MIDDLE,
+                        onClick = {
+                            scope.launch {
+                                preferences.setSimSelectorPosition(LineaPreferences.SimPopupPosition.MIDDLE)
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SimOptionRow(
+                        title = "Bottom",
+                        subtitle = "Traditional bottom sheet sliding up from the screen base",
+                        isSelected = simSelectorPosition == LineaPreferences.SimPopupPosition.BOTTOM,
+                        onClick = {
+                            scope.launch {
+                                preferences.setSimSelectorPosition(LineaPreferences.SimPopupPosition.BOTTOM)
+                            }
+                        }
                     )
                 }
             }

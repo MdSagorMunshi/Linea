@@ -94,6 +94,9 @@ class DialpadViewModel @Inject constructor(
     val dialpadHapticProfile: StateFlow<String> = preferences.dialpadHapticProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS)
 
+    val simSelectorPosition: StateFlow<String> = preferences.simSelectorPosition
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LineaPreferences.SimPopupPosition.MIDDLE)
+
     val t9Matches: StateFlow<List<T9SearchResult>> = combine(
         _enteredNumber,
         _contacts

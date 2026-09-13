@@ -553,8 +553,9 @@ fun HistoryScreen(
         )
     }
 
-    // SIM selection sheet for call-back when "Always Ask" mode is enabled
+    // SIM selection popup for call-back when "Always Ask" mode is enabled
     val pendingCallBack by viewModel.pendingCallBackRecord.collectAsState()
+    val simSelectorPosition by viewModel.simSelectorPosition.collectAsState()
     val pendingRecord = pendingCallBack
     if (pendingRecord != null) {
         val simAccounts = remember(pendingRecord) { viewModel.getSimAccounts() }
@@ -563,6 +564,7 @@ fun HistoryScreen(
             sheetState = simSheetState,
             phoneNumber = pendingRecord.phoneNumber,
             accounts = simAccounts,
+            position = simSelectorPosition,
             onSelectSim = { account ->
                 viewModel.placeCallWithSim(pendingRecord, account)
             },
