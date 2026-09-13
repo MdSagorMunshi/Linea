@@ -116,6 +116,11 @@ class CallManager @Inject constructor(
     private val _isRingerSilenced = MutableStateFlow(false)
     val isRingerSilenced: StateFlow<Boolean> = _isRingerSilenced.asStateFlow()
 
+    // Timestamp when ringing started; volume-change events within a short window are
+    // system-generated (audio stream setup) and must be ignored.
+    private var ringerStartedTimestamp = 0L
+    private val RINGER_GRACE_PERIOD_MS = 2000L
+
     val isRinging: Boolean
         get() = (_currentCall.value?.state == LineaCallState.RINGING && _currentCall.value?.isIncoming == true) ||
                 (_secondaryCall.value?.state == LineaCallState.RINGING && _secondaryCall.value?.isIncoming == true) ||
@@ -155,6 +160,7 @@ class CallManager @Inject constructor(
 
     fun endCurrentCall() {
         _isRingerSilenced.value = false
+        ringerStartedTimestamp = 0L
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
@@ -225,7 +231,10 @@ class CallManager @Inject constructor(
                     }
                 }
                 "android.media.VOLUME_CHANGED_ACTION" -> {
-                    if (isRinging && !_isRingerSilenced.value) {
+                    // Ignore volume changes during the grace period right after ringing
+                    // starts — these are system audio-setup events, not user key presses.
+                    val elapsed = SystemClock.elapsedRealtime() - ringerStartedTimestamp
+                    if (isRinging && !_isRingerSilenced.value && elapsed > RINGER_GRACE_PERIOD_MS) {
                         silenceRinger()
                     }
                 }
@@ -245,7 +254,7 @@ class CallManager @Inject constructor(
                     context,
                     hardwareKeyReceiver,
                     filter,
-                    ContextCompat.RECEIVER_NOT_EXPORTED
+                    ContextCompat.RECEIVER_EXPORTED
                 )
                 isHardwareKeyReceiverRegistered = true
             } catch (e: Exception) {
@@ -450,6 +459,7 @@ class CallManager @Inject constructor(
 
                     // Play ringtone and vibrate (respects ringerMode normal/vibrate/silent)
                     _isRingerSilenced.value = false
+                    ringerStartedTimestamp = SystemClock.elapsedRealtime()
                     registerHardwareKeyReceiver()
                     callRingtoneManager.startRinging(number, contactLookup.customRingtoneUri)
                     callGestureManager.startListening {
@@ -533,6 +543,7 @@ class CallManager @Inject constructor(
 
     fun onCallRemoved(call: Call) {
         _isRingerSilenced.value = false
+        ringerStartedTimestamp = 0L
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
@@ -817,6 +828,7 @@ class CallManager @Inject constructor(
 
     fun answerCall() {
         _isRingerSilenced.value = false
+        ringerStartedTimestamp = 0L
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
@@ -825,6 +837,7 @@ class CallManager @Inject constructor(
 
     fun rejectCall(rejectWithMessage: Boolean = false, textMessage: String? = null) {
         _isRingerSilenced.value = false
+        ringerStartedTimestamp = 0L
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
