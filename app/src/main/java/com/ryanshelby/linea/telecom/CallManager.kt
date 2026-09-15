@@ -224,10 +224,17 @@ class CallManager @Inject constructor(
     private val hardwareKeyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                Intent.ACTION_SCREEN_OFF,
-                Intent.ACTION_SCREEN_ON -> {
-                    if (hasActiveOrPendingCall) {
-                        onPowerButtonPressed()
+                Intent.ACTION_SCREEN_OFF -> {
+                    // Only silence if user intentionally pressed power to turn off an active screen.
+                    // Must NOT silence during initial ringing grace period or when inside a pocket (proximity is near).
+                    val elapsed = SystemClock.elapsedRealtime() - ringerStartedTimestamp
+                    if (isRinging && !_isRingerSilenced.value && ringerStartedTimestamp > 0L && elapsed > RINGER_GRACE_PERIOD_MS) {
+                        if (!callGestureManager.isProximityNear) {
+                            android.util.Log.d("CallManager", "ACTION_SCREEN_OFF triggered silence")
+                            onPowerButtonPressed()
+                        } else {
+                            android.util.Log.d("CallManager", "ACTION_SCREEN_OFF ignored because proximity is near (in pocket)")
+                        }
                     }
                 }
                 "android.media.VOLUME_CHANGED_ACTION" -> {
@@ -235,6 +242,7 @@ class CallManager @Inject constructor(
                     // starts — these are system audio-setup events, not user key presses.
                     val elapsed = SystemClock.elapsedRealtime() - ringerStartedTimestamp
                     if (isRinging && !_isRingerSilenced.value && ringerStartedTimestamp > 0L && elapsed > RINGER_GRACE_PERIOD_MS) {
+                        android.util.Log.d("CallManager", "VOLUME_CHANGED_ACTION triggered silence")
                         silenceRinger()
                     }
                 }
@@ -247,7 +255,6 @@ class CallManager @Inject constructor(
             try {
                 val filter = IntentFilter().apply {
                     addAction(Intent.ACTION_SCREEN_OFF)
-                    addAction(Intent.ACTION_SCREEN_ON)
                     addAction("android.media.VOLUME_CHANGED_ACTION")
                 }
                 ContextCompat.registerReceiver(
@@ -855,6 +862,7 @@ class CallManager @Inject constructor(
 
     fun silenceRinger() {
         if (_isRingerSilenced.value) return
+        android.util.Log.d("CallManager", "silenceRinger() called")
         _isRingerSilenced.value = true
         callRingtoneManager.silence()
         callGestureManager.stopListening()

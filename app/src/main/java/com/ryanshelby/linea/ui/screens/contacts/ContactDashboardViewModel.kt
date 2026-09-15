@@ -341,24 +341,12 @@ class ContactDashboardViewModel @Inject constructor(
                 photoUri = if (photoChanged) photoUri else current.photoUri
             )
             contactSyncRepository.updateContact(
-                updated,
+                contact = updated,
+                numbers = numbers,
+                emails = emails,
                 photoBytes = photoBytes,
                 hasPhotoChanged = photoChanged
             )
-
-            val validNumbers = numbers.filter { it.first.isNotBlank() }
-            if (validNumbers.isNotEmpty()) {
-                contactDao.deleteNumbersForContact(current.id)
-                contactDao.insertNumbers(validNumbers.mapIndexed { idx, (num, label) ->
-                    ContactNumberEntity(
-                        contactId = current.id,
-                        number = num,
-                        normalizedNumber = num.filter { it.isDigit() || it == '+' },
-                        label = label,
-                        isPrimary = idx == 0
-                    )
-                })
-            }
 
             loadContactData(current.id)
         }

@@ -360,12 +360,14 @@ class ContactsViewModel @Inject constructor(
                     notes = notes,
                     photoUri = if (photoChanged) photoUri else editing.photoUri
                 )
-                contactSyncRepository.updateContact(
-                    updated,
+                val saved = contactSyncRepository.updateContact(
+                    contact = updated,
+                    numbers = numbers,
+                    emails = emails,
                     photoBytes = photoBytes,
                     hasPhotoChanged = photoChanged
                 )
-                _selectedContactForDetail.value = updated
+                _selectedContactForDetail.value = saved
             } else {
                 if (_createAsPrivate.value) {
                     contactSyncRepository.createPrivateContact(

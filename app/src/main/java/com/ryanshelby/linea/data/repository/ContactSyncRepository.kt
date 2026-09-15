@@ -1,9 +1,17 @@
 package com.ryanshelby.linea.data.repository
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ContentProviderOperation
+import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.provider.ContactsContract
+import android.util.Log
+import androidx.core.content.ContextCompat
 import com.ryanshelby.linea.data.local.dao.ContactDao
+import com.ryanshelby.linea.data.local.entities.ContactEmailEntity
 import com.ryanshelby.linea.data.local.entities.ContactEntity
 import com.ryanshelby.linea.data.local.entities.ContactNumberEntity
 import com.ryanshelby.linea.telecom.T9Contact
@@ -90,6 +98,7 @@ class ContactSyncRepository @Inject constructor(
         // 1. Load and group contacts from Android ContactsContract by Contact ID
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
+            ContactsContract.CommonDataKinds.Phone.RAW_CONTACT_ID,
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
             ContactsContract.CommonDataKinds.Phone.NUMBER,
             ContactsContract.CommonDataKinds.Phone.PHOTO_URI,
@@ -101,6 +110,7 @@ class ContactSyncRepository @Inject constructor(
         data class RawPhone(val number: String, val label: String)
         data class GroupedContact(
             val androidId: Long,
+            val rawContactId: Long,
             val displayName: String,
             val photoUri: String?,
             val phones: MutableList<RawPhone>
@@ -120,6 +130,7 @@ class ContactSyncRepository @Inject constructor(
 
             cursor?.use {
                 val idIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
+                val rawIdIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.RAW_CONTACT_ID)
                 val nameIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
                 val numberIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
                 val photoIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
@@ -129,6 +140,7 @@ class ContactSyncRepository @Inject constructor(
 
                 while (it.moveToNext()) {
                     val id = if (idIdx >= 0) it.getLong(idIdx) else 0L
+                    val rawId = if (rawIdIdx >= 0) it.getLong(rawIdIdx) else 0L
                     val name = if (nameIdx >= 0) it.getString(nameIdx) ?: "Unknown" else "Unknown"
                     val number = if (numberIdx >= 0) it.getString(numberIdx) ?: "" else ""
                     val highResPhoto = if (photoIdx >= 0) it.getString(photoIdx) else null
@@ -160,6 +172,7 @@ class ContactSyncRepository @Inject constructor(
                         val existing = groupedMap.getOrPut(key) {
                             GroupedContact(
                                 androidId = id,
+                                rawContactId = rawId,
                                 displayName = name,
                                 photoUri = resolvedPhoto,
                                 phones = mutableListOf()
@@ -183,7 +196,9 @@ class ContactSyncRepository @Inject constructor(
         // 2. Synchronize grouped contacts into Room database
         for ((_, grouped) in groupedMap) {
             val existing = if (grouped.androidId > 0) {
-                contactDao.getContactByAndroidId(grouped.androidId) ?: contactDao.getContactByName(grouped.displayName)
+                contactDao.getContactByAndroidId(grouped.androidId)
+                    ?: (if (grouped.rawContactId > 0) contactDao.getContactByAndroidId(grouped.rawContactId) else null)
+                    ?: contactDao.getContactByName(grouped.displayName)
             } else {
                 contactDao.getContactByName(grouped.displayName)
             }
@@ -338,11 +353,16 @@ class ContactSyncRepository @Inject constructor(
             )
 
             // Name
+            val nameParts = displayName.trim().split("\\s+".toRegex(), limit = 2)
+            val givenName = nameParts.firstOrNull() ?: ""
+            val familyName = if (nameParts.size > 1) nameParts[1] else null
             ops.add(
                 android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                     .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawContactInsertIndex)
                     .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
                     .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, displayName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, givenName)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, familyName)
                     .build()
             )
 
@@ -404,6 +424,23 @@ class ContactSyncRepository @Inject constructor(
             val results = context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
             if (results.isNotEmpty() && results[0].uri != null) {
                 rawContactId = android.content.ContentUris.parseId(results[0].uri!!)
+                try {
+                    val cur = context.contentResolver.query(
+                        ContactsContract.RawContacts.CONTENT_URI,
+                        arrayOf(ContactsContract.RawContacts.CONTACT_ID),
+                        "${ContactsContract.RawContacts._ID} = ?",
+                        arrayOf(rawContactId.toString()),
+                        null
+                    )
+                    cur?.use {
+                        if (it.moveToFirst()) {
+                            val aggId = it.getLong(0)
+                            if (aggId > 0) {
+                                rawContactId = aggId
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -541,20 +578,117 @@ class ContactSyncRepository @Inject constructor(
 
     suspend fun updateContact(
         contact: ContactEntity,
+        numbers: List<Pair<String, String>>? = null,
+        emails: List<String>? = null,
         photoBytes: ByteArray? = null,
         hasPhotoChanged: Boolean = false
-    ) = withContext(Dispatchers.IO) {
-        contactDao.updateContact(contact)
-        if (hasPhotoChanged && contact.androidContactId != null && contact.androidContactId > 0) {
-            updateContactPhotoInSystem(contact.androidContactId, photoBytes)
+    ): ContactEntity = withContext(Dispatchers.IO) {
+        var updatedContact = contact
+
+        // 1. Update in Android Contacts Provider if linked or can be linked
+        val hasWritePermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.WRITE_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasWritePermission && !contact.isPrivate) {
+            val contactIdOrRawId = contact.androidContactId
+            if (contactIdOrRawId != null && contactIdOrRawId > 0) {
+                val success = updateContactInSystem(
+                    contactIdOrRawId = contactIdOrRawId,
+                    displayName = contact.displayName,
+                    company = contact.company,
+                    numbers = numbers,
+                    emails = emails,
+                    notes = contact.notes,
+                    photoBytes = photoBytes,
+                    hasPhotoChanged = hasPhotoChanged
+                )
+                if (!success) {
+                    Log.w("ContactSyncRepo", "updateContactInSystem failed for id $contactIdOrRawId")
+                }
+            } else {
+                // Not yet linked in system contacts: create and link
+                val rawId = createContactInSystem(
+                    displayName = contact.displayName,
+                    company = contact.company,
+                    numbers = numbers ?: emptyList(),
+                    emails = emails ?: emptyList(),
+                    notes = contact.notes,
+                    photoBytes = photoBytes
+                )
+                if (rawId != null && rawId > 0) {
+                    updatedContact = updatedContact.copy(androidContactId = rawId)
+                }
+            }
         }
+
+        // 2. Persist to Room database
+        contactDao.updateContact(updatedContact)
+
+        if (numbers != null) {
+            val validNumbers = numbers.filter { it.first.isNotBlank() }
+            contactDao.deleteNumbersForContact(contact.id)
+            if (validNumbers.isNotEmpty()) {
+                val numberEntities = validNumbers.mapIndexed { idx, (num, label) ->
+                    ContactNumberEntity(
+                        contactId = contact.id,
+                        number = num,
+                        normalizedNumber = num.filter { it.isDigit() || it == '+' },
+                        label = label,
+                        isPrimary = idx == 0
+                    )
+                }
+                contactDao.insertNumbers(numberEntities)
+            }
+        }
+
+        if (emails != null) {
+            val validEmails = emails.filter { it.isNotBlank() }
+            contactDao.deleteEmailsForContact(contact.id)
+            if (validEmails.isNotEmpty()) {
+                val emailEntities = validEmails.map { email ->
+                    ContactEmailEntity(
+                        contactId = contact.id,
+                        email = email,
+                        label = "Home"
+                    )
+                }
+                contactDao.insertEmails(emailEntities)
+            }
+        }
+
+        // 3. Reload from persistent source and verify
+        val reloaded = contactDao.getContactById(contact.id) ?: updatedContact
+
+        // 4. Refresh cached T9 contacts
         loadContacts()
+
+        reloaded
     }
 
-    private fun updateContactPhotoInSystem(contactIdOrRawId: Long, photoBytes: ByteArray?) {
-        try {
-            val rawContactIds = mutableListOf<Long>()
+    suspend fun updateContactInSystem(
+        contactIdOrRawId: Long,
+        displayName: String,
+        company: String?,
+        numbers: List<Pair<String, String>>?,
+        emails: List<String>?,
+        notes: String?,
+        photoBytes: ByteArray?,
+        hasPhotoChanged: Boolean
+    ): Boolean = withContext(Dispatchers.IO) {
+        val hasWritePermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.WRITE_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!hasWritePermission) {
+            Log.w("ContactSyncRepo", "Cannot update contact in system: WRITE_CONTACTS permission not granted")
+            return@withContext false
+        }
 
+        try {
+            // Find all raw contact IDs associated with this Contact ID or RawContact ID
+            val rawContactIds = mutableListOf<Long>()
             val rawCursor = context.contentResolver.query(
                 ContactsContract.RawContacts.CONTENT_URI,
                 arrayOf(ContactsContract.RawContacts._ID),
@@ -568,42 +702,212 @@ class ContactSyncRepository @Inject constructor(
                     if (idIdx >= 0) rawContactIds.add(it.getLong(idIdx))
                 }
             }
-
             if (rawContactIds.isEmpty()) {
                 rawContactIds.add(contactIdOrRawId)
             }
 
+            val ops = ArrayList<ContentProviderOperation>()
+
             for (rawId in rawContactIds) {
-                val dataCursor = context.contentResolver.query(
+                // A. StructuredName (DISPLAY_NAME, GIVEN_NAME & FAMILY_NAME)
+                val nameParts = displayName.trim().split("\\s+".toRegex(), limit = 2)
+                val givenName = nameParts.firstOrNull() ?: ""
+                val familyName = if (nameParts.size > 1) nameParts[1] else null
+
+                val nameCursor = context.contentResolver.query(
                     ContactsContract.Data.CONTENT_URI,
                     arrayOf(ContactsContract.Data._ID),
                     "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
-                    arrayOf(rawId.toString(), ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE),
+                    arrayOf(rawId.toString(), ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE),
                     null
                 )
-                val existingDataId = dataCursor?.use {
-                    if (it.moveToFirst()) it.getLong(0) else null
+                val existingNameId = nameCursor?.use { if (it.moveToFirst()) it.getLong(0) else null }
+                if (existingNameId != null) {
+                    ops.add(
+                        ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                            .withSelection("${ContactsContract.Data._ID} = ?", arrayOf(existingNameId.toString()))
+                            .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, displayName)
+                            .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, givenName)
+                            .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, familyName)
+                            .build()
+                    )
+                } else {
+                    ops.add(
+                        ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                            .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                            .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                            .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, displayName)
+                            .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, givenName)
+                            .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, familyName)
+                            .build()
+                    )
                 }
 
-                if (photoBytes != null && photoBytes.isNotEmpty()) {
-                    val values = android.content.ContentValues().apply {
-                        put(ContactsContract.Data.RAW_CONTACT_ID, rawId)
-                        put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                        put(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
-                    }
-                    if (existingDataId != null) {
-                        val uri = android.content.ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, existingDataId)
-                        context.contentResolver.update(uri, values, null, null)
+                // B. Organization (Company)
+                val orgCursor = context.contentResolver.query(
+                    ContactsContract.Data.CONTENT_URI,
+                    arrayOf(ContactsContract.Data._ID),
+                    "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                    arrayOf(rawId.toString(), ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE),
+                    null
+                )
+                val existingOrgId = orgCursor?.use { if (it.moveToFirst()) it.getLong(0) else null }
+                if (!company.isNullOrBlank()) {
+                    if (existingOrgId != null) {
+                        ops.add(
+                            ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                                .withSelection("${ContactsContract.Data._ID} = ?", arrayOf(existingOrgId.toString()))
+                                .withValue(ContactsContract.CommonDataKinds.Organization.COMPANY, company)
+                                .build()
+                        )
                     } else {
-                        context.contentResolver.insert(ContactsContract.Data.CONTENT_URI, values)
+                        ops.add(
+                            ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE)
+                                .withValue(ContactsContract.CommonDataKinds.Organization.COMPANY, company)
+                                .build()
+                        )
                     }
-                } else if (existingDataId != null) {
-                    val uri = android.content.ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, existingDataId)
-                    context.contentResolver.delete(uri, null, null)
+                } else if (existingOrgId != null) {
+                    ops.add(
+                        ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                            .withSelection("${ContactsContract.Data._ID} = ?", arrayOf(existingOrgId.toString()))
+                            .build()
+                    )
+                }
+
+                // C. Note
+                val noteCursor = context.contentResolver.query(
+                    ContactsContract.Data.CONTENT_URI,
+                    arrayOf(ContactsContract.Data._ID),
+                    "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                    arrayOf(rawId.toString(), ContactsContract.CommonDataKinds.Note.CONTENT_ITEM_TYPE),
+                    null
+                )
+                val existingNoteId = noteCursor?.use { if (it.moveToFirst()) it.getLong(0) else null }
+                if (!notes.isNullOrBlank()) {
+                    if (existingNoteId != null) {
+                        ops.add(
+                            ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                                .withSelection("${ContactsContract.Data._ID} = ?", arrayOf(existingNoteId.toString()))
+                                .withValue(ContactsContract.CommonDataKinds.Note.NOTE, notes)
+                                .build()
+                        )
+                    } else {
+                        ops.add(
+                            ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Note.CONTENT_ITEM_TYPE)
+                                .withValue(ContactsContract.CommonDataKinds.Note.NOTE, notes)
+                                .build()
+                        )
+                    }
+                } else if (existingNoteId != null) {
+                    ops.add(
+                        ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                            .withSelection("${ContactsContract.Data._ID} = ?", arrayOf(existingNoteId.toString()))
+                            .build()
+                    )
+                }
+
+                // D. Phone numbers (if provided)
+                if (numbers != null) {
+                    ops.add(
+                        ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                            .withSelection(
+                                "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                                arrayOf(rawId.toString(), ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                            )
+                            .build()
+                    )
+                    for ((num, label) in numbers) {
+                        if (num.isNotBlank()) {
+                            val phoneType = when (label.lowercase()) {
+                                "work" -> ContactsContract.CommonDataKinds.Phone.TYPE_WORK
+                                "home" -> ContactsContract.CommonDataKinds.Phone.TYPE_HOME
+                                else -> ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE
+                            }
+                            ops.add(
+                                ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                    .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                                    .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, num)
+                                    .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, phoneType)
+                                    .build()
+                            )
+                        }
+                    }
+                }
+
+                // E. Email addresses (if provided)
+                if (emails != null) {
+                    ops.add(
+                        ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                            .withSelection(
+                                "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                                arrayOf(rawId.toString(), ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                            )
+                            .build()
+                    )
+                    for (email in emails) {
+                        if (email.isNotBlank()) {
+                            ops.add(
+                                ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                    .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                                    .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
+                                    .withValue(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_WORK)
+                                    .build()
+                            )
+                        }
+                    }
+                }
+
+                // F. Photo (if changed)
+                if (hasPhotoChanged) {
+                    val photoCursor = context.contentResolver.query(
+                        ContactsContract.Data.CONTENT_URI,
+                        arrayOf(ContactsContract.Data._ID),
+                        "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                        arrayOf(rawId.toString(), ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE),
+                        null
+                    )
+                    val existingPhotoId = photoCursor?.use { if (it.moveToFirst()) it.getLong(0) else null }
+                    if (photoBytes != null && photoBytes.isNotEmpty()) {
+                        if (existingPhotoId != null) {
+                            ops.add(
+                                ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                                    .withSelection("${ContactsContract.Data._ID} = ?", arrayOf(existingPhotoId.toString()))
+                                    .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
+                                    .build()
+                            )
+                        } else {
+                            ops.add(
+                                ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                    .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawId)
+                                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                                    .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
+                                    .build()
+                            )
+                        }
+                    } else if (existingPhotoId != null) {
+                        ops.add(
+                            ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                                .withSelection("${ContactsContract.Data._ID} = ?", arrayOf(existingPhotoId.toString()))
+                                .build()
+                        )
+                    }
                 }
             }
+
+            if (ops.isNotEmpty()) {
+                context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+            }
+            true
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("ContactSyncRepo", "Error updating contact in system: ${e.message}", e)
+            false
         }
     }
 

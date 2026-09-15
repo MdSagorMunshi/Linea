@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Contact Name Editing Persistence**:
+  - Resolved an issue where editing contact details only persisted in-memory or in the local Room database, causing name modifications (e.g., from "Ryan" to "Ryan Shelby") to revert to the system contact name after app restart, process termination, or device reboot.
+  - Implemented `updateContactInSystem` using atomic `ContentProviderOperation` batching to write name changes directly into Android's system `ContactsContract.Data` (`StructuredName.DISPLAY_NAME`, `GIVEN_NAME`, `FAMILY_NAME`), properly clearing obsolete family names and synchronizing phone numbers, emails, organization, notes, and photos.
+  - Updated contact dashboard and list viewmodels to reload refreshed contact data directly from persistent storage upon saving.
+- **Incoming Call Premature Silencing (Pocket & Inverted Orientation)**:
+  - Fixed an issue where incoming calls were prematurely silenced when the device arrived in an upside-down orientation or inside a pocket.
+  - Removed `Intent.ACTION_SCREEN_ON` from hardware key detection receiver so waking or turning on the screen upon call arrival does not silence the ringer.
+  - Guarded `Intent.ACTION_SCREEN_OFF` to ignore screen transitions when the proximity sensor is covered (in pocket) or within the initial ringer grace period.
+  - Added a 1200ms sensor stabilization window upon incoming call start in `CallGestureManager` to accurately capture initial pocket/face-down conditions without triggering gestures.
+  - Restricted "Flip to Silence" to require confirmed active face-up viewing in open air for at least 400ms before a flip to face-down can silence the call. Calls arriving face-down or upside-down in a pocket will no longer silence the ringer.
+  - Restricted "Proximity Wave to Silence" to require the device to be in open air for at least 600ms before a wave transition to near can trigger silence.
+
 ---
 
 ## [2.2.0] - 2026-09-14
