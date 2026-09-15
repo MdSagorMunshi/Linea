@@ -36,14 +36,28 @@ import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.VolumeUp
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.ui.components.LiquidGlassPermissionDialog
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import com.ryanshelby.linea.ui.components.NeumorphicWell
+import com.ryanshelby.linea.ui.screens.settings.search.SettingsSearchCallbacks
+import com.ryanshelby.linea.ui.screens.settings.search.SettingsSearchEngine
+import com.ryanshelby.linea.ui.screens.settings.search.SettingsSearchResultsView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -102,7 +116,9 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val activeProfile by viewModel.activeProfile.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     var showClearHistoryDialog by remember { mutableStateOf(false) }
 
     val exportCsvLauncher = rememberLauncherForActivityResult(
@@ -113,6 +129,55 @@ fun SettingsScreen(
                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    val searchCallbacks = remember(
+        onRequestDefaultDialer, onNavigateToBlocking, onNavigateToDualSim,
+        onNavigateToPermissions, onNavigateToVoicemail, onNavigateToCallForwarding,
+        onNavigateToCallBarring, onNavigateToCallRules, onNavigateToDiagnostics,
+        onNavigateToStats, onNavigateToBackup, onNavigateToAbout, onNavigateToRingtone
+    ) {
+        SettingsSearchCallbacks(
+            onRequestDefaultDialer = onRequestDefaultDialer,
+            onNavigateToBlocking = onNavigateToBlocking,
+            onNavigateToDualSim = onNavigateToDualSim,
+            onNavigateToPermissions = onNavigateToPermissions,
+            onNavigateToVoicemail = onNavigateToVoicemail,
+            onNavigateToCallForwarding = onNavigateToCallForwarding,
+            onNavigateToCallBarring = onNavigateToCallBarring,
+            onNavigateToCallRules = onNavigateToCallRules,
+            onNavigateToDiagnostics = onNavigateToDiagnostics,
+            onNavigateToStats = onNavigateToStats,
+            onNavigateToBackup = onNavigateToBackup,
+            onNavigateToAbout = onNavigateToAbout,
+            onNavigateToRingtone = onNavigateToRingtone,
+            onExportCsv = {
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                exportCsvLauncher.launch("linea_call_history_$timestamp.csv")
+            },
+            onCleanHistoryNow = {
+                viewModel.cleanHistoryNow { deleted ->
+                    val msg = if (uiState.cleanupDays == 0) {
+                        "Retention set to 'Forever'. Select 30 or 90 days to automatically prune older logs."
+                    } else if (deleted > 0) {
+                        "Cleaned $deleted call record(s) older than ${uiState.cleanupDays} days."
+                    } else {
+                        "History is clean. No records older than ${uiState.cleanupDays} days found."
+                    }
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onShowClearHistoryDialog = { showClearHistoryDialog = true },
+            onScrollToSection = { _ -> viewModel.setSearchQuery("") }
+        )
+    }
+
+    val searchCatalog = remember(viewModel, searchCallbacks) {
+        SettingsSearchEngine.buildCatalog(viewModel, searchCallbacks)
+    }
+
+    val searchResults = remember(searchQuery, searchCatalog) {
+        SettingsSearchEngine.search(searchQuery, searchCatalog)
     }
 
     Column(
@@ -155,19 +220,86 @@ fun SettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Default Dialer Role Status
-        RoleBanner(
-            isDefaultDialer = isDefaultDialer,
-            onRequestRole = onRequestDefaultDialer
-        )
+        // Tactile Neumorphic Search Bar (Exclusive to Settings)
+        NeumorphicWell(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            depth = 2.5.dp
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
+                textStyle = LineaTypography.bodyLarge.copy(color = LineaColors.TextPrimary),
+                placeholder = {
+                    Text(
+                        text = "Search settings...",
+                        style = LineaTypography.bodyMedium,
+                        color = LineaColors.TextTertiary
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = "Search",
+                        tint = LineaColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = {
+                            viewModel.setSearchQuery("")
+                            focusManager.clearFocus()
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Clear,
+                                contentDescription = "Clear",
+                                tint = LineaColors.TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedTextColor = LineaColors.TextPrimary,
+                    unfocusedTextColor = LineaColors.TextPrimary
+                )
+            )
+        }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Dual SIM Quick Link
-        SettingsNavCard(
-            icon = Icons.Filled.SimCard,
+        if (searchQuery.isNotBlank()) {
+            SettingsSearchResultsView(
+                searchQuery = searchQuery,
+                searchResults = searchResults,
+                uiState = uiState,
+                onClearQuery = { viewModel.setSearchQuery("") },
+                onSelectSuggestedQuery = { viewModel.setSearchQuery(it) }
+            )
+        } else {
+            // Default Dialer Role Status
+            RoleBanner(
+                isDefaultDialer = isDefaultDialer,
+                onRequestRole = onRequestDefaultDialer
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Dual SIM Quick Link
+            SettingsNavCard(
+                icon = Icons.Filled.SimCard,
             title = "Dual SIM Management",
             subtitle = when (uiState.defaultSim) {
                 0 -> "Default: SIM 1"
@@ -783,6 +915,7 @@ fun SettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(110.dp))
+        }
     }
 
     if (showClearHistoryDialog) {

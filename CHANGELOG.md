@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Powerful, Smart Search in Settings**:
+  - Implemented a dedicated, intelligent search bar exclusively for the **Settings** screen conforming to Linea's tactile Neumorphic design system (`NeumorphicWell`, `LineaColors`, `LineaTypography`).
+  - Indexed all 33+ configurations, toggles, preferences, and sub-screens across 10 specialized categories (General, Calling, Audio & Sound, Motion & Gestures, Screening & Security, Appearance, History & Storage, Telecom, Permissions, About).
+  - Built an intelligent scoring and ranking engine with extensive synonym resolution (e.g., "mute" -> Flip to Silence, "dark" -> Color Theme, "vvm" -> Visual Voicemail, "blacklist" / "spam" -> Call Screening & Blocking, "signal" / "5g" -> Cellular Diagnostics, "pocket" -> Gestures).
+  - Designed interactive search result cards with category badges, icons, subtitles, and direct in-place controls (live `Switch` toggles, sub-screen navigation arrows, selection pills, and action triggers).
+  - Added a tactile empty state with "No Settings Found" messaging and interactive suggested query pills ("Ringtone", "Dual SIM", "Theme", "Gestures", "Flip", "Haptics", "Blocking", "Voicemail", etc.) that auto-fill the search bar on tap.
+  - Added unit test suite `SettingsSearchEngineTest` verifying exact matches, prefix matching, synonym keyword resolution, multi-token queries, case insensitivity, empty query handling, and score ranking.
+
 ### Fixed
 - **Contact Name Editing Persistence**:
   - Resolved an issue where editing contact details only persisted in-memory or in the local Room database, causing name modifications (e.g., from "Ryan" to "Ryan Shelby") to revert to the system contact name after app restart, process termination, or device reboot.
