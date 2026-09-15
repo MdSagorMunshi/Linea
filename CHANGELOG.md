@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added unit test suite `SettingsSearchEngineTest` verifying exact matches, prefix matching, synonym keyword resolution, multi-token queries, case insensitivity, empty query handling, and score ranking.
 
 ### Fixed
+- **In-Call Keypad Sheet Call Termination**:
+  - Embedded a dedicated red `EndCallButton` directly below the 4x3 digit grid in `InCallKeypadSheet`, resolving an ergonomic safety issue where opening the keypad during an active call (e.g. for IVR/automated menus) faded out the lower controls and required users to dismiss the keypad before being able to disconnect.
+- **Call Screening & Blocking Screen FAB Occlusion**:
+  - Added `navigationBarsPadding()` and adjusted margins on `FloatingActionButton`, along with expanding bottom list content padding (32.dp) and bottom spacer (96.dp) in `BlockingScreen`, ensuring rule cards and trailing unblock/delete buttons are never occluded by the FAB.
+- **Settings Search Suggestion Chip Hitboxes**:
+  - Enhanced touch targets for suggested search topic chips in `SettingsSearchResultsView` by enforcing a 36.dp minimum touch height, centered alignment, expanded internal padding (14.dp horizontal, 8.dp vertical), and 10.dp inter-chip spacing to eliminate unintended adjacent chip selection.
 - **Contact Name Editing Persistence**:
   - Resolved an issue where editing contact details only persisted in-memory or in the local Room database, causing name modifications (e.g., from "Ryan" to "Ryan Shelby") to revert to the system contact name after app restart, process termination, or device reboot.
   - Implemented `updateContactInSystem` using atomic `ContentProviderOperation` batching to write name changes directly into Android's system `ContactsContract.Data` (`StructuredName.DISPLAY_NAME`, `GIVEN_NAME`, `FAMILY_NAME`), properly clearing obsolete family names and synchronizing phone numbers, emails, organization, notes, and photos.

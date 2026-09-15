@@ -51,6 +51,7 @@ fun InCallKeypadSheet(
     onDtmfPress: (Char) -> Unit,
     onDtmfRelease: () -> Unit,
     onDismiss: () -> Unit,
+    onDisconnect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var typedDigits by remember { mutableStateOf("") }
@@ -151,7 +152,13 @@ fun InCallKeypadSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Direct End Call Button inside Keypad
+            EndCallButton(
+                onClick = onDisconnect,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
         }
     }
 }

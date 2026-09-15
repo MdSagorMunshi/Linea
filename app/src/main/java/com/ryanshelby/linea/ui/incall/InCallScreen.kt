@@ -621,6 +621,7 @@ fun InCallScreen(
                     onDtmfPress = onDtmfPress,
                     onDtmfRelease = onDtmfRelease,
                     onDismiss = { showKeypad = false },
+                    onDisconnect = onDisconnect,
                     modifier = Modifier
                         .animateEnterExit(
                             enter = slideInVertically(
@@ -749,7 +750,7 @@ private fun InCallActionButton(
 }
 
 @Composable
-private fun EndCallButton(
+internal fun EndCallButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {

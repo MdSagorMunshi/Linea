@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
@@ -111,26 +113,29 @@ fun SettingsSearchResultsView(
                     )
 
                     FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         suggestions.forEach { suggestion ->
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(LineaColors.GlassFill)
                                     .border(
                                         1.dp,
                                         LineaColors.GlassBorder,
-                                        RoundedCornerShape(14.dp)
+                                        RoundedCornerShape(16.dp)
                                     )
                                     .clickable { onSelectSuggestedQuery(suggestion) }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    .heightIn(min = 36.dp)
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = suggestion,
                                     fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
                                     color = LineaColors.TextPrimary
                                 )
                             }
