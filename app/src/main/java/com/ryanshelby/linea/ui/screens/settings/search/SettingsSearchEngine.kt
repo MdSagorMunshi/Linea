@@ -230,6 +230,54 @@ object SettingsSearchEngine {
             )
         )
 
+        // 13b. Tactical Escape Call Simulator
+        list.add(
+            SettingsSearchItem(
+                id = "escape_call_simulator",
+                title = "Tactical Escape Call",
+                subtitle = "Simulate an urgent incoming call with custom timing to exit any situation",
+                category = SettingsCategory.CALLING,
+                icon = Icons.Filled.Phone,
+                keywords = listOf(
+                    "escape", "escape call", "fake call", "fake", "simulator", "call simulator",
+                    "fake phone call", "emergency excuse", "pretend call", "bogus call", "tactical"
+                ),
+                action = SettingsSearchAction.Navigate(callbacks.onOpenEscapeCall)
+            )
+        )
+
+        // 13c. Escape Call Custom Code & Settings
+        list.add(
+            SettingsSearchItem(
+                id = "escape_call_settings",
+                title = "Escape Call Trigger & Settings",
+                subtitle = "Custom secret dial code, countdown delay, and stealth vibration mode",
+                category = SettingsCategory.CALLING,
+                icon = Icons.Filled.Security,
+                keywords = listOf(
+                    "custom prefix", "secret code", "dial code", "fake call code", "escape code",
+                    "prefix", "dial trigger", "escape settings", "fake call settings", "stealth escape", "vibrate only"
+                ),
+                action = SettingsSearchAction.Navigate(callbacks.onOpenEscapeSettings)
+            )
+        )
+
+        // 13d. Escape Call Field Manual & Help
+        list.add(
+            SettingsSearchItem(
+                id = "escape_call_help",
+                title = "Escape Call Field Manual & Help",
+                subtitle = "Tactical usage guide, hands-under-table procedures, and decoy scenarios",
+                category = SettingsCategory.CALLING,
+                icon = Icons.Filled.Info,
+                keywords = listOf(
+                    "escape call help", "fake call help", "how to use fake call", "how to use escape call",
+                    "field manual", "escape guide", "fake call guide", "tactical help", "excuse guide"
+                ),
+                action = SettingsSearchAction.Navigate(callbacks.onOpenEscapeHelp)
+            )
+        )
+
         // 14. Confirm Before Calling
         list.add(
             SettingsSearchItem(

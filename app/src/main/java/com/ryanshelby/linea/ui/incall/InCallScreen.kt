@@ -79,6 +79,7 @@ import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.components.PreCallNoteBanner
 import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.incall.components.ContactPosterBackground
+import com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -114,14 +115,14 @@ fun InCallScreen(
     var showKeypad by remember { mutableStateOf(false) }
     var showNoteSheet by remember { mutableStateOf(false) }
 
-    val details = callInfo.call.details
+    val details = callInfo.call?.details
     val capabilities = details?.callCapabilities ?: 0
-    val supportsHold = details != null && (
+    val supportsHold = callInfo.isSimulated || (details != null && (
         details.can(android.telecom.Call.Details.CAPABILITY_HOLD) ||
         details.can(android.telecom.Call.Details.CAPABILITY_SUPPORT_HOLD) ||
         (capabilities and android.telecom.Call.Details.CAPABILITY_HOLD) != 0 ||
         (capabilities and android.telecom.Call.Details.CAPABILITY_SUPPORT_HOLD) != 0
-    )
+    ))
     val resolvedCanAddCall = canAddCall ?: (
         supportsHold &&
         secondaryCall == null &&
@@ -131,7 +132,7 @@ fun InCallScreen(
     val resolvedCanMerge = canMerge ?: (
         secondaryCall != null && (
             details?.can(android.telecom.Call.Details.CAPABILITY_MERGE_CONFERENCE) == true ||
-            secondaryCall.call.details?.can(android.telecom.Call.Details.CAPABILITY_MERGE_CONFERENCE) == true ||
+            secondaryCall.call?.details?.can(android.telecom.Call.Details.CAPABILITY_MERGE_CONFERENCE) == true ||
             ((capabilities and android.telecom.Call.Details.CAPABILITY_MERGE_CONFERENCE) != 0) ||
             (secondaryCall.state == LineaCallState.ACTIVE || secondaryCall.state == LineaCallState.HOLDING)
         )
@@ -476,6 +477,33 @@ fun InCallScreen(
                             },
                             textAlign = TextAlign.Center
                         )
+                    }
+
+                    // Offline Caller ID / Location Badge
+                    val callerIdResult = remember(callInfo.phoneNumber) {
+                        OfflineCallerIdEngine.identifyNumber(callInfo.phoneNumber)
+                    }
+                    if (callerIdResult.regionOrCountry.isNotBlank() && callerIdResult.regionOrCountry != "Cellular") {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(LineaColors.GlassFill)
+                                .border(1.dp, LineaColors.GlassBorder, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = callerIdResult.flagEmoji,
+                                style = LineaTypography.bodySmall,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text(
+                                text = callerIdResult.regionOrCountry,
+                                style = LineaTypography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                                color = LineaColors.TextSecondary
+                            )
+                        }
                     }
                 }
             }

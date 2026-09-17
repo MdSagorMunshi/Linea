@@ -12,6 +12,7 @@ import com.ryanshelby.linea.telecom.InternationalPreview
 import com.ryanshelby.linea.telecom.T9Contact
 import com.ryanshelby.linea.telecom.T9SearchEngine
 import com.ryanshelby.linea.telecom.T9SearchResult
+import com.ryanshelby.linea.telecom.escape.EscapeCallManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,7 +30,8 @@ class DialpadViewModel @Inject constructor(
     private val callManager: CallManager,
     private val contactSyncRepository: ContactSyncRepository,
     private val phoneAccountManager: PhoneAccountManager,
-    private val preferences: LineaPreferences
+    private val preferences: LineaPreferences,
+    private val escapeCallManager: EscapeCallManager
 ) : ViewModel() {
 
     companion object {
@@ -99,6 +101,15 @@ class DialpadViewModel @Inject constructor(
 
     val isFieryCallButton: StateFlow<Boolean> = preferences.fieryCallButton
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val customEscapeCode: StateFlow<String> = preferences.escapeCallCustomCode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "*#*#3253#*#*")
+
+    val secondaryEscapeCode: StateFlow<String> = preferences.escapeCallSecondaryCode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "*#99#")
+
+    val defaultEscapeDelay: StateFlow<Int> = preferences.escapeCallDefaultDelay
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 10)
 
     val t9Matches: StateFlow<List<T9SearchResult>> = combine(
         _enteredNumber,
@@ -172,11 +183,28 @@ class DialpadViewModel @Inject constructor(
     }
 
     fun appendDigit(digit: Char) {
-        _enteredNumber.value += digit
+        val updated = _enteredNumber.value + digit
+        _enteredNumber.value = updated
+        checkSecretEscapeCode(updated)
     }
 
     fun appendString(digits: String) {
-        _enteredNumber.value += digits
+        val updated = _enteredNumber.value + digits
+        _enteredNumber.value = updated
+        checkSecretEscapeCode(updated)
+    }
+
+    private fun checkSecretEscapeCode(code: String) {
+        val clean = code.trim()
+        val c1 = customEscapeCode.value.trim()
+        val c2 = secondaryEscapeCode.value.trim()
+        val isMatch = (c1.isNotEmpty() && (clean == c1 || clean.endsWith(c1))) ||
+                      (c2.isNotEmpty() && (clean == c2 || clean.endsWith(c2))) ||
+                      clean == "*#*#3253#*#*" || clean == "*#99#"
+        if (isMatch) {
+            clearNumber()
+            escapeCallManager.scheduleEscapeCall(delaySeconds = defaultEscapeDelay.value, showToast = true)
+        }
     }
 
     fun deleteLastDigit() {
@@ -215,6 +243,18 @@ class DialpadViewModel @Inject constructor(
 
         val numberToCall = (phoneNumber ?: _enteredNumber.value).trim()
         if (numberToCall.isEmpty()) return
+
+        val c1 = customEscapeCode.value.trim()
+        val c2 = secondaryEscapeCode.value.trim()
+        val isMatch = (c1.isNotEmpty() && (numberToCall == c1 || numberToCall.endsWith(c1))) ||
+                      (c2.isNotEmpty() && (numberToCall == c2 || numberToCall.endsWith(c2))) ||
+                      numberToCall == "*#*#3253#*#*" || numberToCall == "*#99#"
+
+        if (isMatch) {
+            clearNumber()
+            escapeCallManager.scheduleEscapeCall(delaySeconds = defaultEscapeDelay.value, showToast = true)
+            return
+        }
 
         val accounts = _simAccounts.value
         val targetSlot = if (_selectedSimIndex.value in 0..1) _selectedSimIndex.value else 0

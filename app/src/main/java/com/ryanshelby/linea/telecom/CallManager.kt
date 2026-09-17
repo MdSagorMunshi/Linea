@@ -58,7 +58,7 @@ enum class LineaAudioRoute {
 }
 
 data class ActiveCallInfo(
-    val call: Call,
+    val call: Call? = null,
     val phoneNumber: String,
     val displayName: String?,
     val photoUri: String? = null,
@@ -68,7 +68,8 @@ data class ActiveCallInfo(
     val durationSeconds: Long = 0,
     val isMuted: Boolean = false,
     val isHeld: Boolean = false,
-    val audioRoute: LineaAudioRoute = LineaAudioRoute.EARPIECE
+    val audioRoute: LineaAudioRoute = LineaAudioRoute.EARPIECE,
+    val isSimulated: Boolean = false
 )
 
 @Singleton
@@ -842,22 +843,86 @@ class CallManager @Inject constructor(
         telecomManager.placeCall(uri, extras)
     }
 
+    fun triggerFakeCall(
+        callerName: String,
+        phoneNumber: String,
+        photoUri: String? = null,
+        vibrateOnly: Boolean = false
+    ) {
+        val fakeCall = ActiveCallInfo(
+            call = null,
+            phoneNumber = phoneNumber,
+            displayName = callerName,
+            photoUri = photoUri,
+            state = LineaCallState.RINGING,
+            isIncoming = true,
+            isSimulated = true
+        )
+        _currentCall.value = fakeCall
+        _isRingerSilenced.value = false
+        ringerStartedTimestamp = SystemClock.elapsedRealtime()
+        if (vibrateOnly) {
+            vibrateFeedback(longArrayOf(0, 800, 400, 800, 400, 800))
+        } else {
+            callRingtoneManager.startRinging(phoneNumber)
+        }
+        registerHardwareKeyReceiver()
+
+        val intent = Intent(context, InCallActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+        }
+        context.startActivity(intent)
+    }
+
     fun answerCall() {
+        val current = _currentCall.value
         _isRingerSilenced.value = false
         ringerStartedTimestamp = 0L
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
-        _currentCall.value?.call?.answer(0)
+
+        if (current?.isSimulated == true) {
+            val connectTime = System.currentTimeMillis()
+            _currentCall.value = current.copy(
+                state = LineaCallState.ACTIVE,
+                connectTimeMillis = connectTime,
+                durationSeconds = 0
+            )
+            startDurationTimer(connectTime)
+            proximitySensorManager.onCallStateOrAudioChanged(true, _audioRoute.value == LineaAudioRoute.SPEAKER)
+            scope.launch {
+                if (preferences.callVibrationEnabled.first()) {
+                    vibrateFeedback(longArrayOf(0, 80))
+                }
+            }
+            return
+        }
+
+        current?.call?.answer(0)
     }
 
     fun rejectCall(rejectWithMessage: Boolean = false, textMessage: String? = null) {
+        val current = _currentCall.value
         _isRingerSilenced.value = false
         ringerStartedTimestamp = 0L
         callRingtoneManager.stopRinging()
         callGestureManager.stopListening()
         dismissFloatingCall()
-        _currentCall.value?.call?.reject(rejectWithMessage, textMessage)
+
+        if (current?.isSimulated == true) {
+            timerJob?.cancel()
+            timerJob = null
+            proximitySensorManager.release()
+            _currentCall.value = current.copy(state = LineaCallState.DISCONNECTED)
+            scope.launch {
+                delay(300)
+                _currentCall.value = null
+            }
+            return
+        }
+
+        current?.call?.reject(rejectWithMessage, textMessage)
     }
 
     fun silenceRinger() {
@@ -874,18 +939,41 @@ class CallManager @Inject constructor(
     }
 
     fun disconnectCall() {
-        _currentCall.value?.call?.disconnect()
+        val current = _currentCall.value
+        if (current?.isSimulated == true) {
+            timerJob?.cancel()
+            timerJob = null
+            proximitySensorManager.release()
+            _currentCall.value = current.copy(state = LineaCallState.DISCONNECTED)
+            scope.launch {
+                delay(300)
+                _currentCall.value = null
+            }
+            return
+        }
+
+        current?.call?.disconnect()
     }
 
     fun holdCall() {
-        _currentCall.value?.call?.hold()
-        _currentCall.value = _currentCall.value?.copy(state = LineaCallState.HOLDING, isHeld = true)
+        val current = _currentCall.value
+        if (current?.isSimulated == true) {
+            _currentCall.value = current.copy(state = LineaCallState.HOLDING, isHeld = true)
+            return
+        }
+        current?.call?.hold()
+        _currentCall.value = current?.copy(state = LineaCallState.HOLDING, isHeld = true)
         refreshOngoingCallNotification()
     }
 
     fun unholdCall() {
-        _currentCall.value?.call?.unhold()
-        _currentCall.value = _currentCall.value?.copy(state = LineaCallState.ACTIVE, isHeld = false)
+        val current = _currentCall.value
+        if (current?.isSimulated == true) {
+            _currentCall.value = current.copy(state = LineaCallState.ACTIVE, isHeld = false)
+            return
+        }
+        current?.call?.unhold()
+        _currentCall.value = current?.copy(state = LineaCallState.ACTIVE, isHeld = false)
         refreshOngoingCallNotification()
     }
 
@@ -893,8 +981,8 @@ class CallManager @Inject constructor(
         val active = _currentCall.value
         val secondary = _secondaryCall.value
         if (active != null && secondary != null) {
-            active.call.hold()
-            secondary.call.unhold()
+            active.call?.hold()
+            secondary.call?.unhold()
             _currentCall.value = secondary
             _secondaryCall.value = active
             refreshOngoingCallNotification()
@@ -904,7 +992,7 @@ class CallManager @Inject constructor(
     fun mergeConference() {
         val active = _currentCall.value
         val secondary = _secondaryCall.value
-        if (active != null && secondary != null) {
+        if (active?.call != null && secondary?.call != null) {
             active.call.conference(secondary.call)
             refreshOngoingCallNotification()
         }
@@ -954,8 +1042,8 @@ class CallManager @Inject constructor(
     fun canMergeConference(): Boolean {
         val current = _currentCall.value ?: return false
         val secondary = _secondaryCall.value ?: return false
-        val details = current.call.details
-        val secDetails = secondary.call.details
+        val details = current.call?.details
+        val secDetails = secondary.call?.details
         val caps = details?.callCapabilities ?: 0
         return details?.can(Call.Details.CAPABILITY_MERGE_CONFERENCE) == true ||
                 secDetails?.can(Call.Details.CAPABILITY_MERGE_CONFERENCE) == true ||
@@ -1004,7 +1092,7 @@ class CallManager @Inject constructor(
         val secondary = _secondaryCall.value ?: return
         val active = _currentCall.value
         active?.call?.hold()
-        secondary.call.answer(0)
+        secondary.call?.answer(0)
         _currentCall.value = secondary.copy(state = LineaCallState.ACTIVE)
         if (active != null) {
             _secondaryCall.value = active.copy(state = LineaCallState.HOLDING)
@@ -1017,7 +1105,7 @@ class CallManager @Inject constructor(
         val secondary = _secondaryCall.value ?: return
         val active = _currentCall.value
         active?.call?.disconnect()
-        secondary.call.answer(0)
+        secondary.call?.answer(0)
         _currentCall.value = secondary.copy(state = LineaCallState.ACTIVE)
         _secondaryCall.value = null
     }
@@ -1025,9 +1113,9 @@ class CallManager @Inject constructor(
     fun rejectWaitingCall() {
         val secondary = _secondaryCall.value ?: return
         try {
-            secondary.call.reject(Call.REJECT_REASON_DECLINED)
+            secondary.call?.reject(Call.REJECT_REASON_DECLINED)
         } catch (_: Exception) {
-            secondary.call.disconnect()
+            secondary.call?.disconnect()
         }
         _secondaryCall.value = null
     }

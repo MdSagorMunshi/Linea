@@ -88,5 +88,8 @@ data class SettingsSearchCallbacks(
     val onExportCsv: () -> Unit = {},
     val onCleanHistoryNow: () -> Unit = {},
     val onShowClearHistoryDialog: () -> Unit = {},
-    val onScrollToSection: (String) -> Unit = {}
+    val onScrollToSection: (String) -> Unit = {},
+    val onOpenEscapeCall: () -> Unit = {},
+    val onOpenEscapeSettings: () -> Unit = {},
+    val onOpenEscapeHelp: () -> Unit = {}
 )

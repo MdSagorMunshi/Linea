@@ -480,6 +480,13 @@ fun DialpadScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
+                            if (cid.flagEmoji.isNotBlank() && cid.flagEmoji != "🌐") {
+                                Text(
+                                    text = cid.flagEmoji,
+                                    style = LineaTypography.labelSmall,
+                                    fontSize = 11.sp
+                                )
+                            }
                             Text(
                                 text = cid.badgeLabel,
                                 style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),

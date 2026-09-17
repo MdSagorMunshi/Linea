@@ -85,6 +85,13 @@ class LineaPreferences @Inject constructor(
         val KEY_PERMISSION_INTRO_SHOWN = booleanPreferencesKey("permission_intro_shown")
         val KEY_SIM_SELECTOR_POSITION = stringPreferencesKey("sim_selector_position") // "MIDDLE", "BOTTOM"
         val KEY_FIERY_CALL_BUTTON = booleanPreferencesKey("fiery_call_button")
+        val KEY_ESCAPE_CALL_CUSTOM_CODE = stringPreferencesKey("escape_call_custom_code")
+        val KEY_ESCAPE_CALL_SECONDARY_CODE = stringPreferencesKey("escape_call_secondary_code")
+        val KEY_ESCAPE_CALL_DEFAULT_DELAY = intPreferencesKey("escape_call_default_delay")
+        val KEY_ESCAPE_CALL_VIBRATE_ONLY = booleanPreferencesKey("escape_call_vibrate_only")
+        val KEY_ESCAPE_CALL_DISARM_NOTIFICATION = booleanPreferencesKey("escape_call_disarm_notification")
+        val KEY_ESCAPE_CALL_CUSTOM_NAME = stringPreferencesKey("escape_call_custom_name")
+        val KEY_ESCAPE_CALL_CUSTOM_NUMBER = stringPreferencesKey("escape_call_custom_number")
 
         // Quantum Vault & Anti-Brute-Force Keys
 
@@ -137,6 +144,13 @@ class LineaPreferences @Inject constructor(
     val permissionIntroShown: Flow<Boolean> = dataStore.data.map { it[KEY_PERMISSION_INTRO_SHOWN] ?: false }
     val simSelectorPosition: Flow<String> = dataStore.data.map { it[KEY_SIM_SELECTOR_POSITION] ?: SimPopupPosition.MIDDLE }
     val fieryCallButton: Flow<Boolean> = dataStore.data.map { it[KEY_FIERY_CALL_BUTTON] ?: false }
+    val escapeCallCustomCode: Flow<String> = dataStore.data.map { it[KEY_ESCAPE_CALL_CUSTOM_CODE] ?: "*#*#3253#*#*" }
+    val escapeCallSecondaryCode: Flow<String> = dataStore.data.map { it[KEY_ESCAPE_CALL_SECONDARY_CODE] ?: "*#99#" }
+    val escapeCallDefaultDelay: Flow<Int> = dataStore.data.map { it[KEY_ESCAPE_CALL_DEFAULT_DELAY] ?: 10 }
+    val escapeCallVibrateOnly: Flow<Boolean> = dataStore.data.map { it[KEY_ESCAPE_CALL_VIBRATE_ONLY] ?: false }
+    val escapeCallDisarmNotification: Flow<Boolean> = dataStore.data.map { it[KEY_ESCAPE_CALL_DISARM_NOTIFICATION] ?: true }
+    val escapeCallCustomName: Flow<String> = dataStore.data.map { it[KEY_ESCAPE_CALL_CUSTOM_NAME] ?: "Office Dispatch" }
+    val escapeCallCustomNumber: Flow<String> = dataStore.data.map { it[KEY_ESCAPE_CALL_CUSTOM_NUMBER] ?: "+1 (555) 019-2834" }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -248,6 +262,33 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setVoicemailNumber(number: String) {
         dataStore.edit { it[KEY_VOICEMAIL_NUMBER] = number }
+    }
+
+    suspend fun setEscapeCallCustomCode(code: String) {
+        dataStore.edit { it[KEY_ESCAPE_CALL_CUSTOM_CODE] = code }
+    }
+
+    suspend fun setEscapeCallSecondaryCode(code: String) {
+        dataStore.edit { it[KEY_ESCAPE_CALL_SECONDARY_CODE] = code }
+    }
+
+    suspend fun setEscapeCallDefaultDelay(delaySeconds: Int) {
+        dataStore.edit { it[KEY_ESCAPE_CALL_DEFAULT_DELAY] = delaySeconds }
+    }
+
+    suspend fun setEscapeCallVibrateOnly(enabled: Boolean) {
+        dataStore.edit { it[KEY_ESCAPE_CALL_VIBRATE_ONLY] = enabled }
+    }
+
+    suspend fun setEscapeCallDisarmNotification(enabled: Boolean) {
+        dataStore.edit { it[KEY_ESCAPE_CALL_DISARM_NOTIFICATION] = enabled }
+    }
+
+    suspend fun setEscapeCallCustomPersona(name: String, number: String) {
+        dataStore.edit {
+            it[KEY_ESCAPE_CALL_CUSTOM_NAME] = name
+            it[KEY_ESCAPE_CALL_CUSTOM_NUMBER] = number
+        }
     }
 
     suspend fun setCleanupDays(days: Int) {

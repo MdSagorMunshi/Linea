@@ -106,13 +106,58 @@ class Phase6DifferentiatorsTest {
     @Test
     fun testOfflineCallerIdEngine_internationalCountry() {
         val uk = OfflineCallerIdEngine.identifyNumber("+447911123456")
-        assertEquals("United Kingdom", uk.regionOrCountry)
+        assertEquals("United Kingdom", uk.countryName)
+        assertTrue(uk.regionOrCountry.contains("United Kingdom"))
 
         val japan = OfflineCallerIdEngine.identifyNumber("+819012345678")
-        assertEquals("Japan", japan.regionOrCountry)
+        assertEquals("Japan", japan.countryName)
+        assertTrue(japan.regionOrCountry.contains("Japan"))
 
         val germany = OfflineCallerIdEngine.identifyNumber("+4915123456789")
-        assertEquals("Germany", germany.regionOrCountry)
+        assertEquals("Germany", germany.countryName)
+        assertTrue(germany.regionOrCountry.contains("Germany"))
+    }
+
+    @Test
+    fun testOfflineCallerIdEngine_nanpAreaCodes() {
+        val sf = OfflineCallerIdEngine.identifyNumber("+14155551234")
+        assertEquals("Regional Location", sf.category)
+        assertTrue(sf.regionOrCountry.contains("San Francisco, CA"))
+        assertEquals("United States", sf.countryName)
+        assertEquals("🇺🇸", sf.flagEmoji)
+
+        val toronto = OfflineCallerIdEngine.identifyNumber("+14165551234")
+        assertEquals("Regional Location", toronto.category)
+        assertTrue(toronto.regionOrCountry.contains("Toronto, ON"))
+        assertEquals("Canada", toronto.countryName)
+        assertEquals("🇨🇦", toronto.flagEmoji)
+
+        // Test 10-digit raw number
+        val rawNyc = OfflineCallerIdEngine.identifyNumber("2125550199")
+        assertEquals("Regional Location", rawNyc.category)
+        assertTrue(rawNyc.regionOrCountry.contains("New York, NY"))
+    }
+
+    @Test
+    fun testOfflineCallerIdEngine_carrierFallbacks() {
+        val saudi = OfflineCallerIdEngine.identifyNumber("+966501234567")
+        assertEquals("Mobile Network", saudi.category)
+        assertTrue(saudi.regionOrCountry.contains("STC"))
+        assertEquals("Saudi Arabia", saudi.countryName)
+
+        val uae = OfflineCallerIdEngine.identifyNumber("+971501234567")
+        assertEquals("Mobile Network", uae.category)
+        assertTrue(uae.regionOrCountry.contains("Etisalat"))
+        assertEquals("United Arab Emirates", uae.countryName)
+
+        val nigeria = OfflineCallerIdEngine.identifyNumber("+2348031234567")
+        assertEquals("Mobile Network", nigeria.category)
+        assertTrue(nigeria.regionOrCountry.contains("MTN"))
+        assertEquals("Nigeria", nigeria.countryName)
+
+        val greenland = OfflineCallerIdEngine.identifyNumber("+299123456")
+        assertEquals("Greenland", greenland.countryName)
+        assertEquals("🇬🇱", greenland.flagEmoji)
     }
 
     @Test

@@ -71,12 +71,14 @@ class Phase7PolishAndEdgeCasesTest {
         val bl = OfflineCallerIdEngine.identifyNumber("01912345678")
         assertTrue(bl.regionOrCountry.contains("Banglalink"))
 
-        // Country code only
+        // Country code and regional city detection
         val uk = OfflineCallerIdEngine.identifyNumber("+442079460991")
-        assertEquals("United Kingdom", uk.regionOrCountry)
+        assertEquals("London • United Kingdom", uk.regionOrCountry)
+        assertEquals("United Kingdom", uk.countryName)
 
         val jp = OfflineCallerIdEngine.identifyNumber("+81312345678")
-        assertEquals("Japan", jp.regionOrCountry)
+        assertEquals("Tokyo • Japan", jp.regionOrCountry)
+        assertEquals("Japan", jp.countryName)
     }
 
     @Test

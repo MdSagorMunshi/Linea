@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.telecom.ActiveCallInfo
 import com.ryanshelby.linea.telecom.InternationalCountryHelper
+import com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine
 import com.ryanshelby.linea.ui.components.ContactAvatar
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.components.neumorphic
@@ -88,6 +89,10 @@ fun IncomingCallScreen(
 
     val internationalPreview = remember(callInfo.phoneNumber) {
         InternationalCountryHelper.detectCountry(callInfo.phoneNumber)
+    }
+
+    val callerIdResult = remember(callInfo.phoneNumber) {
+        OfflineCallerIdEngine.identifyNumber(callInfo.phoneNumber)
     }
 
     LaunchedEffect(Unit) {
@@ -153,7 +158,13 @@ fun IncomingCallScreen(
                     borderColor = LineaColors.TitaniumBlue.copy(alpha = 0.35f),
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
-                    val labelText = if (internationalPreview != null) {
+                    val labelText = if (callerIdResult.isEmergency) {
+                        "🚨 EMERGENCY SERVICES • INCOMING"
+                    } else if (callerIdResult.isTollFree) {
+                        "📞 TOLL-FREE CALL • INCOMING"
+                    } else if (callerIdResult.regionOrCountry.isNotBlank() && callerIdResult.regionOrCountry != "Cellular") {
+                        "${callerIdResult.flagEmoji} ${callerIdResult.regionOrCountry} • INCOMING"
+                    } else if (internationalPreview != null) {
                         "${internationalPreview.flagEmoji} ${internationalPreview.countryName} • INCOMING"
                     } else {
                         "INCOMING CELLULAR CALL"
@@ -232,6 +243,31 @@ fun IncomingCallScreen(
                         color = LineaColors.TextSecondary,
                         textAlign = TextAlign.Center
                     )
+
+                    if (callerIdResult.regionOrCountry.isNotBlank() && callerIdResult.regionOrCountry != "Cellular") {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .neumorphic(
+                                    shape = RoundedCornerShape(12.dp),
+                                    elevation = 2.dp,
+                                    surfaceColor = LineaColors.NeuSurfaceRaised
+                                )
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = callerIdResult.flagEmoji,
+                                style = LineaTypography.bodyMedium,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                            Text(
+                                text = callerIdResult.regionOrCountry,
+                                style = LineaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = LineaColors.TitaniumBlue
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))

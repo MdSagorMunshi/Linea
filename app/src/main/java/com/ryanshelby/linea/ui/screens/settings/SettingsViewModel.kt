@@ -7,6 +7,7 @@ import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.data.local.dao.CallRuleDao
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.telecom.cleanup.CallHistoryCleanupManager
+import com.ryanshelby.linea.telecom.escape.EscapeCallManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,7 +50,8 @@ class SettingsViewModel @Inject constructor(
     private val blockedNumberDao: BlockedNumberDao,
     private val callRuleDao: CallRuleDao,
     private val callRecordDao: CallRecordDao,
-    private val cleanupManager: CallHistoryCleanupManager
+    private val cleanupManager: CallHistoryCleanupManager,
+    val escapeCallManager: EscapeCallManager
 ) : ViewModel() {
 
     val uiState: StateFlow<SettingsUiState> = combine(

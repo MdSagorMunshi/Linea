@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.data.local.entities.CallDirectionType
 import com.ryanshelby.linea.data.local.entities.CallNoteEntity
 import com.ryanshelby.linea.data.local.entities.CallRecordEntity
+import com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
@@ -183,6 +184,25 @@ fun CallDetailSheet(
                             ),
                             color = LineaColors.TextSecondary
                         )
+                    }
+
+                    val callerIdResult = remember(item.primaryRecord.phoneNumber) {
+                        OfflineCallerIdEngine.identifyNumber(item.primaryRecord.phoneNumber)
+                    }
+                    if (callerIdResult.regionOrCountry.isNotBlank() && callerIdResult.regionOrCountry != "Cellular") {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = callerIdResult.flagEmoji,
+                                style = LineaTypography.bodySmall,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text(
+                                text = callerIdResult.regionOrCountry,
+                                style = LineaTypography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                                color = LineaColors.TitaniumBlue
+                            )
+                        }
                     }
                 }
             }

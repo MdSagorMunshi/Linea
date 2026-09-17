@@ -58,6 +58,10 @@ import com.ryanshelby.linea.ui.components.NeumorphicWell
 import com.ryanshelby.linea.ui.screens.settings.search.SettingsSearchCallbacks
 import com.ryanshelby.linea.ui.screens.settings.search.SettingsSearchEngine
 import com.ryanshelby.linea.ui.screens.settings.search.SettingsSearchResultsView
+import com.ryanshelby.linea.ui.screens.settings.escape.EscapeCallSheet
+import com.ryanshelby.linea.ui.screens.settings.escape.EscapeCallTab
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,6 +80,7 @@ import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhoneForwarded
 import androidx.compose.material.icons.filled.Schedule
@@ -94,6 +99,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
@@ -120,6 +126,10 @@ fun SettingsScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var showClearHistoryDialog by remember { mutableStateOf(false) }
+    var showEscapeCallSheet by remember { mutableStateOf(false) }
+    var escapeCallTab by remember { mutableStateOf(EscapeCallTab.SIMULATOR) }
+    val escapeCallSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val isEscapeArmed by viewModel.escapeCallManager.isArmed.collectAsState()
 
     val exportCsvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -168,7 +178,19 @@ fun SettingsScreen(
                 }
             },
             onShowClearHistoryDialog = { showClearHistoryDialog = true },
-            onScrollToSection = { _ -> viewModel.setSearchQuery("") }
+            onScrollToSection = { _ -> viewModel.setSearchQuery("") },
+            onOpenEscapeCall = {
+                escapeCallTab = EscapeCallTab.SIMULATOR
+                showEscapeCallSheet = true
+            },
+            onOpenEscapeSettings = {
+                escapeCallTab = EscapeCallTab.SETTINGS
+                showEscapeCallSheet = true
+            },
+            onOpenEscapeHelp = {
+                escapeCallTab = EscapeCallTab.HELP
+                showEscapeCallSheet = true
+            }
         )
     }
 
@@ -360,6 +382,20 @@ fun SettingsScreen(
             title = "Call Barring & FDN",
             subtitle = "Network call restrictions & authorized numbers",
             onClick = onNavigateToCallBarring
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Tactical Escape Call Simulator
+        SettingsNavCard(
+            icon = Icons.Filled.Call,
+            title = "Tactical Escape Call",
+            subtitle = "Simulated incoming call generator with custom timer",
+            badge = if (isEscapeArmed) "ARMED" else null,
+            onClick = {
+                escapeCallTab = EscapeCallTab.SIMULATOR
+                showEscapeCallSheet = true
+            }
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -916,6 +952,15 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(110.dp))
         }
+    }
+
+    if (showEscapeCallSheet) {
+        EscapeCallSheet(
+            sheetState = escapeCallSheetState,
+            escapeCallManager = viewModel.escapeCallManager,
+            initialTab = escapeCallTab,
+            onDismiss = { showEscapeCallSheet = false }
+        )
     }
 
     if (showClearHistoryDialog) {
