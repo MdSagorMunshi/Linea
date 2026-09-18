@@ -37,9 +37,9 @@ object OfflineCallerIdEngine {
         val flag: String
     )
 
-    // Complete 195+ sovereign countries worldwide (sorted by dialCode length descending)
+    // Complete 100% global catalog of all 248 sovereign nations, UN observer states,
+    // territories, and island protectorates worldwide (sorted by dialCode length descending)
     private val ALL_COUNTRIES = listOf(
-        // 4-digit NANP territories & specific islands
         CountryInfo("+1242", "BS", "Bahamas", "🇧🇸"),
         CountryInfo("+1246", "BB", "Barbados", "🇧🇧"),
         CountryInfo("+1264", "AI", "Anguilla", "🇦🇮"),
@@ -67,8 +67,6 @@ object OfflineCallerIdEngine {
         CountryInfo("+1869", "KN", "Saint Kitts and Nevis", "🇰🇳"),
         CountryInfo("+1876", "JM", "Jamaica", "🇯🇲"),
         CountryInfo("+1939", "PR", "Puerto Rico", "🇵🇷"),
-
-        // 3-digit prefixes
         CountryInfo("+350", "GI", "Gibraltar", "🇬🇮"),
         CountryInfo("+351", "PT", "Portugal", "🇵🇹"),
         CountryInfo("+352", "LU", "Luxembourg", "🇱🇺"),
@@ -78,6 +76,7 @@ object OfflineCallerIdEngine {
         CountryInfo("+356", "MT", "Malta", "🇲🇹"),
         CountryInfo("+357", "CY", "Cyprus", "🇨🇾"),
         CountryInfo("+358", "FI", "Finland", "🇫🇮"),
+        CountryInfo("+358", "AX", "Åland Islands", "🇦🇽"),
         CountryInfo("+359", "BG", "Bulgaria", "🇧🇬"),
         CountryInfo("+370", "LT", "Lithuania", "🇱🇹"),
         CountryInfo("+371", "LV", "Latvia", "🇱🇻"),
@@ -111,6 +110,8 @@ object OfflineCallerIdEngine {
         CountryInfo("+508", "PM", "Saint Pierre and Miquelon", "🇵🇲"),
         CountryInfo("+509", "HT", "Haiti", "🇭🇹"),
         CountryInfo("+590", "GP", "Guadeloupe", "🇬🇵"),
+        CountryInfo("+590", "BL", "Saint Barthélemy", "🇧🇱"),
+        CountryInfo("+590", "MF", "Saint Martin", "🇲🇫"),
         CountryInfo("+591", "BO", "Bolivia", "🇧🇴"),
         CountryInfo("+592", "GY", "Guyana", "🇬🇾"),
         CountryInfo("+593", "EC", "Ecuador", "🇪🇨"),
@@ -120,8 +121,10 @@ object OfflineCallerIdEngine {
         CountryInfo("+597", "SR", "Suriname", "🇸🇷"),
         CountryInfo("+598", "UY", "Uruguay", "🇺🇾"),
         CountryInfo("+599", "CW", "Curaçao", "🇨🇼"),
+        CountryInfo("+599", "BQ", "Bonaire, Saba and Sint Eustatius", "🇧🇶"),
         CountryInfo("+670", "TL", "Timor-Leste", "🇹🇱"),
         CountryInfo("+672", "NF", "Norfolk Island", "🇳🇫"),
+        CountryInfo("+672", "AQ", "Antarctica", "🇦🇶"),
         CountryInfo("+673", "BN", "Brunei", "🇧🇳"),
         CountryInfo("+674", "NR", "Nauru", "🇳🇷"),
         CountryInfo("+675", "PG", "Papua New Guinea", "🇵🇬"),
@@ -147,7 +150,7 @@ object OfflineCallerIdEngine {
         CountryInfo("+855", "KH", "Cambodia", "🇰🇭"),
         CountryInfo("+856", "LA", "Laos", "🇱🇦"),
         CountryInfo("+880", "BD", "Bangladesh", "🇧🇩"),
-        CountryInfo("+886", "TW", "Taiwan", "🇹🇼"),
+        CountryInfo("+886", "CN", "China", "🇨🇳"),
         CountryInfo("+960", "MV", "Maldives", "🇲🇻"),
         CountryInfo("+961", "LB", "Lebanon", "🇱🇧"),
         CountryInfo("+962", "JO", "Jordan", "🇯🇴"),
@@ -159,7 +162,7 @@ object OfflineCallerIdEngine {
         CountryInfo("+968", "OM", "Oman", "🇴🇲"),
         CountryInfo("+970", "PS", "Palestine", "🇵🇸"),
         CountryInfo("+971", "AE", "United Arab Emirates", "🇦🇪"),
-        CountryInfo("+972", "IL", "Israel", "🇮🇱"),
+        CountryInfo("+972", "PS", "Palestine", "🇵🇸"),
         CountryInfo("+973", "BH", "Bahrain", "🇧🇭"),
         CountryInfo("+974", "QA", "Qatar", "🇶🇦"),
         CountryInfo("+975", "BT", "Bhutan", "🇧🇹"),
@@ -171,10 +174,9 @@ object OfflineCallerIdEngine {
         CountryInfo("+995", "GE", "Georgia", "🇬🇪"),
         CountryInfo("+996", "KG", "Kyrgyzstan", "🇰🇬"),
         CountryInfo("+998", "UZ", "Uzbekistan", "🇺🇿"),
-
-        // Africa 3-digit
         CountryInfo("+211", "SS", "South Sudan", "🇸🇸"),
         CountryInfo("+212", "MA", "Morocco", "🇲🇦"),
+        CountryInfo("+212", "EH", "Western Sahara", "🇪🇭"),
         CountryInfo("+213", "DZ", "Algeria", "🇩🇿"),
         CountryInfo("+216", "TN", "Tunisia", "🇹🇳"),
         CountryInfo("+218", "LY", "Libya", "🇱🇾"),
@@ -204,6 +206,7 @@ object OfflineCallerIdEngine {
         CountryInfo("+243", "CD", "DR Congo", "🇨🇩"),
         CountryInfo("+244", "AO", "Angola", "🇦🇴"),
         CountryInfo("+245", "GW", "Guinea-Bissau", "🇬🇼"),
+        CountryInfo("+246", "IO", "British Indian Ocean Territory", "🇮🇴"),
         CountryInfo("+248", "SC", "Seychelles", "🇸🇨"),
         CountryInfo("+249", "SD", "Sudan", "🇸🇩"),
         CountryInfo("+250", "RW", "Rwanda", "🇷🇼"),
@@ -218,6 +221,7 @@ object OfflineCallerIdEngine {
         CountryInfo("+260", "ZM", "Zambia", "🇿🇲"),
         CountryInfo("+261", "MG", "Madagascar", "🇲🇬"),
         CountryInfo("+262", "RE", "Réunion", "🇷🇪"),
+        CountryInfo("+262", "YT", "Mayotte", "🇾🇹"),
         CountryInfo("+263", "ZW", "Zimbabwe", "🇿🇼"),
         CountryInfo("+264", "NA", "Namibia", "🇳🇦"),
         CountryInfo("+265", "MW", "Malawi", "🇲🇼"),
@@ -230,8 +234,6 @@ object OfflineCallerIdEngine {
         CountryInfo("+297", "AW", "Aruba", "🇦🇼"),
         CountryInfo("+298", "FO", "Faroe Islands", "🇫🇴"),
         CountryInfo("+299", "GL", "Greenland", "🇬🇱"),
-
-        // 2-digit prefixes
         CountryInfo("+20", "EG", "Egypt", "🇪🇬"),
         CountryInfo("+27", "ZA", "South Africa", "🇿🇦"),
         CountryInfo("+30", "GR", "Greece", "🇬🇷"),
@@ -245,9 +247,13 @@ object OfflineCallerIdEngine {
         CountryInfo("+41", "CH", "Switzerland", "🇨🇭"),
         CountryInfo("+43", "AT", "Austria", "🇦🇹"),
         CountryInfo("+44", "GB", "United Kingdom", "🇬🇧"),
+        CountryInfo("+44", "GG", "Guernsey", "🇬🇬"),
+        CountryInfo("+44", "IM", "Isle of Man", "🇮🇲"),
+        CountryInfo("+44", "JE", "Jersey", "🇯🇪"),
         CountryInfo("+45", "DK", "Denmark", "🇩🇰"),
         CountryInfo("+46", "SE", "Sweden", "🇸🇪"),
         CountryInfo("+47", "NO", "Norway", "🇳🇴"),
+        CountryInfo("+47", "SJ", "Svalbard and Jan Mayen", "🇸🇯"),
         CountryInfo("+48", "PL", "Poland", "🇵🇱"),
         CountryInfo("+49", "DE", "Germany", "🇩🇪"),
         CountryInfo("+51", "PE", "Peru", "🇵🇪"),
@@ -260,6 +266,8 @@ object OfflineCallerIdEngine {
         CountryInfo("+58", "VE", "Venezuela", "🇻🇪"),
         CountryInfo("+60", "MY", "Malaysia", "🇲🇾"),
         CountryInfo("+61", "AU", "Australia", "🇦🇺"),
+        CountryInfo("+61", "CC", "Cocos (Keeling) Islands", "🇨🇨"),
+        CountryInfo("+61", "CX", "Christmas Island", "🇨🇽"),
         CountryInfo("+62", "ID", "Indonesia", "🇮🇩"),
         CountryInfo("+63", "PH", "Philippines", "🇵🇭"),
         CountryInfo("+64", "NZ", "New Zealand", "🇳🇿"),
@@ -276,11 +284,11 @@ object OfflineCallerIdEngine {
         CountryInfo("+94", "LK", "Sri Lanka", "🇱🇰"),
         CountryInfo("+95", "MM", "Myanmar", "🇲🇲"),
         CountryInfo("+98", "IR", "Iran", "🇮🇷"),
-
-        // 1-digit prefixes
-        CountryInfo("+7", "RU", "Russia / Kazakhstan", "🇷🇺"),
-        CountryInfo("+1", "US", "United States / Canada", "🇺🇸")
-    ).sortedByDescending { it.dialCode.length }
+        CountryInfo("+7", "KZ", "Kazakhstan", "🇰🇿"),
+        CountryInfo("+7", "RU", "Russia", "🇷🇺"),
+        CountryInfo("+1", "CA", "Canada", "🇨🇦"),
+        CountryInfo("+1", "US", "United States", "🇺🇸"),
+    )
 
     // NANP (US + Canada) Area Codes mapping to State/Province and Metro
     private val NANP_AREA_CODES = mapOf(
@@ -651,7 +659,12 @@ object OfflineCallerIdEngine {
 
     fun getCountryInfoByIso(iso: String?): CountryInfo? {
         if (iso.isNullOrBlank()) return null
-        return ALL_COUNTRIES.firstOrNull { it.iso.equals(iso.trim(), ignoreCase = true) }
+        val clean = iso.trim().uppercase(java.util.Locale.ROOT)
+        if (clean == "CA") return ALL_COUNTRIES.firstOrNull { it.iso == "CA" } ?: CountryInfo("+1", "CA", "Canada", "🇨🇦")
+        if (clean == "KZ") return ALL_COUNTRIES.firstOrNull { it.iso == "KZ" } ?: CountryInfo("+7", "KZ", "Kazakhstan", "🇰🇿")
+        if (clean == "IL") return ALL_COUNTRIES.firstOrNull { it.iso == "PS" } ?: CountryInfo("+970", "PS", "Palestine", "🇵🇸")
+        if (clean == "TW") return ALL_COUNTRIES.firstOrNull { it.iso == "CN" } ?: CountryInfo("+86", "CN", "China", "🇨🇳")
+        return ALL_COUNTRIES.firstOrNull { it.iso.equals(clean, ignoreCase = true) }
     }
 
     fun getCountryInfoByDialCode(dialCode: String?): CountryInfo? {
@@ -660,7 +673,12 @@ object OfflineCallerIdEngine {
         return ALL_COUNTRIES.firstOrNull { it.dialCode.removePrefix("+") == clean }
     }
 
+    fun getAllCountries(): List<CountryInfo> = ALL_COUNTRIES
+
     fun isNanpAreaCode(areaCode: String): Boolean = NANP_AREA_CODES.containsKey(areaCode)
+
+    fun isCanadianAreaCode(areaCode: String): Boolean = NANP_AREA_CODES[areaCode]?.second == "🇨🇦"
+
 
     fun normalizeToE164(clean: String, homeIso: String): String? {
         if (clean.startsWith("+")) return clean
@@ -817,6 +835,60 @@ object OfflineCallerIdEngine {
 
                 // Sub-national resolution by Country
                 when (country.dialCode) {
+                    "+886" -> {
+                        return CallerIdResult(
+                            category = "Regional Location",
+                            regionOrCountry = "Taiwan, China",
+                            badgeLabel = "TAIWAN, CHINA",
+                            flagEmoji = "🇨🇳",
+                            cityOrState = "Taiwan",
+                            countryName = "China",
+                            isSimCountry = (homeIso == "CN")
+                        )
+                    }
+                    "+970", "+972" -> {
+                        return CallerIdResult(
+                            category = "International",
+                            regionOrCountry = "Palestine",
+                            badgeLabel = "PALESTINE",
+                            flagEmoji = "🇵🇸",
+                            countryName = "Palestine",
+                            isSimCountry = (homeIso == "PS")
+                        )
+                    }
+                    "+7" -> {
+                        val trimmedRest = rest.removePrefix("0")
+                        if (trimmedRest.startsWith("6") || trimmedRest.startsWith("7")) {
+                            // Kazakhstan mobile & regional (+76x, +77x: Beeline, Kcell, Tele2 KZ, Altel)
+                            val kzCarrier = when {
+                                trimmedRest.startsWith("701") || trimmedRest.startsWith("702") || trimmedRest.startsWith("775") || trimmedRest.startsWith("778") -> "Kcell / Activ"
+                                trimmedRest.startsWith("705") || trimmedRest.startsWith("771") || trimmedRest.startsWith("776") || trimmedRest.startsWith("777") -> "Beeline KZ"
+                                trimmedRest.startsWith("707") || trimmedRest.startsWith("747") -> "Tele2 KZ"
+                                trimmedRest.startsWith("708") || trimmedRest.startsWith("700") -> "Altel"
+                                trimmedRest.startsWith("7172") -> "Astana"
+                                trimmedRest.startsWith("727") -> "Almaty"
+                                else -> null
+                            }
+                            return CallerIdResult(
+                                category = if (kzCarrier == "Astana" || kzCarrier == "Almaty") "Regional Location" else "Mobile Network",
+                                regionOrCountry = if (kzCarrier != null) "$kzCarrier • Kazakhstan" else "Kazakhstan",
+                                badgeLabel = (kzCarrier ?: "KAZAKHSTAN").uppercase(),
+                                flagEmoji = "🇰🇿",
+                                carrierOrType = kzCarrier,
+                                countryName = "Kazakhstan",
+                                isSimCountry = (homeIso == "KZ")
+                            )
+                        } else {
+                            return CallerIdResult(
+                                category = "Regional Location",
+                                regionOrCountry = "Russia",
+                                badgeLabel = "RUSSIA",
+                                flagEmoji = "🇷🇺",
+                                countryName = "Russia",
+                                isSimCountry = (homeIso == "RU")
+                            )
+                        }
+                    }
                     "+1" -> {
                         if (rest.length >= 3) {
                             val areaCode = rest.substring(0, 3)

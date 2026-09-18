@@ -526,4 +526,154 @@ class EscapeCallAndOfflineCallerIdTest {
         assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.NIGHT, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(3))
         assertEquals("Night", com.ryanshelby.linea.telecom.TimeOfDayState.NIGHT.displayName)
     }
+
+    @Test
+    fun testWorldwideCountryCoverage() {
+        val helperCountries = com.ryanshelby.linea.telecom.InternationalCountryHelper.getAllCountries()
+        val engineCountries = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.getAllCountries()
+
+        // Verify total countries catalog exceeds 240+ entities (all 195 UN sovereign nations + global territories)
+        assertTrue("Helper must contain at least 240 countries/territories, got: ${helperCountries.size}", helperCountries.size >= 244)
+        assertTrue("Engine must contain at least 240 countries/territories, got: ${engineCountries.size}", engineCountries.size >= 244)
+
+        // 1. South America: Argentina (54 / +54)
+        val arPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("541143219876")
+        assertNotNull(arPreview)
+        assertEquals("Argentina", arPreview?.countryName)
+        assertEquals("🇦🇷", arPreview?.flagEmoji)
+        val arCallerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber("541143219876")
+        assertEquals("Argentina", arCallerId.countryName)
+        assertEquals("🇦🇷", arCallerId.flagEmoji)
+
+        // 2. Europe: Portugal (351 / +351)
+        val ptPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("351912345678")
+        assertNotNull(ptPreview)
+        assertEquals("Portugal", ptPreview?.countryName)
+        assertEquals("🇵🇹", ptPreview?.flagEmoji)
+        val ptCallerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber("351912345678")
+        assertEquals("Portugal", ptCallerId.countryName)
+        assertEquals("🇵🇹", ptCallerId.flagEmoji)
+
+        // 3. Europe: Poland (48 / +48)
+        val plPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("48601234567")
+        assertNotNull(plPreview)
+        assertEquals("Poland", plPreview?.countryName)
+        assertEquals("🇵🇱", plPreview?.flagEmoji)
+
+        // 4. Central Asia: Kazakhstan (7701... / +7701...)
+        val kzPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("77011234567")
+        assertNotNull(kzPreview)
+        assertEquals("Kazakhstan", kzPreview?.countryName)
+        assertEquals("🇰🇿", kzPreview?.flagEmoji)
+        val kzCallerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber("77011234567")
+        assertEquals("Kazakhstan", kzCallerId.countryName)
+        assertEquals("🇰🇿", kzCallerId.flagEmoji)
+        assertEquals("KCELL / ACTIV", kzCallerId.badgeLabel)
+
+        // 5. North America: Canada Toronto (1416 / +1416)
+        val caCallerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber("14165550199")
+        assertEquals("Canada", caCallerId.countryName)
+        assertEquals("🇨🇦", caCallerId.flagEmoji)
+        assertEquals("Toronto, ON • Canada", caCallerId.regionOrCountry)
+        val caPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("14165550199")
+        assertNotNull(caPreview)
+        assertEquals("Canada", caPreview?.countryName)
+        assertEquals("🇨🇦", caPreview?.flagEmoji)
+
+        // 6. Africa: Kenya (254 / +254)
+        val kePreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("254712345678")
+        assertNotNull(kePreview)
+        assertEquals("Kenya", kePreview?.countryName)
+        assertEquals("🇰🇪", kePreview?.flagEmoji)
+        val keCallerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber("254712345678")
+        assertEquals("Kenya", keCallerId.countryName)
+        assertEquals("🇰🇪", keCallerId.flagEmoji)
+
+        // 7. Oceania: Fiji (679 / +679)
+        val fjPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("6799991234")
+        assertNotNull(fjPreview)
+        assertEquals("Fiji", fjPreview?.countryName)
+        assertEquals("🇫🇯", fjPreview?.flagEmoji)
+
+        // 8. Verify ISO lookups for CA, KZ, PS, and mapped IL/TW
+        val caInfo = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.getCountryInfoByIso("CA")
+        assertNotNull(caInfo)
+        assertEquals("Canada", caInfo?.name)
+        assertEquals("🇨🇦", caInfo?.flag)
+
+        val kzInfo = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.getCountryInfoByIso("KZ")
+        assertNotNull(kzInfo)
+        assertEquals("Kazakhstan", kzInfo?.name)
+        assertEquals("🇰🇿", kzInfo?.flag)
+
+        // 9. Palestine (+970 and +972)
+        val ps970Preview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("970599123456")
+        assertNotNull(ps970Preview)
+        assertEquals("Palestine", ps970Preview?.countryName)
+        assertEquals("🇵🇸", ps970Preview?.flagEmoji)
+
+        val ps970CallerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber("970599123456")
+        assertEquals("Palestine", ps970CallerId.countryName)
+        assertEquals("🇵🇸", ps970CallerId.flagEmoji)
+        assertEquals("PALESTINE", ps970CallerId.badgeLabel)
+
+        val ps972Preview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("972501234567")
+        assertNotNull(ps972Preview)
+        assertEquals("Palestine", ps972Preview?.countryName)
+        assertEquals("🇵🇸", ps972Preview?.flagEmoji)
+
+        val ps972CallerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber("972501234567")
+        assertEquals("Palestine", ps972CallerId.countryName)
+        assertEquals("🇵🇸", ps972CallerId.flagEmoji)
+        assertEquals("PALESTINE", ps972CallerId.badgeLabel)
+
+        val psInfo = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.getCountryInfoByIso("PS")
+        assertNotNull(psInfo)
+        assertEquals("Palestine", psInfo?.name)
+        assertEquals("🇵🇸", psInfo?.flag)
+
+        val ilMappedInfo = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.getCountryInfoByIso("IL")
+        assertNotNull(ilMappedInfo)
+        assertEquals("Palestine", ilMappedInfo?.name)
+        assertEquals("🇵🇸", ilMappedInfo?.flag)
+
+        val ilHelperInfo = com.ryanshelby.linea.telecom.InternationalCountryHelper.getCountryByIso("IL")
+        assertNotNull(ilHelperInfo)
+        assertEquals("Palestine", ilHelperInfo?.countryName)
+        assertEquals("🇵🇸", ilHelperInfo?.flagEmoji)
+
+        // 10. China / Taiwan (+886 represented as part of China)
+        val cn886Preview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("886912345678")
+        assertNotNull(cn886Preview)
+        assertEquals("China", cn886Preview?.countryName)
+        assertEquals("🇨🇳", cn886Preview?.flagEmoji)
+
+        val cn886CallerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber("886912345678")
+        assertEquals("China", cn886CallerId.countryName)
+        assertEquals("🇨🇳", cn886CallerId.flagEmoji)
+        assertEquals("Taiwan, China", cn886CallerId.regionOrCountry)
+        assertEquals("TAIWAN, CHINA", cn886CallerId.badgeLabel)
+
+        val twMappedInfo = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.getCountryInfoByIso("TW")
+        assertNotNull(twMappedInfo)
+        assertEquals("China", twMappedInfo?.name)
+        assertEquals("🇨🇳", twMappedInfo?.flag)
+
+        val twHelperInfo = com.ryanshelby.linea.telecom.InternationalCountryHelper.getCountryByIso("TW")
+        assertNotNull(twHelperInfo)
+        assertEquals("China", twHelperInfo?.countryName)
+        assertEquals("🇨🇳", twHelperInfo?.flagEmoji)
+
+        // 11. Strict validation: neither Israel nor Taiwan exist as separate country entries anywhere
+        assertTrue(helperCountries.none { it.countryName.contains("Israel", ignoreCase = true) })
+        assertTrue(helperCountries.none { it.flagEmoji == "🇮🇱" })
+        assertTrue(helperCountries.none { it.countryName.equals("Taiwan", ignoreCase = true) })
+        assertTrue(helperCountries.none { it.flagEmoji == "🇹🇼" })
+
+        assertTrue(engineCountries.none { it.name.contains("Israel", ignoreCase = true) })
+        assertTrue(engineCountries.none { it.flag == "🇮🇱" })
+        assertTrue(engineCountries.none { it.name.equals("Taiwan", ignoreCase = true) })
+        assertTrue(engineCountries.none { it.flag == "🇹🇼" })
+    }
 }
+
