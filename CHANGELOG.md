@@ -10,6 +10,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **100% Offline Worldwide Regional Caller ID & Carrier Intelligence**:
+  - Engineered a 100% offline, privacy-first caller ID and location intelligence engine (`OfflineCallerIdEngine`) requiring zero internet connection and zero location permissions.
+  - Complete worldwide coverage encompassing **all 248 sovereign nations, UN observer states, island protectorates, and overseas territories** (100% of ISO 3166-1 catalog).
+  - Smart international dialing detection without requiring the `+` sign (e.g. `880...`, `54...`, `351...`, `7701...`, `1416...`, `91...`, etc.).
+  - Smart domestic SIM country integration (`SimCountryDetector`): detects user's active SIM country code via TelephonyManager without requesting GPS location or internet permissions to accurately disambiguate domestic local dialing from foreign international codes.
+  - Granular North American Numbering Plan (NANP, `+1`) coverage: cleanly distinguishes Canadian numbers (`🇨🇦`) from United States numbers (`🇺🇸`), with sub-national city and metropolitan identification (Toronto, Montreal, Vancouver, New York, Chicago, San Francisco, Dallas, Houston, Miami, etc.).
+  - Prefix disambiguation for shared country codes: `+7` distinguishes Kazakhstan (`🇰🇿`, mobile prefixes 76, 77 with operator detection for Kcell/Activ, Beeline KZ, Tele2 KZ, Altel, and city detection for Astana/Almaty) from Russia (`🇷🇺`).
+  - Sub-national operator & mobile carrier recognition:
+    - Bangladesh (`+880`): Grameenphone, Robi, Banglalink, Teletalk
+    - Pakistan (`+92`): Jazz, Telenor, Zong, Ufone
+    - United Arab Emirates (`+971`): e&, du
+    - Saudi Arabia (`+966`): stc, Mobily, Zain
+    - Nigeria (`+234`): MTN, Airtel, Glo, 9mobile
+    - Kenya (`+254`): Safaricom, Airtel, Telkom
+    - Philippines (`+63`): Globe, Smart, DITO
+    - Regional metro and city prefixes for Germany (`+49`), France (`+33`), United Kingdom (`+44`), Australia (`+61`), India (`+91`), and Japan (`+81`).
+  - Consistent international representation: Palestine (`🇵🇸`, `PS`) for `+970` and `+972` (with dynamic ISO mapping from `IL` to `PS`); China (`🇨🇳`, `CN`) for `+886` with regional location `"Taiwan, China"` and badge `"TAIWAN, CHINA"` (with dynamic ISO mapping from `TW` to `CN`).
+
+- **Live International Timezone Preview with 6 Time-of-Day States & Custom Vector Icons**:
+  - Integrated dynamic timezone preview pill (`InternationalPreviewPill`) on the Cellular Dial Pad, displaying the destination's live local time, GMT offset, and time-of-day contextual state in real time.
+  - Verified canonical IANA timezone mappings across all 248 jurisdictions worldwide (`InternationalCountryHelper`).
+  - Replaced generic night warnings with 6 rich, day/night contextual states featuring custom-designed vector SVG drawables:
+    - 🌅 **Early Morning** (`05:00 - 07:59`): `ic_time_early_morning.xml` (dawn sunrise with rising rays & horizon)
+    - ☀️ **Morning** (`08:00 - 11:59`): `ic_time_morning.xml` (full morning radial sun)
+    - 🔆 **Midday** (`12:00 - 13:59`): `ic_time_midday.xml` (overhead solar peak with diamond flares)
+    - 🌤️ **Afternoon** (`14:00 - 16:59`): `ic_time_afternoon.xml` (warm descending sun arc)
+    - 🌆 **Evening** (`17:00 - 20:59`): `ic_time_evening.xml` (twilight dusk sun sinking into horizon)
+    - 🌙 **Night** (`21:00 - 04:59`): `ic_time_night.xml` (crescent moon with twinkle stars)
+  - Single-line fluid pill layout preventing text wrapping with smooth animated transitions.
+
+- **Tactical "Escape Call" Simulator (Stealth Fake Incoming Call Generator)**:
+  - Built a tactical incoming call simulator (`EscapeCallSheet`, `EscapeCallManager`, `EscapeCallReceiver`, `FakeCallActivity`) designed for discreet, realistic interruptions.
+  - Simulates authentic full-screen incoming calls identical to native Linea calls, including contact avatar, caller name, phone number, and location labels.
+  - Configurable deployment timers: Instant / Immediate, 5 seconds, 15 seconds, 30 seconds, 1 minute, 5 minutes, or custom countdown timer.
+  - One-tap tactical scenario presets for rapid deployment: "Boss / Work Emergency", "Family Urgent", "Doctor / Clinic", "Delivery Courier".
+  - Authentic audio and vibration playback with customizable ringtone selection and vibration patterns.
+  - Interactive voice scenario simulation during active answered escape calls with realistic synthetic audio and speech pause cadence.
+  - Dedicated Help Menu and configuration settings: custom prefix, dial code triggers, caller profiles, and delay preferences.
+  - Fully indexed and discoverable in Settings Search via queries like "escape", "fake call", "rescue", "emergency", "simulator", "stealth call", etc., with direct in-place sheet navigation.
+
 - **Powerful, Smart Search in Settings**:
   - Implemented a dedicated, intelligent search bar exclusively for the **Settings** screen conforming to Linea's tactile Neumorphic design system (`NeumorphicWell`, `LineaColors`, `LineaTypography`).
   - Indexed all 33+ configurations, toggles, preferences, and sub-screens across 10 specialized categories (General, Calling, Audio & Sound, Motion & Gestures, Screening & Security, Appearance, History & Storage, Telecom, Permissions, About).
