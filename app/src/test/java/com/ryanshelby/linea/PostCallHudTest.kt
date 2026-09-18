@@ -220,7 +220,6 @@ class PostCallHudTest {
             action = SettingsSearchAction.Select(
                 currentValue = { state ->
                     if (!state.postCallHudEnabled) "Disabled"
-                    else if (state.postCallHudDurationSeconds <= 0) "Manual"
                     else "${state.postCallHudDurationSeconds}s"
                 },
                 onAction = {
@@ -230,8 +229,7 @@ class PostCallHudTest {
                         8 -> 12
                         12 -> 15
                         15 -> 30
-                        30 -> 0
-                        0 -> 3
+                        30 -> 3
                         else -> 8
                     }
                 }
@@ -260,12 +258,6 @@ class PostCallHudTest {
         )
         assertEquals("8s", selectAction.currentValue(enabledState))
 
-        val manualState = com.ryanshelby.linea.ui.screens.settings.SettingsUiState(
-            postCallHudEnabled = true,
-            postCallHudDurationSeconds = 0
-        )
-        assertEquals("Manual", selectAction.currentValue(manualState))
-
         val disabledState = com.ryanshelby.linea.ui.screens.settings.SettingsUiState(
             postCallHudEnabled = false,
             postCallHudDurationSeconds = 8
@@ -280,8 +272,6 @@ class PostCallHudTest {
         assertEquals(15, currentDuration)
         selectAction.onAction()
         assertEquals(30, currentDuration)
-        selectAction.onAction()
-        assertEquals(0, currentDuration) // Manual mode
         selectAction.onAction()
         assertEquals(3, currentDuration) // Wraps to 3s Fast
     }

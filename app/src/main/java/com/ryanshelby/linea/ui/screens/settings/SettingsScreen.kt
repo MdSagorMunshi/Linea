@@ -659,101 +659,47 @@ fun SettingsScreen(
                 )
 
                 if (uiState.postCallHudEnabled) {
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text(
-                        text = "CUSTOMIZE POST-CALL TIME",
-                        style = LineaTypography.labelSmall,
-                        color = LineaColors.TextTertiary,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Display Duration",
-                            style = LineaTypography.bodyMedium,
-                            color = LineaColors.TextPrimary
-                        )
-                        Text(
-                            text = if (uiState.postCallHudDurationSeconds <= 0) "Manual (No Auto-Close)" else "${uiState.postCallHudDurationSeconds} seconds",
-                            style = LineaTypography.labelMedium,
-                            color = LineaColors.TitaniumBlue,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Preset chips Row 1
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(3 to "3s Fast", 5 to "5s Brief", 8 to "8s Default", 12 to "12s").forEach { (sec, label) ->
-                            SelectionPill(
-                                label = label,
-                                isSelected = uiState.postCallHudDurationSeconds == sec,
-                                onClick = { viewModel.setPostCallHudDurationSeconds(sec) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Preset chips Row 2
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(15 to "15s Extended", 30 to "30s Long", 0 to "Manual Close").forEach { (sec, label) ->
-                            SelectionPill(
-                                label = label,
-                                isSelected = if (sec == 0) uiState.postCallHudDurationSeconds <= 0 else uiState.postCallHudDurationSeconds == sec,
-                                onClick = { viewModel.setPostCallHudDurationSeconds(sec) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Fine-tuning slider (3s to 30s)
+                    // Swipeable Display Duration Card
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
                             .background(LineaColors.GlassFill)
                             .border(1.dp, LineaColors.GlassBorder.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Display Duration",
+                                    style = LineaTypography.bodyMedium,
+                                    color = LineaColors.TextPrimary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Auto-dismisses HUD after ${uiState.postCallHudDurationSeconds} seconds",
+                                    style = LineaTypography.bodySmall,
+                                    color = LineaColors.TextSecondary
+                                )
+                            }
                             Text(
-                                text = "Fine-Tune Timer",
-                                style = LineaTypography.labelSmall,
-                                color = LineaColors.TextSecondary
-                            )
-                            Text(
-                                text = if (uiState.postCallHudDurationSeconds <= 0) "Manual" else "${uiState.postCallHudDurationSeconds}s",
-                                style = LineaTypography.labelSmall,
+                                text = "${uiState.postCallHudDurationSeconds}s",
+                                style = LineaTypography.titleMedium,
                                 color = LineaColors.TitaniumBlue,
                                 fontWeight = FontWeight.Bold
                             )
                         }
 
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         Slider(
-                            value = if (uiState.postCallHudDurationSeconds <= 0) 3f else uiState.postCallHudDurationSeconds.toFloat().coerceIn(3f, 30f),
+                            value = uiState.postCallHudDurationSeconds.toFloat().coerceIn(3f, 30f),
                             onValueChange = { viewModel.setPostCallHudDurationSeconds(it.roundToInt()) },
                             valueRange = 3f..30f,
                             steps = 26,
@@ -771,7 +717,7 @@ fun SettingsScreen(
                         ) {
                             Text(text = "3s (Fast)", style = LineaTypography.labelSmall, color = LineaColors.TextTertiary, fontSize = 10.sp)
                             Text(text = "15s", style = LineaTypography.labelSmall, color = LineaColors.TextTertiary, fontSize = 10.sp)
-                            Text(text = "30s (Long)", style = LineaTypography.labelSmall, color = LineaColors.TextTertiary, fontSize = 10.sp)
+                            Text(text = "30s (Extended)", style = LineaTypography.labelSmall, color = LineaColors.TextTertiary, fontSize = 10.sp)
                         }
                     }
                 }

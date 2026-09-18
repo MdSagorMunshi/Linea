@@ -380,7 +380,6 @@ object SettingsSearchEngine {
                 action = SettingsSearchAction.Select(
                     currentValue = { state ->
                         if (!state.postCallHudEnabled) "Disabled"
-                        else if (state.postCallHudDurationSeconds <= 0) "Manual"
                         else "${state.postCallHudDurationSeconds}s"
                     },
                     onAction = {
@@ -391,8 +390,7 @@ object SettingsSearchEngine {
                             8 -> 12
                             12 -> 15
                             15 -> 30
-                            30 -> 0
-                            0 -> 3
+                            30 -> 3
                             else -> 8
                         }
                         viewModel.setPostCallHudDurationSeconds(next)
