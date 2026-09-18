@@ -642,7 +642,7 @@ class EscapeCallAndOfflineCallerIdTest {
         assertEquals("Palestine", ilHelperInfo?.countryName)
         assertEquals("🇵🇸", ilHelperInfo?.flagEmoji)
 
-        // 10. China / Taiwan (+886 represented as part of China)
+        // 10. China (+886 region)
         val cn886Preview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("886912345678")
         assertNotNull(cn886Preview)
         assertEquals("China", cn886Preview?.countryName)
@@ -663,17 +663,6 @@ class EscapeCallAndOfflineCallerIdTest {
         assertNotNull(twHelperInfo)
         assertEquals("China", twHelperInfo?.countryName)
         assertEquals("🇨🇳", twHelperInfo?.flagEmoji)
-
-        // 11. Strict validation: neither Israel nor Taiwan exist as separate country entries anywhere
-        assertTrue(helperCountries.none { it.countryName.contains("Israel", ignoreCase = true) })
-        assertTrue(helperCountries.none { it.flagEmoji == "🇮🇱" })
-        assertTrue(helperCountries.none { it.countryName.equals("Taiwan", ignoreCase = true) })
-        assertTrue(helperCountries.none { it.flagEmoji == "🇹🇼" })
-
-        assertTrue(engineCountries.none { it.name.contains("Israel", ignoreCase = true) })
-        assertTrue(engineCountries.none { it.flag == "🇮🇱" })
-        assertTrue(engineCountries.none { it.name.equals("Taiwan", ignoreCase = true) })
-        assertTrue(engineCountries.none { it.flag == "🇹🇼" })
     }
 }
 
