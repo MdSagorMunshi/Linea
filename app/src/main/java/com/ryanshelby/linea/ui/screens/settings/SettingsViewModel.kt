@@ -42,7 +42,7 @@ data class SettingsUiState(
     val flipToSilence: Boolean = false,
     val proximityWaveToSilence: Boolean = false,
     val dialpadHapticProfile: String = com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS,
-    val postCallHudEnabled: Boolean = true,
+    val postCallHudEnabled: Boolean = false,
     val postCallHudDurationSeconds: Int = 8
 )
 

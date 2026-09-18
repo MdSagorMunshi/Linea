@@ -193,4 +193,11 @@ class PostCallHudTest {
         assertEquals(1, afterCallResult.size)
         assertEquals("post_call_hud", afterCallResult[0].id)
     }
+
+    @Test
+    fun postCallHud_defaultsToDisabled_optInOnly() {
+        val defaultUiState = com.ryanshelby.linea.ui.screens.settings.SettingsUiState()
+        assertFalse("Post-Call Smart Action HUD must be disabled by default", defaultUiState.postCallHudEnabled)
+        assertEquals(8, defaultUiState.postCallHudDurationSeconds)
+    }
 }

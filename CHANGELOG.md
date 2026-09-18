@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Post-Call Smart Action HUD (Transient Quick-Action Card)**:
-  - Engineered a tactile, non-intrusive Neumorphic bottom sheet HUD card (`PostCallHudCard`) presented the moment any call concludes (incoming, outgoing, missed, or simulated).
+  - Engineered an optional, tactile Neumorphic bottom sheet HUD card (`PostCallHudCard`) presented when any call concludes (incoming, outgoing, missed, or simulated). **Disabled by default (opt-in)** to preserve existing dialer flows unless explicitly activated by the user.
   - Provides four instant, high-utility post-call actions before the in-call window dismisses:
     - ⏰ **1-Tap Callback Reminders**: Instant scheduling chips (`15 min`, `1 hour`, `Tomorrow 9 AM`) backed by `CallbackReminderScheduler` and high-priority Android alarm notifications.
     - 📝 **Quick Scratchpad Note**: Instant inline note entry with one-tap contextual tag chips (`"Follow-up needed"`, `"Sent details"`, `"Call again"`, `"Important"`), saved directly into Room database via `CallNoteDao`.
@@ -19,9 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - 🛡️ **Instant Block / Mark Spam**: One-tap defensive action writing directly to Room `BlockedNumberDao` and Android's `BlockedNumberContract`.
   - **Dynamic Visual Summary Header**: Displays caller avatar, contact name or phone number, call status badge (incoming/outgoing with exact duration or missed/unanswered status), and offline geographic location badge powered by `OfflineCallerIdEngine`.
   - **Countdown Bar with Intelligent Interaction Freeze**: Configurable auto-dismiss countdown timer (default 8s) with an animated linear progress indicator that automatically pauses indefinitely when user touches input fields, selects reminder chips, or composes notes.
-  - **Customizable Calling Preferences**: Added `postCallHudEnabled` toggle and `postCallHudDurationSeconds` (5s, 8s, 12s) configuration pills in Settings, with DataStore persistence.
+  - **Customizable Calling Preferences**: Added `postCallHudEnabled` toggle (default `false`) and `postCallHudDurationSeconds` (5s, 8s, 12s) configuration pills in Settings, with DataStore persistence.
   - **Intelligent Search Indexing**: Fully indexed in `SettingsSearchEngine` under `SettingsCategory.CALLING` with extensive synonyms ("hud", "post-call", "action card", "reminder", "scratchpad", "follow-up", "call note", "auto-dismiss").
-  - Comprehensive unit test coverage (`PostCallHudTest`) validating duration formatting, caller ID location resolution, reminder timestamp calculation, note tag concatenation, and search indexing.
+  - Comprehensive unit test coverage (`PostCallHudTest`) validating duration formatting, caller ID location resolution, reminder timestamp calculation, note tag concatenation, search indexing, and verification that the feature defaults to disabled.
 
 - **100% Offline Worldwide Regional Caller ID & Carrier Intelligence**:
   - Engineered a 100% offline, privacy-first caller ID and location intelligence engine (`OfflineCallerIdEngine`) requiring zero internet connection and zero location permissions.

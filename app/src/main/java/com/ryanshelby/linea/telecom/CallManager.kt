@@ -120,6 +120,19 @@ class CallManager @Inject constructor(
     private val _postCallSummary = MutableStateFlow<PostCallSummary?>(null)
     val postCallSummary: StateFlow<PostCallSummary?> = _postCallSummary.asStateFlow()
 
+    private var isPostCallHudEnabled: Boolean = false
+
+    init {
+        scope.launch {
+            preferences.postCallHudEnabled.collect { enabled ->
+                isPostCallHudEnabled = enabled
+                if (!enabled) {
+                    _postCallSummary.value = null
+                }
+            }
+        }
+    }
+
     fun clearPostCallSummary() {
         _postCallSummary.value = null
     }
@@ -935,6 +948,10 @@ class CallManager @Inject constructor(
     }
 
     fun recordPostCallSummary(active: ActiveCallInfo) {
+        if (!isPostCallHudEnabled) {
+            _postCallSummary.value = null
+            return
+        }
         val callerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber(active.phoneNumber)
         _postCallSummary.value = PostCallSummary(
             phoneNumber = active.phoneNumber,

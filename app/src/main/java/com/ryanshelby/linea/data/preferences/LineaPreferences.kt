@@ -153,7 +153,7 @@ class LineaPreferences @Inject constructor(
     val escapeCallDisarmNotification: Flow<Boolean> = dataStore.data.map { it[KEY_ESCAPE_CALL_DISARM_NOTIFICATION] ?: true }
     val escapeCallCustomName: Flow<String> = dataStore.data.map { it[KEY_ESCAPE_CALL_CUSTOM_NAME] ?: "Office Dispatch" }
     val escapeCallCustomNumber: Flow<String> = dataStore.data.map { it[KEY_ESCAPE_CALL_CUSTOM_NUMBER] ?: "+1 (555) 019-2834" }
-    val postCallHudEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_POST_CALL_HUD_ENABLED] ?: true }
+    val postCallHudEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_POST_CALL_HUD_ENABLED] ?: false }
     val postCallHudDurationSeconds: Flow<Int> = dataStore.data.map { it[KEY_POST_CALL_HUD_DURATION_SECONDS] ?: 8 }
 
     // Vault DataStore Flows

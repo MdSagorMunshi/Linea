@@ -85,7 +85,7 @@ class InCallActivity : ComponentActivity() {
             val isRingerSilenced by callManager.isRingerSilenced.collectAsState()
 
             val postCallSummary by callManager.postCallSummary.collectAsState()
-            val postCallHudEnabled by lineaPreferences.postCallHudEnabled.collectAsState(initial = true)
+            val postCallHudEnabled by lineaPreferences.postCallHudEnabled.collectAsState(initial = false)
             val postCallHudDuration by lineaPreferences.postCallHudDurationSeconds.collectAsState(initial = 8)
 
             // System back gesture minimizes active call or dismisses post-call HUD
@@ -109,7 +109,8 @@ class InCallActivity : ComponentActivity() {
                         delay(800)
                         val stillNoCalls = (callManager.currentCall.value == null || callManager.currentCall.value?.state == LineaCallState.DISCONNECTED) &&
                                 (callManager.secondaryCall.value == null || callManager.secondaryCall.value?.state == LineaCallState.DISCONNECTED)
-                        if (stillNoCalls && postCallSummary == null) {
+                        if (stillNoCalls && (!postCallHudEnabled || postCallSummary == null)) {
+                            callManager.clearPostCallSummary()
                             finishAndRemoveTask()
                         }
                     }
