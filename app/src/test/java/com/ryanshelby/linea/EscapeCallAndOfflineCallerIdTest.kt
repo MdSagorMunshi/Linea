@@ -493,4 +493,37 @@ class EscapeCallAndOfflineCallerIdTest {
         assertEquals("India", inPreview?.countryName)
         assertEquals("🇮🇳", inPreview?.flagEmoji)
     }
+
+    @Test
+    fun testTimeOfDayStates() {
+        // Verify all 6 requested states from hours
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.EARLY_MORNING, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(5))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.EARLY_MORNING, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(6))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.EARLY_MORNING, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(7))
+        assertEquals("Early Morning", com.ryanshelby.linea.telecom.TimeOfDayState.EARLY_MORNING.displayName)
+
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.MORNING, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(8))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.MORNING, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(10))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.MORNING, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(11))
+        assertEquals("Morning", com.ryanshelby.linea.telecom.TimeOfDayState.MORNING.displayName)
+
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.MIDDAY, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(12))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.MIDDAY, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(13))
+        assertEquals("Midday", com.ryanshelby.linea.telecom.TimeOfDayState.MIDDAY.displayName)
+
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.AFTERNOON, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(14))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.AFTERNOON, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(16))
+        assertEquals("Afternoon", com.ryanshelby.linea.telecom.TimeOfDayState.AFTERNOON.displayName)
+
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.EVENING, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(17))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.EVENING, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(19))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.EVENING, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(20))
+        assertEquals("Evening", com.ryanshelby.linea.telecom.TimeOfDayState.EVENING.displayName)
+
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.NIGHT, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(21))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.NIGHT, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(23))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.NIGHT, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(0))
+        assertEquals(com.ryanshelby.linea.telecom.TimeOfDayState.NIGHT, com.ryanshelby.linea.telecom.TimeOfDayState.fromHour(3))
+        assertEquals("Night", com.ryanshelby.linea.telecom.TimeOfDayState.NIGHT.displayName)
+    }
 }

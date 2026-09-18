@@ -1,9 +1,36 @@
 package com.ryanshelby.linea.telecom
 
+import androidx.annotation.DrawableRes
+import com.ryanshelby.linea.R
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+enum class TimeOfDayState(
+    val displayName: String,
+    @DrawableRes val iconRes: Int
+) {
+    EARLY_MORNING("Early Morning", R.drawable.ic_time_early_morning),
+    MORNING("Morning", R.drawable.ic_time_morning),
+    MIDDAY("Midday", R.drawable.ic_time_midday),
+    AFTERNOON("Afternoon", R.drawable.ic_time_afternoon),
+    EVENING("Evening", R.drawable.ic_time_evening),
+    NIGHT("Night", R.drawable.ic_time_night);
+
+    companion object {
+        fun fromHour(hour: Int): TimeOfDayState {
+            return when (hour) {
+                in 5..7 -> EARLY_MORNING   // 5:00 AM - 7:59 AM
+                in 8..11 -> MORNING        // 8:00 AM - 11:59 AM
+                in 12..13 -> MIDDAY        // 12:00 PM - 1:59 PM
+                in 14..16 -> AFTERNOON     // 2:00 PM - 4:59 PM
+                in 17..20 -> EVENING       // 5:00 PM - 8:59 PM
+                else -> NIGHT              // 21:00 - 04:59 (9:00 PM - 4:59 AM)
+            }
+        }
+    }
+}
 
 data class CountryInfo(
     val isoCode: String,
@@ -18,8 +45,9 @@ data class InternationalPreview(
     val flagEmoji: String,
     val localTimeFormatted: String,
     val timeZoneShort: String,
-    val isLateNight: Boolean,
-    val lateNightWarning: String?
+    val timeOfDay: TimeOfDayState = TimeOfDayState.MORNING,
+    val isLateNight: Boolean = (timeOfDay == TimeOfDayState.NIGHT),
+    val lateNightWarning: String? = null
 )
 
 object InternationalCountryHelper {
@@ -120,7 +148,8 @@ object InternationalCountryHelper {
             val zoneShort = zonedDateTime.format(zoneShortFormatter)
 
             val hour = zonedDateTime.hour
-            val isLateNight = hour in 22..23 || hour in 0..6
+            val timeOfDay = TimeOfDayState.fromHour(hour)
+            val isLateNight = timeOfDay == TimeOfDayState.NIGHT
             val lateNightWarning = if (isLateNight) "🌙 Night in ${matchedCountry.countryName}" else null
 
             InternationalPreview(
@@ -128,6 +157,7 @@ object InternationalCountryHelper {
                 flagEmoji = matchedCountry.flagEmoji,
                 localTimeFormatted = timeString,
                 timeZoneShort = zoneShort,
+                timeOfDay = timeOfDay,
                 isLateNight = isLateNight,
                 lateNightWarning = lateNightWarning
             )

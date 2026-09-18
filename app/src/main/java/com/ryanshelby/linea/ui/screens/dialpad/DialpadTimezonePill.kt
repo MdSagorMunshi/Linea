@@ -17,9 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,10 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ryanshelby.linea.telecom.InternationalPreview
+import com.ryanshelby.linea.telecom.TimeOfDayState
 import com.ryanshelby.linea.ui.theme.LineaColors
 
 @Composable
@@ -48,46 +47,37 @@ fun DialpadTimezonePill(
         modifier = modifier
     ) {
         if (preview != null) {
-            val isLate = preview.isLateNight
+            val isNight = preview.timeOfDay == TimeOfDayState.NIGHT
 
-            val borderBrush = if (isLate) {
-                Brush.horizontalGradient(
-                    listOf(
-                        LineaColors.Warning.copy(alpha = 0.5f),
-                        LineaColors.Warning.copy(alpha = 0.2f)
-                    )
-                )
-            } else {
-                Brush.horizontalGradient(
-                    listOf(
-                        LineaColors.TitaniumBlue.copy(alpha = 0.45f),
-                        LineaColors.GlassBorder
-                    )
-                )
+            val accentColor = when (preview.timeOfDay) {
+                TimeOfDayState.EARLY_MORNING -> Color(0xFFFFB74D) // Amber sunrise
+                TimeOfDayState.MORNING -> Color(0xFF4FC3F7)       // Sky morning cyan
+                TimeOfDayState.MIDDAY -> Color(0xFFFFD54F)        // Sun midday gold
+                TimeOfDayState.AFTERNOON -> Color(0xFFFF8A65)     // Afternoon warm coral
+                TimeOfDayState.EVENING -> Color(0xFFBA68C8)       // Sunset dusk lavender
+                TimeOfDayState.NIGHT -> Color(0xFFFF7043)         // Sleep night caution amber-red
             }
 
-            val bgBrush = if (isLate) {
-                Brush.horizontalGradient(
-                    listOf(
-                        LineaColors.Warning.copy(alpha = 0.14f),
-                        Color.Black.copy(alpha = 0.45f)
-                    )
+            val borderBrush = Brush.horizontalGradient(
+                listOf(
+                    accentColor.copy(alpha = if (isNight) 0.55f else 0.40f),
+                    LineaColors.GlassBorder
                 )
-            } else {
-                Brush.horizontalGradient(
-                    listOf(
-                        LineaColors.TitaniumBlue.copy(alpha = 0.12f),
-                        Color.Black.copy(alpha = 0.45f)
-                    )
+            )
+
+            val bgBrush = Brush.horizontalGradient(
+                listOf(
+                    accentColor.copy(alpha = if (isNight) 0.16f else 0.10f),
+                    Color.Black.copy(alpha = 0.45f)
                 )
-            }
+            )
 
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
                     .background(bgBrush)
                     .border(1.dp, borderBrush, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -95,32 +85,34 @@ fun DialpadTimezonePill(
                 ) {
                     Text(
                         text = preview.flagEmoji,
-                        fontSize = 15.sp
+                        fontSize = 14.sp
+                    )
+
+                    Spacer(modifier = Modifier.width(5.dp))
+
+                    Text(
+                        text = preview.countryName,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = LineaColors.TextPrimary,
+                        maxLines = 1,
+                        softWrap = false
                     )
 
                     Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
-                        text = preview.countryName,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = LineaColors.TextPrimary
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
                         text = "•",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         color = LineaColors.TextTertiary
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     Icon(
-                        imageVector = if (isLate) Icons.Filled.WarningAmber else Icons.Filled.Schedule,
-                        contentDescription = null,
-                        tint = if (isLate) LineaColors.Warning else LineaColors.TitaniumBlue,
+                        painter = painterResource(id = preview.timeOfDay.iconRes),
+                        contentDescription = preview.timeOfDay.displayName,
+                        tint = accentColor,
                         modifier = Modifier.size(13.dp)
                     )
 
@@ -128,20 +120,31 @@ fun DialpadTimezonePill(
 
                     Text(
                         text = "${preview.localTimeFormatted} (${preview.timeZoneShort})",
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isLate) LineaColors.Warning else LineaColors.TextSecondary
+                        color = LineaColors.TextSecondary,
+                        maxLines = 1,
+                        softWrap = false
                     )
 
-                    if (isLate) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "🌙 Night",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = LineaColors.Warning
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Text(
+                        text = "•",
+                        fontSize = 11.sp,
+                        color = LineaColors.TextTertiary
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Text(
+                        text = preview.timeOfDay.displayName,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
         }
