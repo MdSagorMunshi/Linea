@@ -240,4 +240,166 @@ class EscapeCallAndOfflineCallerIdTest {
         (itemHelp.action as SettingsSearchAction.Navigate).onNavigate()
         assertTrue(navigatedHelp)
     }
+
+    @Test
+    fun testNoPlusCountryDetection_worldwideDirectDialing() {
+        // Numbers dialed WITHOUT '+' sign
+        val gpNoPlus = OfflineCallerIdEngine.identifyNumber("8801712345678")
+        assertEquals("Mobile Network", gpNoPlus.category)
+        assertTrue(gpNoPlus.regionOrCountry.contains("Grameenphone"))
+        assertEquals("🇧🇩", gpNoPlus.flagEmoji)
+
+        val ukMobileNoPlus = OfflineCallerIdEngine.identifyNumber("447911123456")
+        assertEquals("Mobile Network", ukMobileNoPlus.category)
+        assertEquals("United Kingdom", ukMobileNoPlus.countryName)
+        assertEquals("🇬🇧", ukMobileNoPlus.flagEmoji)
+
+        val ukLondonNoPlus = OfflineCallerIdEngine.identifyNumber("442079460991")
+        assertEquals("Regional Location", ukLondonNoPlus.category)
+        assertTrue(ukLondonNoPlus.regionOrCountry.contains("London"))
+
+        val deBerlinNoPlus = OfflineCallerIdEngine.identifyNumber("4930123456")
+        assertEquals("Regional Location", deBerlinNoPlus.category)
+        assertTrue(deBerlinNoPlus.regionOrCountry.contains("Berlin"))
+        assertEquals("🇩🇪", deBerlinNoPlus.flagEmoji)
+
+        val inMobileNoPlus = OfflineCallerIdEngine.identifyNumber("919876543210")
+        assertEquals("Mobile Network", inMobileNoPlus.category)
+        assertEquals("India", inMobileNoPlus.countryName)
+        assertEquals("🇮🇳", inMobileNoPlus.flagEmoji)
+
+        val frParisNoPlus = OfflineCallerIdEngine.identifyNumber("33140000000")
+        assertEquals("Regional Location", frParisNoPlus.category)
+        assertTrue(frParisNoPlus.regionOrCountry.contains("Paris"))
+
+        val jpTokyoNoPlus = OfflineCallerIdEngine.identifyNumber("81312345678")
+        assertEquals("Regional Location", jpTokyoNoPlus.category)
+        assertTrue(jpTokyoNoPlus.regionOrCountry.contains("Tokyo"))
+
+        val auSydneyNoPlus = OfflineCallerIdEngine.identifyNumber("61298765432")
+        assertEquals("Regional Location", auSydneyNoPlus.category)
+        assertTrue(auSydneyNoPlus.regionOrCountry.contains("Sydney"))
+
+        val saudiNoPlus = OfflineCallerIdEngine.identifyNumber("966501234567")
+        assertEquals("Mobile Network", saudiNoPlus.category)
+        assertTrue(saudiNoPlus.regionOrCountry.contains("STC"))
+
+        val uaeNoPlus = OfflineCallerIdEngine.identifyNumber("971501234567")
+        assertEquals("Mobile Network", uaeNoPlus.category)
+        assertTrue(uaeNoPlus.regionOrCountry.contains("Etisalat"))
+
+        val nigeriaNoPlus = OfflineCallerIdEngine.identifyNumber("2348031234567")
+        assertEquals("Mobile Network", nigeriaNoPlus.category)
+        assertTrue(nigeriaNoPlus.regionOrCountry.contains("MTN"))
+
+        val kenyaNoPlus = OfflineCallerIdEngine.identifyNumber("254701123456")
+        assertEquals("Mobile Network", kenyaNoPlus.category)
+        assertTrue(kenyaNoPlus.regionOrCountry.contains("Safaricom"))
+
+        val phGlobeNoPlus = OfflineCallerIdEngine.identifyNumber("639171234567")
+        assertEquals("Mobile Network", phGlobeNoPlus.category)
+        assertTrue(phGlobeNoPlus.regionOrCountry.contains("Globe Telecom"))
+
+        val usNanpNoPlus = OfflineCallerIdEngine.identifyNumber("14155551234")
+        assertEquals("Regional Location", usNanpNoPlus.category)
+        assertTrue(usNanpNoPlus.regionOrCountry.contains("San Francisco, CA"))
+    }
+
+    @Test
+    fun testDomesticTrunkWithSimCountry() {
+        // Dialing domestic trunk '0' format when user's SIM country is set
+        val bdDomestic = OfflineCallerIdEngine.identifyNumber("01712345678", userCountryIso = "BD")
+        assertEquals("Mobile Network", bdDomestic.category)
+        assertTrue(bdDomestic.regionOrCountry.contains("Grameenphone"))
+        assertEquals("🇧🇩", bdDomestic.flagEmoji)
+
+        val ukDomestic = OfflineCallerIdEngine.identifyNumber("02079460991", userCountryIso = "GB")
+        assertEquals("Regional Location", ukDomestic.category)
+        assertTrue(ukDomestic.regionOrCountry.contains("London"))
+        assertEquals("🇬🇧", ukDomestic.flagEmoji)
+
+        val deDomestic = OfflineCallerIdEngine.identifyNumber("030123456", userCountryIso = "DE")
+        assertEquals("Regional Location", deDomestic.category)
+        assertTrue(deDomestic.regionOrCountry.contains("Berlin"))
+        assertEquals("🇩🇪", deDomestic.flagEmoji)
+
+        val frDomestic = OfflineCallerIdEngine.identifyNumber("0140000000", userCountryIso = "FR")
+        assertEquals("Regional Location", frDomestic.category)
+        assertTrue(frDomestic.regionOrCountry.contains("Paris"))
+        assertEquals("🇫🇷", frDomestic.flagEmoji)
+
+        val jpDomestic = OfflineCallerIdEngine.identifyNumber("0312345678", userCountryIso = "JP")
+        assertEquals("Regional Location", jpDomestic.category)
+        assertTrue(jpDomestic.regionOrCountry.contains("Tokyo"))
+        assertEquals("🇯🇵", jpDomestic.flagEmoji)
+
+        val auDomestic = OfflineCallerIdEngine.identifyNumber("0298765432", userCountryIso = "AU")
+        assertEquals("Regional Location", auDomestic.category)
+        assertTrue(auDomestic.regionOrCountry.contains("Sydney"))
+        assertEquals("🇦🇺", auDomestic.flagEmoji)
+    }
+
+    @Test
+    fun testLocalWithoutPrefixWithSimCountry() {
+        // Dialing 10-digit number locally
+        val usLocal = OfflineCallerIdEngine.identifyNumber("4155551234", userCountryIso = "US")
+        assertEquals("Regional Location", usLocal.category)
+        assertTrue(usLocal.regionOrCountry.contains("San Francisco, CA"))
+
+        val inLocal = OfflineCallerIdEngine.identifyNumber("9876543210", userCountryIso = "IN")
+        assertEquals("Mobile Network", inLocal.category)
+        assertEquals("India", inLocal.countryName)
+
+        val bdLocal = OfflineCallerIdEngine.identifyNumber("1712345678", userCountryIso = "BD")
+        assertEquals("Mobile Network", bdLocal.category)
+        assertTrue(bdLocal.regionOrCountry.contains("Grameenphone"))
+    }
+
+    @Test
+    fun testSimCountryDetector_overrideAndCountryInfo() {
+        com.ryanshelby.linea.telecom.screening.SimCountryDetector.setOverride("BD")
+        assertEquals("BD", com.ryanshelby.linea.telecom.screening.SimCountryDetector.currentCountryIso)
+
+        val bdCountryInfo = OfflineCallerIdEngine.getCountryInfoByIso("BD")
+        assertEquals("Bangladesh", bdCountryInfo?.name)
+        assertEquals("+880", bdCountryInfo?.dialCode)
+        assertEquals("🇧🇩", bdCountryInfo?.flag)
+
+        com.ryanshelby.linea.telecom.screening.SimCountryDetector.setOverride("GB")
+        assertEquals("GB", com.ryanshelby.linea.telecom.screening.SimCountryDetector.currentCountryIso)
+        val gbCountryInfo = OfflineCallerIdEngine.getCountryInfoByIso("GB")
+        assertEquals("United Kingdom", gbCountryInfo?.name)
+        assertEquals("+44", gbCountryInfo?.dialCode)
+
+        // Reset
+        com.ryanshelby.linea.telecom.screening.SimCountryDetector.setOverride(null)
+    }
+
+    @Test
+    fun testSettingsSearch_simRegionalIntelligence() {
+        val catalog = listOf(
+            SettingsSearchItem(
+                id = "sim_regional_intelligence",
+                title = "SIM Location & Regional Intelligence",
+                subtitle = "100% offline country detection without '+' sign, SIM carrier & local area resolution",
+                category = SettingsCategory.CALLING,
+                icon = Icons.Filled.Phone,
+                keywords = listOf(
+                    "sim", "sim location", "sim country", "telephony", "telephony location", "country",
+                    "caller id", "caller id location", "no plus", "plus sign", "without plus",
+                    "offline caller id", "area code", "carrier detection", "regional intelligence", "local country"
+                ),
+                action = SettingsSearchAction.Navigate {}
+            )
+        )
+
+        val searchSim = SettingsSearchEngine.search("sim country", catalog)
+        assertTrue(searchSim.any { it.id == "sim_regional_intelligence" })
+
+        val searchTelephony = SettingsSearchEngine.search("telephony location", catalog)
+        assertTrue(searchTelephony.any { it.id == "sim_regional_intelligence" })
+
+        val searchNoPlus = SettingsSearchEngine.search("no plus", catalog)
+        assertTrue(searchNoPlus.any { it.id == "sim_regional_intelligence" })
+    }
 }

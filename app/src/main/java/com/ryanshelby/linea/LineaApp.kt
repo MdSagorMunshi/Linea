@@ -50,6 +50,7 @@ class LineaApp : Application() {
         registerPhoneAccounts()
         purgeLegacyRules()
         cleanupManager.schedulePeriodicCleanup()
+        com.ryanshelby.linea.telecom.screening.SimCountryDetector.detectSimCountryIso(this)
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 preferences.setPrivateModeUnlocked(false)

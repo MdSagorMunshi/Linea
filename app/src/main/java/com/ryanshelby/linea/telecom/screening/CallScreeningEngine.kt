@@ -220,8 +220,7 @@ class CallScreeningEngine @Inject constructor(
     }
 
     private fun getSimCountryIso(): String {
-        val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
-        return telephonyManager?.simCountryIso?.uppercase() ?: "BD"
+        return SimCountryDetector.detectSimCountryIso(context)
     }
 
     private fun matchesBlockedRule(

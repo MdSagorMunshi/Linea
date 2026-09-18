@@ -51,8 +51,12 @@ class SettingsViewModel @Inject constructor(
     private val callRuleDao: CallRuleDao,
     private val callRecordDao: CallRecordDao,
     private val cleanupManager: CallHistoryCleanupManager,
-    val escapeCallManager: EscapeCallManager
+    val escapeCallManager: EscapeCallManager,
+    val simCountryDetector: com.ryanshelby.linea.telecom.screening.SimCountryDetector
 ) : ViewModel() {
+
+    val simCountryInfo: com.ryanshelby.linea.telecom.screening.SimCountryInfo
+        get() = simCountryDetector.getSimCountryInfo()
 
     val uiState: StateFlow<SettingsUiState> = combine(
         preferences.defaultSim,

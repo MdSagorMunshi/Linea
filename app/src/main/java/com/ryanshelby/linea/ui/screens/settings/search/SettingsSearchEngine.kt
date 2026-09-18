@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Security
@@ -275,6 +276,23 @@ object SettingsSearchEngine {
                     "field manual", "escape guide", "fake call guide", "tactical help", "excuse guide"
                 ),
                 action = SettingsSearchAction.Navigate(callbacks.onOpenEscapeHelp)
+            )
+        )
+
+        // 13e. SIM Location & Offline Regional Intelligence
+        list.add(
+            SettingsSearchItem(
+                id = "sim_regional_intelligence",
+                title = "SIM Location & Regional Intelligence",
+                subtitle = "100% offline country detection without '+' sign, SIM carrier & local area resolution",
+                category = SettingsCategory.CALLING,
+                icon = Icons.Filled.Public,
+                keywords = listOf(
+                    "sim", "sim location", "sim country", "telephony", "telephony location", "country",
+                    "caller id", "caller id location", "no plus", "plus sign", "without plus",
+                    "offline caller id", "area code", "carrier detection", "regional intelligence", "local country"
+                ),
+                action = SettingsSearchAction.Navigate { callbacks.onScrollToSection("sim_location") }
             )
         )
 

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Palette
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SimCard
@@ -397,6 +398,84 @@ fun SettingsScreen(
                 showEscapeCallSheet = true
             }
         )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // SIM & Regional Location Intelligence Panel
+        val simCountryInfo = viewModel.simCountryInfo
+        FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Public,
+                            contentDescription = "SIM Location",
+                            tint = LineaColors.TitaniumBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "SIM Regional Intelligence",
+                            style = LineaTypography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                            color = LineaColors.TextPrimary
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(LineaColors.TitaniumBlue.copy(alpha = 0.15f))
+                            .border(0.5.dp, LineaColors.TitaniumBlue.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "100% OFFLINE",
+                            style = LineaTypography.labelSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                            fontSize = 9.sp,
+                            color = LineaColors.TitaniumBlue
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = simCountryInfo.flagEmoji,
+                        fontSize = 26.sp
+                    )
+                    Column {
+                        Text(
+                            text = "${simCountryInfo.countryName} (${simCountryInfo.iso} • ${simCountryInfo.dialCode})",
+                            style = LineaTypography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                            color = LineaColors.TextPrimary
+                        )
+                        Text(
+                            text = "Detected via ${simCountryInfo.source} • Zero GPS/IP sensors used",
+                            style = LineaTypography.bodySmall,
+                            color = LineaColors.TextSecondary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Smart Caller ID resolves numbers without requiring a '+' sign, identifying domestic trunk and international regional areas locally.",
+                    style = LineaTypography.bodySmall,
+                    color = LineaColors.TextTertiary,
+                    fontSize = 11.sp
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(10.dp))
 
