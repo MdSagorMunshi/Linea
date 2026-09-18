@@ -660,6 +660,8 @@ object OfflineCallerIdEngine {
         return ALL_COUNTRIES.firstOrNull { it.dialCode.removePrefix("+") == clean }
     }
 
+    fun isNanpAreaCode(areaCode: String): Boolean = NANP_AREA_CODES.containsKey(areaCode)
+
     fun normalizeToE164(clean: String, homeIso: String): String? {
         if (clean.startsWith("+")) return clean
         if (clean.startsWith("00")) return "+" + clean.substring(2)
@@ -668,26 +670,29 @@ object OfflineCallerIdEngine {
 
         // A. Domestic Trunk Dialing (starts with '0' and not '00')
         if (clean.startsWith("0") && clean.length > 2) {
-            if (homeCountry != null) {
+            if (homeCountry != null && homeCountry.iso != "US") {
                 return homeCountry.dialCode + clean.removePrefix("0")
             }
-            if (clean.startsWith("01") && clean.length == 11) {
+            if (clean.startsWith("01") && (clean.length == 11 || (clean.length in 3..11 && clean[2] in '3'..'9'))) {
                 return "+880" + clean.removePrefix("0")
             }
-            if (clean.length in 10..11 && (clean.startsWith("02") || clean.startsWith("01") || clean.startsWith("07"))) {
+            if (clean.length in 3..11 && (clean.startsWith("02") || clean.startsWith("01") || clean.startsWith("07"))) {
                 return "+44" + clean.removePrefix("0")
             }
-            if (clean.length in 9..12 && (clean.startsWith("03") || clean.startsWith("04") || clean.startsWith("06") || clean.startsWith("08") || clean.startsWith("015") || clean.startsWith("016") || clean.startsWith("017"))) {
+            if (clean.length in 3..12 && (clean.startsWith("03") || clean.startsWith("04") || clean.startsWith("06") || clean.startsWith("08") || clean.startsWith("015") || clean.startsWith("016") || clean.startsWith("017"))) {
                 return "+49" + clean.removePrefix("0")
             }
-            if (clean.length == 10 && clean[1] in '1'..'7') {
+            if (clean.length in 3..10 && clean[1] in '1'..'7') {
                 return "+33" + clean.removePrefix("0")
             }
-            if (clean.length in 10..11 && (clean.startsWith("03") || clean.startsWith("06") || clean.startsWith("090") || clean.startsWith("080") || clean.startsWith("070"))) {
+            if (clean.length in 3..11 && (clean.startsWith("03") || clean.startsWith("06") || clean.startsWith("090") || clean.startsWith("080") || clean.startsWith("070"))) {
                 return "+81" + clean.removePrefix("0")
             }
-            if (clean.length == 10 && (clean.startsWith("02") || clean.startsWith("03") || clean.startsWith("07") || clean.startsWith("08") || clean.startsWith("04"))) {
+            if (clean.length in 3..10 && (clean.startsWith("02") || clean.startsWith("03") || clean.startsWith("07") || clean.startsWith("08") || clean.startsWith("04"))) {
                 return "+61" + clean.removePrefix("0")
+            }
+            if (homeCountry != null) {
+                return homeCountry.dialCode + clean.removePrefix("0")
             }
         }
 
@@ -704,33 +709,32 @@ object OfflineCallerIdEngine {
                 return "+91$clean"
             }
         } else if (homeIso == "BD") {
-            if (clean.length == 10 && clean[0] == '1') {
+            if (clean.length in 2..10 && clean.startsWith("1") && clean[1] in '3'..'9') {
                 return "+880$clean"
             }
         }
 
         // C. Direct International Dialing Without '+' (e.g. 880..., 44..., 49..., 91..., 33..., 81..., 61...)
+        // ALL_COUNTRIES is ordered descending by dialCode length (4-digit, 3-digit, 2-digit, 1-digit)
         for (country in ALL_COUNTRIES) {
             val dialDigits = country.dialCode.removePrefix("+")
             if (clean.startsWith(dialDigits)) {
-                val rest = clean.removePrefix(dialDigits)
-                val isPlausible = when {
-                    dialDigits == "1" -> clean.length == 11 && rest.length == 10 && rest[0] in '2'..'9'
-                    dialDigits.length == 4 -> clean.length == 11
-                    dialDigits.length == 3 -> rest.length in 6..11
-                    dialDigits.length == 2 -> {
-                        // Prevent 10-digit US local numbers from matching 2-digit international prefix when SIM is US/CA
-                        if ((homeIso == "US" || homeIso == "CA") && clean.length == 10 && clean[0] in '2'..'9' && NANP_AREA_CODES.containsKey(clean.substring(0, 3))) {
-                            false
-                        } else {
-                            rest.length in 6..11
-                        }
+                // If user's SIM is US/CA and this is a standard 10-digit domestic NANP number, don't confuse with foreign 2-digit prefix
+                if ((homeIso == "US" || homeIso == "CA") && clean.length == 10 && clean[0] in '2'..'9' && NANP_AREA_CODES.containsKey(clean.substring(0, 3))) {
+                    return "+1$clean"
+                }
+
+                // If user's SIM is BD and dials domestic '17...', don't match +1 (US)
+                if (dialDigits == "1") {
+                    if (homeIso == "BD" && clean.length in 2..10 && clean[1] in '3'..'9') {
+                        return "+880$clean"
                     }
-                    else -> rest.length in 6..12
+                    if (clean.length >= 4 && !NANP_AREA_CODES.containsKey(clean.substring(1, 4))) {
+                        continue
+                    }
                 }
-                if (isPlausible) {
-                    return "+$clean"
-                }
+
+                return "+$clean"
             }
         }
 
@@ -785,8 +789,8 @@ object OfflineCallerIdEngine {
         val homeIso = userCountryIso?.trim()?.uppercase(java.util.Locale.ROOT)
             ?: SimCountryDetector.currentCountryIso
 
-        // 3. Bangladesh Carrier Detection (Local domestic 01x format for 11 digits or BD home country)
-        if (clean.startsWith("01") && clean.length == 11 && (homeIso == "BD" || homeIso.isBlank() || homeIso == "US")) {
+        // 3. Bangladesh Carrier Detection (Local domestic 01x format for 3..11 digits or BD home country)
+        if (clean.startsWith("01") && clean.length in 3..11 && (homeIso == "BD" || homeIso.isBlank() || homeIso == "US")) {
             val prefix = clean.substring(0, 3)
             val carrier = BD_OPERATORS.firstOrNull { it.first == prefix }?.second
             if (carrier != null) {

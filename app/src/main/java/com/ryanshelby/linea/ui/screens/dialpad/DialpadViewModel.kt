@@ -81,8 +81,9 @@ class DialpadViewModel @Inject constructor(
 
     val callerIdResult: StateFlow<com.ryanshelby.linea.telecom.screening.CallerIdResult?> = _enteredNumber
         .map { number ->
-            if (number.length >= 3) {
-                com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber(number)
+            if (number.length >= 2) {
+                val userIso = com.ryanshelby.linea.telecom.screening.SimCountryDetector.currentCountryIso
+                com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber(number, userIso)
             } else {
                 null
             }
@@ -90,7 +91,12 @@ class DialpadViewModel @Inject constructor(
 
     val internationalPreview: StateFlow<InternationalPreview?> = _enteredNumber
         .map { number ->
-            InternationalCountryHelper.detectCountryAndLocalTime(number)
+            if (number.length >= 2) {
+                val userIso = com.ryanshelby.linea.telecom.screening.SimCountryDetector.currentCountryIso
+                InternationalCountryHelper.detectCountryAndLocalTime(number, userIso)
+            } else {
+                null
+            }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val dialpadHapticProfile: StateFlow<String> = preferences.dialpadHapticProfile

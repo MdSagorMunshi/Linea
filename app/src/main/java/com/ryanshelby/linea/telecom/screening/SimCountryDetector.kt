@@ -51,7 +51,10 @@ class SimCountryDetector @Inject constructor(
         private var cachedCountryIso: String? = null
 
         val currentCountryIso: String
-            get() = overrideCountryIso ?: cachedCountryIso ?: "US"
+            get() = overrideCountryIso
+                ?: cachedCountryIso
+                ?: Locale.getDefault().country?.trim()?.uppercase(Locale.ROOT)?.takeIf { it.length == 2 }
+                ?: "US"
 
         fun setOverride(iso: String?) {
             overrideCountryIso = iso?.trim()?.uppercase(Locale.ROOT)

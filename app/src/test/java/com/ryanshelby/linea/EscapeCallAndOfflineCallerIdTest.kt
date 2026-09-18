@@ -402,4 +402,95 @@ class EscapeCallAndOfflineCallerIdTest {
         val searchNoPlus = SettingsSearchEngine.search("no plus", catalog)
         assertTrue(searchNoPlus.any { it.id == "sim_regional_intelligence" })
     }
+
+    @Test
+    fun testDirectCountryCodeWithoutPlusOrZero() {
+        // Typing pure dial code without '+' and without '0'
+        // 1. Bangladesh: '880' alone
+        val bdDirect = OfflineCallerIdEngine.identifyNumber("880")
+        assertEquals("Bangladesh", bdDirect.countryName)
+        assertEquals("🇧🇩", bdDirect.flagEmoji)
+        assertEquals("BANGLADESH", bdDirect.badgeLabel)
+
+        // Bangladesh: dial code + partial/full number without '+'
+        val bdDirectPartial = OfflineCallerIdEngine.identifyNumber("88017")
+        assertEquals("Bangladesh", bdDirectPartial.countryName)
+        assertEquals("🇧🇩", bdDirectPartial.flagEmoji)
+        assertEquals("GRAMEENPHONE", bdDirectPartial.badgeLabel)
+        assertTrue(bdDirectPartial.regionOrCountry.contains("Grameenphone"))
+
+        val bdDirectFull = OfflineCallerIdEngine.identifyNumber("8801712345678")
+        assertEquals("Bangladesh", bdDirectFull.countryName)
+        assertEquals("🇧🇩", bdDirectFull.flagEmoji)
+        assertEquals("GRAMEENPHONE", bdDirectFull.badgeLabel)
+        assertTrue(bdDirectFull.regionOrCountry.contains("Grameenphone"))
+
+        // 2. United Kingdom: '44' alone and with number
+        val ukDirect = OfflineCallerIdEngine.identifyNumber("44")
+        assertEquals("United Kingdom", ukDirect.countryName)
+        assertEquals("🇬🇧", ukDirect.flagEmoji)
+
+        val ukDirectLondon = OfflineCallerIdEngine.identifyNumber("442079460192")
+        assertEquals("United Kingdom", ukDirectLondon.countryName)
+        assertEquals("🇬🇧", ukDirectLondon.flagEmoji)
+        assertEquals("LONDON", ukDirectLondon.badgeLabel)
+        assertTrue(ukDirectLondon.regionOrCountry.contains("London"))
+
+        // 3. India: '91' alone and with number
+        val inDirect = OfflineCallerIdEngine.identifyNumber("91")
+        assertEquals("India", inDirect.countryName)
+        assertEquals("🇮🇳", inDirect.flagEmoji)
+
+        val inDirectMobile = OfflineCallerIdEngine.identifyNumber("919876543210")
+        assertEquals("India", inDirectMobile.countryName)
+        assertEquals("🇮🇳", inDirectMobile.flagEmoji)
+        assertTrue(inDirectMobile.regionOrCountry.contains("India"))
+
+        // 4. Germany: '49' alone
+        val deDirect = OfflineCallerIdEngine.identifyNumber("49")
+        assertEquals("Germany", deDirect.countryName)
+        assertEquals("🇩🇪", deDirect.flagEmoji)
+
+        // 5. France: '33' alone
+        val frDirect = OfflineCallerIdEngine.identifyNumber("33")
+        assertEquals("France", frDirect.countryName)
+        assertEquals("🇫🇷", frDirect.flagEmoji)
+
+        // 6. Japan: '81' alone
+        val jpDirect = OfflineCallerIdEngine.identifyNumber("81")
+        assertEquals("Japan", jpDirect.countryName)
+        assertEquals("🇯🇵", jpDirect.flagEmoji)
+
+        // 7. Australia: '61' alone
+        val auDirect = OfflineCallerIdEngine.identifyNumber("61")
+        assertEquals("Australia", auDirect.countryName)
+        assertEquals("🇦🇺", auDirect.flagEmoji)
+    }
+
+    @Test
+    fun testInternationalCountryHelperWithoutPlus() {
+        // Typing '880' without '+' must immediately resolve Bangladesh timezone
+        val bdPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("880")
+        assertNotNull(bdPreview)
+        assertEquals("Bangladesh", bdPreview?.countryName)
+        assertEquals("🇧🇩", bdPreview?.flagEmoji)
+
+        // Typing '8801712345678' without '+'
+        val bdFullPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("8801712345678")
+        assertNotNull(bdFullPreview)
+        assertEquals("Bangladesh", bdFullPreview?.countryName)
+        assertEquals("🇧🇩", bdFullPreview?.flagEmoji)
+
+        // Typing '44' without '+' must resolve UK
+        val ukPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("44")
+        assertNotNull(ukPreview)
+        assertEquals("United Kingdom", ukPreview?.countryName)
+        assertEquals("🇬🇧", ukPreview?.flagEmoji)
+
+        // Typing '91' without '+' must resolve India
+        val inPreview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("91")
+        assertNotNull(inPreview)
+        assertEquals("India", inPreview?.countryName)
+        assertEquals("🇮🇳", inPreview?.flagEmoji)
+    }
 }

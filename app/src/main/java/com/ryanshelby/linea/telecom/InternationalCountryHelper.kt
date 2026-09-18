@@ -72,21 +72,44 @@ object InternationalCountryHelper {
     private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
     private val zoneShortFormatter = DateTimeFormatter.ofPattern("z", Locale.US)
 
-    fun detectCountry(rawNumber: String): InternationalPreview? = detectCountryAndLocalTime(rawNumber)
+    fun detectCountry(rawNumber: String, userCountryIso: String? = null): InternationalPreview? =
+        detectCountryAndLocalTime(rawNumber, userCountryIso)
 
-    fun detectCountryAndLocalTime(rawNumber: String): InternationalPreview? {
-        val clean = rawNumber.trim().replace(" ", "").replace("-", "")
-        if (!clean.startsWith("+") && !clean.startsWith("00")) {
-            return null
-        }
+    fun detectCountryAndLocalTime(rawNumber: String, userCountryIso: String? = null): InternationalPreview? {
+        val clean = rawNumber.trim().replace(Regex("[^0-9+]"), "")
+        if (clean.length < 2) return null
 
-        val normalized = if (clean.startsWith("00")) "+" + clean.substring(2) else clean
+        val homeIso = userCountryIso?.trim()?.uppercase(Locale.ROOT)
+            ?: com.ryanshelby.linea.telecom.screening.SimCountryDetector.currentCountryIso
 
-        // Need at least dial code + 1 digit to show preview
+        val normalized = when {
+            clean.startsWith("+") -> clean
+            clean.startsWith("00") -> "+" + clean.substring(2)
+            else -> {
+                // If user is in US/CA and enters a 10-digit domestic NANP number, don't show international preview
+                if ((homeIso == "US" || homeIso == "CA") && clean.length == 10 && clean[0] in '2'..'9' &&
+                    com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.isNanpAreaCode(clean.substring(0, 3))) {
+                    null
+                } else if (homeIso == "BD" && clean.startsWith("1") && clean.length in 2..10 && clean[1] in '3'..'9') {
+                    // Local domestic Bangladesh mobile
+                    "+880" + clean
+                } else {
+                    // Smart detection without '+': match longest country dial code
+                    val match = countryList.firstOrNull { clean.startsWith(it.dialCode.removePrefix("+")) }
+                    if (match != null) {
+                        "+" + clean
+                    } else {
+                        null
+                    }
+                }
+            }
+        } ?: return null
+
+        // Need at least the dial code to show preview
         val matchedCountry = countryList.firstOrNull { normalized.startsWith(it.dialCode) } ?: return null
 
-        // Only show if user has started typing the number after dial code
-        if (normalized.length <= matchedCountry.dialCode.length) {
+        // Only show if user has typed at least the dial code
+        if (normalized.length < matchedCountry.dialCode.length) {
             return null
         }
 
