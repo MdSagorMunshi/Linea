@@ -139,7 +139,7 @@ class SettingsViewModel @Inject constructor(
             proximityWaveToSilence = proxWave,
             dialpadHapticProfile = hapticProfile,
             postCallHudEnabled = hudEnabled,
-            postCallHudDurationSeconds = if (hudDuration <= 0) 8 else hudDuration
+            postCallHudDurationSeconds = if (hudDuration < 0) 8 else hudDuration
         )
     }.stateIn(
         scope = viewModelScope,

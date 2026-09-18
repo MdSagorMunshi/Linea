@@ -200,4 +200,90 @@ class PostCallHudTest {
         assertFalse("Post-Call Smart Action HUD must be disabled by default", defaultUiState.postCallHudEnabled)
         assertEquals(8, defaultUiState.postCallHudDurationSeconds)
     }
+
+    @Test
+    fun settingsSearchEngine_indexesPostCallHudTimeCustomization() {
+        var currentDuration = 8
+        var hudEnabled = true
+
+        val timeItem = SettingsSearchItem(
+            id = "post_call_hud_time",
+            title = "Post-Call HUD Display Time",
+            subtitle = "Customize how long the smart action HUD stays open before closing",
+            category = SettingsCategory.CALLING,
+            icon = Icons.Filled.Phone,
+            keywords = listOf(
+                "post call time", "post-call time", "hud time", "hud duration", "post call duration",
+                "customize post call time", "auto dismiss time", "after call timer", "scratchpad duration",
+                "hud delay", "timer", "seconds"
+            ),
+            action = SettingsSearchAction.Select(
+                currentValue = { state ->
+                    if (!state.postCallHudEnabled) "Disabled"
+                    else if (state.postCallHudDurationSeconds <= 0) "Manual"
+                    else "${state.postCallHudDurationSeconds}s"
+                },
+                onAction = {
+                    currentDuration = when (currentDuration) {
+                        3 -> 5
+                        5 -> 8
+                        8 -> 12
+                        12 -> 15
+                        15 -> 30
+                        30 -> 0
+                        0 -> 3
+                        else -> 8
+                    }
+                }
+            )
+        )
+
+        val catalog = listOf(timeItem)
+
+        // Search matching
+        val postCallTimeMatches = SettingsSearchEngine.search("post call time", catalog)
+        assertEquals(1, postCallTimeMatches.size)
+        assertEquals("post_call_hud_time", postCallTimeMatches[0].id)
+
+        val customizeMatches = SettingsSearchEngine.search("customize post call time", catalog)
+        assertEquals(1, customizeMatches.size)
+        assertEquals("post_call_hud_time", customizeMatches[0].id)
+
+        val timerMatches = SettingsSearchEngine.search("after call timer", catalog)
+        assertEquals(1, timerMatches.size)
+
+        // Test label calculation
+        val selectAction = timeItem.action as SettingsSearchAction.Select
+        val enabledState = com.ryanshelby.linea.ui.screens.settings.SettingsUiState(
+            postCallHudEnabled = true,
+            postCallHudDurationSeconds = 8
+        )
+        assertEquals("8s", selectAction.currentValue(enabledState))
+
+        val manualState = com.ryanshelby.linea.ui.screens.settings.SettingsUiState(
+            postCallHudEnabled = true,
+            postCallHudDurationSeconds = 0
+        )
+        assertEquals("Manual", selectAction.currentValue(manualState))
+
+        val disabledState = com.ryanshelby.linea.ui.screens.settings.SettingsUiState(
+            postCallHudEnabled = false,
+            postCallHudDurationSeconds = 8
+        )
+        assertEquals("Disabled", selectAction.currentValue(disabledState))
+
+        // Test preset cycling
+        assertEquals(8, currentDuration)
+        selectAction.onAction()
+        assertEquals(12, currentDuration)
+        selectAction.onAction()
+        assertEquals(15, currentDuration)
+        selectAction.onAction()
+        assertEquals(30, currentDuration)
+        selectAction.onAction()
+        assertEquals(0, currentDuration) // Manual mode
+        selectAction.onAction()
+        assertEquals(3, currentDuration) // Wraps to 3s Fast
+    }
 }
+

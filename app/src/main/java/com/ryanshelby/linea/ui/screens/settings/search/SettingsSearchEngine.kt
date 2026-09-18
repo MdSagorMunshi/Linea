@@ -354,11 +354,49 @@ object SettingsSearchEngine {
                 icon = Icons.Filled.Phone,
                 keywords = listOf(
                     "post-call", "post call", "hud", "quick action", "after call", "callback reminder",
-                    "scratchpad", "call notes", "quick sms", "follow-up", "block caller", "action card"
+                    "scratchpad", "call notes", "quick sms", "follow-up", "block caller", "action card",
+                    "post call time", "customize post call time"
                 ),
                 action = SettingsSearchAction.Toggle(
                     isChecked = { it.postCallHudEnabled },
                     onToggle = { viewModel.setPostCallHudEnabled(it) }
+                )
+            )
+        )
+
+        // 16c. Post-Call HUD Display Time
+        list.add(
+            SettingsSearchItem(
+                id = "post_call_hud_time",
+                title = "Post-Call HUD Display Time",
+                subtitle = "Customize how long the smart action HUD stays open before closing",
+                category = SettingsCategory.CALLING,
+                icon = Icons.Filled.Schedule,
+                keywords = listOf(
+                    "post call time", "post-call time", "hud time", "hud duration", "post call duration",
+                    "customize post call time", "auto dismiss time", "after call timer", "scratchpad duration",
+                    "hud delay", "timer", "seconds"
+                ),
+                action = SettingsSearchAction.Select(
+                    currentValue = { state ->
+                        if (!state.postCallHudEnabled) "Disabled"
+                        else if (state.postCallHudDurationSeconds <= 0) "Manual"
+                        else "${state.postCallHudDurationSeconds}s"
+                    },
+                    onAction = {
+                        val current = viewModel.uiState.value.postCallHudDurationSeconds
+                        val next = when (current) {
+                            3 -> 5
+                            5 -> 8
+                            8 -> 12
+                            12 -> 15
+                            15 -> 30
+                            30 -> 0
+                            0 -> 3
+                            else -> 8
+                        }
+                        viewModel.setPostCallHudDurationSeconds(next)
+                    }
                 )
             )
         )

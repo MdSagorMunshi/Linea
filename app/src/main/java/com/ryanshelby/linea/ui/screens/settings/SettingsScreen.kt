@@ -50,6 +50,10 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import kotlin.math.roundToInt
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.text.KeyboardActions
@@ -655,26 +659,120 @@ fun SettingsScreen(
                 )
 
                 if (uiState.postCallHudEnabled) {
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "CUSTOMIZE POST-CALL TIME",
+                        style = LineaTypography.labelSmall,
+                        color = LineaColors.TextTertiary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SelectionPill(
-                            label = "5s Duration",
-                            isSelected = uiState.postCallHudDurationSeconds == 5,
-                            onClick = { viewModel.setPostCallHudDurationSeconds(5) }
+                        Text(
+                            text = "Display Duration",
+                            style = LineaTypography.bodyMedium,
+                            color = LineaColors.TextPrimary
                         )
-                        SelectionPill(
-                            label = "8s Duration",
-                            isSelected = uiState.postCallHudDurationSeconds == 8,
-                            onClick = { viewModel.setPostCallHudDurationSeconds(8) }
+                        Text(
+                            text = if (uiState.postCallHudDurationSeconds <= 0) "Manual (No Auto-Close)" else "${uiState.postCallHudDurationSeconds} seconds",
+                            style = LineaTypography.labelMedium,
+                            color = LineaColors.TitaniumBlue,
+                            fontWeight = FontWeight.SemiBold
                         )
-                        SelectionPill(
-                            label = "12s Duration",
-                            isSelected = uiState.postCallHudDurationSeconds == 12,
-                            onClick = { viewModel.setPostCallHudDurationSeconds(12) }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Preset chips Row 1
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(3 to "3s Fast", 5 to "5s Brief", 8 to "8s Default", 12 to "12s").forEach { (sec, label) ->
+                            SelectionPill(
+                                label = label,
+                                isSelected = uiState.postCallHudDurationSeconds == sec,
+                                onClick = { viewModel.setPostCallHudDurationSeconds(sec) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Preset chips Row 2
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(15 to "15s Extended", 30 to "30s Long", 0 to "Manual Close").forEach { (sec, label) ->
+                            SelectionPill(
+                                label = label,
+                                isSelected = if (sec == 0) uiState.postCallHudDurationSeconds <= 0 else uiState.postCallHudDurationSeconds == sec,
+                                onClick = { viewModel.setPostCallHudDurationSeconds(sec) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Fine-tuning slider (3s to 30s)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(LineaColors.GlassFill)
+                            .border(1.dp, LineaColors.GlassBorder.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Fine-Tune Timer",
+                                style = LineaTypography.labelSmall,
+                                color = LineaColors.TextSecondary
+                            )
+                            Text(
+                                text = if (uiState.postCallHudDurationSeconds <= 0) "Manual" else "${uiState.postCallHudDurationSeconds}s",
+                                style = LineaTypography.labelSmall,
+                                color = LineaColors.TitaniumBlue,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Slider(
+                            value = if (uiState.postCallHudDurationSeconds <= 0) 3f else uiState.postCallHudDurationSeconds.toFloat().coerceIn(3f, 30f),
+                            onValueChange = { viewModel.setPostCallHudDurationSeconds(it.roundToInt()) },
+                            valueRange = 3f..30f,
+                            steps = 26,
+                            colors = SliderDefaults.colors(
+                                thumbColor = LineaColors.TitaniumBlue,
+                                activeTrackColor = LineaColors.TitaniumBlue,
+                                inactiveTrackColor = LineaColors.GlassBorder.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "3s (Fast)", style = LineaTypography.labelSmall, color = LineaColors.TextTertiary, fontSize = 10.sp)
+                            Text(text = "15s", style = LineaTypography.labelSmall, color = LineaColors.TextTertiary, fontSize = 10.sp)
+                            Text(text = "30s (Long)", style = LineaTypography.labelSmall, color = LineaColors.TextTertiary, fontSize = 10.sp)
+                        }
                     }
                 }
 
@@ -1251,10 +1349,11 @@ private fun SettingsToggleRow(
 private fun SelectionPill(
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(if (isSelected) LineaColors.TitaniumBlue else LineaColors.GlassFill)
             .border(
@@ -1263,7 +1362,8 @@ private fun SelectionPill(
                 RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,

@@ -18,10 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - 💬 **Quick Follow-Up SMS**: Quick-launch message chips (`"Can't talk right now, I'll call you shortly."`, `"Could you send me the details via SMS?"`, `"Thanks for the call!"`, `"Let's follow up on this tomorrow."`) launching the default SMS composer via `Intent.ACTION_SENDTO`.
     - 🛡️ **Instant Block / Mark Spam**: One-tap defensive action writing directly to Room `BlockedNumberDao` and Android's `BlockedNumberContract`.
   - **Dynamic Visual Summary Header**: Displays caller avatar, contact name or phone number, call status badge (incoming/outgoing with exact duration or missed/unanswered status), and offline geographic location badge powered by `OfflineCallerIdEngine`.
-  - **Countdown Bar with Intelligent Interaction Freeze**: Configurable auto-dismiss countdown timer (default 8s) with an animated linear progress indicator that automatically pauses indefinitely when user touches input fields, selects reminder chips, or composes notes.
-  - **Customizable Calling Preferences**: Added `postCallHudEnabled` toggle (default `false`) and `postCallHudDurationSeconds` (5s, 8s, 12s) configuration pills in Settings, with DataStore persistence.
-  - **Intelligent Search Indexing**: Fully indexed in `SettingsSearchEngine` under `SettingsCategory.CALLING` with extensive synonyms ("hud", "post-call", "action card", "reminder", "scratchpad", "follow-up", "call note", "auto-dismiss").
-  - Comprehensive unit test coverage (`PostCallHudTest`) validating duration formatting, caller ID location resolution, reminder timestamp calculation, note tag concatenation, search indexing, and verification that the feature defaults to disabled.
+  - **Countdown Bar with Intelligent Interaction Freeze & Manual Mode**: Configurable auto-dismiss countdown timer with an animated linear progress indicator that automatically pauses indefinitely when user touches input fields, selects reminder chips, or composes notes.
+  - **Granular Post-Call Time Customization**:
+    - Preset duration pills in Settings: `3s Fast`, `5s Brief`, `8s Default`, `12s`, `15s Extended`, `30s Long`, and `Manual Close` (0s).
+    - Precision Neumorphic Fine-Tuning Slider: smooth 1-second granularity between 3s and 30s with real-time feedback indicator.
+    - Persistent Manual Close Mode (`0s`): disables auto-dismiss countdown entirely, allowing the HUD to remain on screen until the user explicitly taps "Dismiss" or "✕", ideal for taking extensive call notes.
+  - **Customizable Calling Preferences & DataStore Persistence**: Added `postCallHudEnabled` toggle (default `false`) and `postCallHudDurationSeconds` (persisting 0s manual mode and 3s..30s fine-tuned values) in Settings.
+  - **Intelligent Search Indexing**: Fully indexed in `SettingsSearchEngine` under `SettingsCategory.CALLING` with both `post_call_hud` and dedicated `post_call_hud_time` entries featuring interactive one-tap cycling and extensive search keywords ("post call time", "customize post call time", "hud time", "hud duration", "action card", "reminder", "scratchpad", "follow-up", "auto-dismiss").
+  - Comprehensive unit test coverage (`PostCallHudTest`) validating duration formatting, caller ID location resolution, reminder timestamp calculation, note tag concatenation, search indexing, preset cycling, manual close mode, and verification that the feature defaults to disabled.
 
 - **100% Offline Worldwide Regional Caller ID & Carrier Intelligence**:
   - Engineered a 100% offline, privacy-first caller ID and location intelligence engine (`OfflineCallerIdEngine`) requiring zero internet connection and zero location permissions.

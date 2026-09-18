@@ -84,7 +84,8 @@ fun PostCallHudCard(
     onBlockNumber: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var remainingSeconds by remember { mutableIntStateOf(initialDurationSeconds.coerceAtLeast(3)) }
+    val isManualDismiss = initialDurationSeconds <= 0
+    var remainingSeconds by remember { mutableIntStateOf(if (isManualDismiss) 0 else initialDurationSeconds.coerceIn(3, 60)) }
     var isTimerPaused by remember { mutableStateOf(false) }
     var noteText by remember { mutableStateOf("") }
     var isNoteSaved by remember { mutableStateOf(false) }
@@ -96,8 +97,8 @@ fun PostCallHudCard(
     val scrollState = rememberScrollState()
 
     // Countdown timer
-    LaunchedEffect(isTimerPaused, remainingSeconds) {
-        if (!isTimerPaused && remainingSeconds > 0) {
+    LaunchedEffect(isTimerPaused, remainingSeconds, isManualDismiss) {
+        if (!isManualDismiss && !isTimerPaused && remainingSeconds > 0) {
             delay(1000L)
             remainingSeconds -= 1
             if (remainingSeconds <= 0) {
@@ -107,7 +108,7 @@ fun PostCallHudCard(
     }
 
     val progressAnim by animateFloatAsState(
-        targetValue = if (initialDurationSeconds > 0) remainingSeconds.toFloat() / initialDurationSeconds.toFloat() else 0f,
+        targetValue = if (!isManualDismiss && initialDurationSeconds > 0) remainingSeconds.toFloat() / initialDurationSeconds.toFloat() else 0f,
         animationSpec = tween(durationMillis = 950),
         label = "hudCountdownProgress"
     )
@@ -148,6 +149,12 @@ fun PostCallHudCard(
                             color = LineaColors.TitaniumBlue,
                             fontWeight = FontWeight.SemiBold
                         )
+                    } else if (isManualDismiss) {
+                        Text(
+                            text = "Tap ✕ or Dismiss to close",
+                            style = LineaTypography.labelSmall,
+                            color = LineaColors.TextTertiary
+                        )
                     } else {
                         Text(
                             text = "Auto-closing in ${remainingSeconds}s",
@@ -170,17 +177,19 @@ fun PostCallHudCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            if (!isManualDismiss && initialDurationSeconds > 0) {
+                Spacer(modifier = Modifier.height(4.dp))
 
-            LinearProgressIndicator(
-                progress = { progressAnim },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = if (isTimerPaused) LineaColors.TitaniumBlue else LineaColors.TitaniumBlue,
-                trackColor = LineaColors.GlassFill
-            )
+                LinearProgressIndicator(
+                    progress = { progressAnim },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = if (isTimerPaused) LineaColors.TitaniumBlue else LineaColors.TitaniumBlue,
+                    trackColor = LineaColors.GlassFill
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -641,7 +650,7 @@ fun PostCallHudCard(
                         .height(44.dp)
                 ) {
                     Text(
-                        text = if (isTimerPaused) "Done" else "Dismiss (${remainingSeconds}s)",
+                        text = if (isManualDismiss || isTimerPaused) "Dismiss" else "Dismiss (${remainingSeconds}s)",
                         style = LineaTypography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = LineaColors.TextPrimary
