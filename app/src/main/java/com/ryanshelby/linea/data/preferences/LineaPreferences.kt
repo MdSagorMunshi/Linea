@@ -92,6 +92,8 @@ class LineaPreferences @Inject constructor(
         val KEY_ESCAPE_CALL_DISARM_NOTIFICATION = booleanPreferencesKey("escape_call_disarm_notification")
         val KEY_ESCAPE_CALL_CUSTOM_NAME = stringPreferencesKey("escape_call_custom_name")
         val KEY_ESCAPE_CALL_CUSTOM_NUMBER = stringPreferencesKey("escape_call_custom_number")
+        val KEY_POST_CALL_HUD_ENABLED = booleanPreferencesKey("post_call_hud_enabled")
+        val KEY_POST_CALL_HUD_DURATION_SECONDS = intPreferencesKey("post_call_hud_duration_seconds")
 
         // Quantum Vault & Anti-Brute-Force Keys
 
@@ -151,6 +153,8 @@ class LineaPreferences @Inject constructor(
     val escapeCallDisarmNotification: Flow<Boolean> = dataStore.data.map { it[KEY_ESCAPE_CALL_DISARM_NOTIFICATION] ?: true }
     val escapeCallCustomName: Flow<String> = dataStore.data.map { it[KEY_ESCAPE_CALL_CUSTOM_NAME] ?: "Office Dispatch" }
     val escapeCallCustomNumber: Flow<String> = dataStore.data.map { it[KEY_ESCAPE_CALL_CUSTOM_NUMBER] ?: "+1 (555) 019-2834" }
+    val postCallHudEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_POST_CALL_HUD_ENABLED] ?: true }
+    val postCallHudDurationSeconds: Flow<Int> = dataStore.data.map { it[KEY_POST_CALL_HUD_DURATION_SECONDS] ?: 8 }
 
     // Vault DataStore Flows
     override val isVaultPinSet: Flow<Boolean> = dataStore.data.map { it[KEY_VAULT_HAS_PIN] ?: false }
@@ -163,6 +167,14 @@ class LineaPreferences @Inject constructor(
     override val vaultRecoveryMasterKeyEncrypted: Flow<String?> = dataStore.data.map { it[KEY_VAULT_RECOVERY_MASTER_KEY_ENC] }
     override val vaultFailedAttempts: Flow<Int> = dataStore.data.map { it[KEY_VAULT_FAILED_ATTEMPTS] ?: 0 }
     override val vaultLockoutUntil: Flow<Long> = dataStore.data.map { it[KEY_VAULT_LOCKOUT_UNTIL] ?: 0L }
+
+    suspend fun setPostCallHudEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_POST_CALL_HUD_ENABLED] = enabled }
+    }
+
+    suspend fun setPostCallHudDurationSeconds(seconds: Int) {
+        dataStore.edit { it[KEY_POST_CALL_HUD_DURATION_SECONDS] = seconds }
+    }
 
     suspend fun setFlipToSilence(enabled: Boolean) {
         dataStore.edit { it[KEY_FLIP_TO_SILENCE] = enabled }

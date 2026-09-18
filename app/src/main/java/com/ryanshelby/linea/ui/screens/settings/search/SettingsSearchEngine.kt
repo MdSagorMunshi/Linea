@@ -344,6 +344,25 @@ object SettingsSearchEngine {
             )
         )
 
+        // 16b. Post-Call Smart Action HUD
+        list.add(
+            SettingsSearchItem(
+                id = "post_call_hud",
+                title = "Post-Call Smart Action HUD",
+                subtitle = "Transient card with 1-tap callback reminders, quick notes, SMS & block",
+                category = SettingsCategory.CALLING,
+                icon = Icons.Filled.Phone,
+                keywords = listOf(
+                    "post-call", "post call", "hud", "quick action", "after call", "callback reminder",
+                    "scratchpad", "call notes", "quick sms", "follow-up", "block caller", "action card"
+                ),
+                action = SettingsSearchAction.Toggle(
+                    isChecked = { it.postCallHudEnabled },
+                    onToggle = { viewModel.setPostCallHudEnabled(it) }
+                )
+            )
+        )
+
         // 17. Repeated Call Emergency Override
         list.add(
             SettingsSearchItem(

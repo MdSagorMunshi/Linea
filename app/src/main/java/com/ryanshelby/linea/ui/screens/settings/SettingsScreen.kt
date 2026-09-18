@@ -648,6 +648,39 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 SettingsToggleRow(
+                    title = "Post-Call Smart Action HUD",
+                    subtitle = "Transient card with 1-tap callback reminders, quick notes, SMS & spam block",
+                    checked = uiState.postCallHudEnabled,
+                    onCheckedChange = { viewModel.setPostCallHudEnabled(it) }
+                )
+
+                if (uiState.postCallHudEnabled) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SelectionPill(
+                            label = "5s Duration",
+                            isSelected = uiState.postCallHudDurationSeconds == 5,
+                            onClick = { viewModel.setPostCallHudDurationSeconds(5) }
+                        )
+                        SelectionPill(
+                            label = "8s Duration",
+                            isSelected = uiState.postCallHudDurationSeconds == 8,
+                            onClick = { viewModel.setPostCallHudDurationSeconds(8) }
+                        )
+                        SelectionPill(
+                            label = "12s Duration",
+                            isSelected = uiState.postCallHudDurationSeconds == 12,
+                            onClick = { viewModel.setPostCallHudDurationSeconds(12) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SettingsToggleRow(
                     title = "Repeated Call Emergency Override",
                     subtitle = "3 calls within 5 minutes bypass quiet hours and block rules",
                     checked = uiState.repeatCallOverride,

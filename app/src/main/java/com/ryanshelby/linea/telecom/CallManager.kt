@@ -117,6 +117,13 @@ class CallManager @Inject constructor(
     private val _isRingerSilenced = MutableStateFlow(false)
     val isRingerSilenced: StateFlow<Boolean> = _isRingerSilenced.asStateFlow()
 
+    private val _postCallSummary = MutableStateFlow<PostCallSummary?>(null)
+    val postCallSummary: StateFlow<PostCallSummary?> = _postCallSummary.asStateFlow()
+
+    fun clearPostCallSummary() {
+        _postCallSummary.value = null
+    }
+
     // Timestamp when ringing started; volume-change events within a short window are
     // system-generated (audio stream setup) and must be ignored.
     private var ringerStartedTimestamp = 0L
@@ -610,6 +617,7 @@ class CallManager @Inject constructor(
                 }
                 context.startActivity(intent)
             } else {
+                recordPostCallSummary(active)
                 notificationManager.dismissOngoingCallNotification()
                 _currentCall.value = active.copy(state = LineaCallState.DISCONNECTED)
                 _currentCall.value = null
@@ -914,6 +922,7 @@ class CallManager @Inject constructor(
             timerJob?.cancel()
             timerJob = null
             proximitySensorManager.release()
+            recordPostCallSummary(current)
             _currentCall.value = current.copy(state = LineaCallState.DISCONNECTED)
             scope.launch {
                 delay(300)
@@ -923,6 +932,20 @@ class CallManager @Inject constructor(
         }
 
         current?.call?.reject(rejectWithMessage, textMessage)
+    }
+
+    fun recordPostCallSummary(active: ActiveCallInfo) {
+        val callerId = com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.identifyNumber(active.phoneNumber)
+        _postCallSummary.value = PostCallSummary(
+            phoneNumber = active.phoneNumber,
+            callerName = active.displayName,
+            photoUri = active.photoUri,
+            durationSeconds = active.durationSeconds,
+            isIncoming = active.isIncoming,
+            wasConnected = active.durationSeconds > 0 || active.connectTimeMillis > 0,
+            timestamp = System.currentTimeMillis(),
+            callerIdResult = callerId
+        )
     }
 
     fun silenceRinger() {
@@ -944,6 +967,7 @@ class CallManager @Inject constructor(
             timerJob?.cancel()
             timerJob = null
             proximitySensorManager.release()
+            recordPostCallSummary(current)
             _currentCall.value = current.copy(state = LineaCallState.DISCONNECTED)
             scope.launch {
                 delay(300)

@@ -16,6 +16,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -43,8 +45,13 @@ class InCallActivity : ComponentActivity() {
     lateinit var lineaPreferences: LineaPreferences
 
     @Inject
-    lateinit var callNoteDao: com.ryanshelby.linea.data.local.dao.CallNoteDao
+    lateinit var callbackReminderScheduler: com.ryanshelby.linea.telecom.reminder.CallbackReminderScheduler
 
+    @Inject
+    lateinit var blockedNumberDao: com.ryanshelby.linea.data.local.dao.BlockedNumberDao
+
+    @Inject
+    lateinit var callNoteDao: com.ryanshelby.linea.data.local.dao.CallNoteDao
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,22 +84,34 @@ class InCallActivity : ComponentActivity() {
             val durationWarningActive by callManager.durationWarningActive.collectAsState()
             val isRingerSilenced by callManager.isRingerSilenced.collectAsState()
 
-            // System back gesture safely minimizes in-call task instead of terminating cellular call
+            val postCallSummary by callManager.postCallSummary.collectAsState()
+            val postCallHudEnabled by lineaPreferences.postCallHudEnabled.collectAsState(initial = true)
+            val postCallHudDuration by lineaPreferences.postCallHudDurationSeconds.collectAsState(initial = 8)
+
+            // System back gesture minimizes active call or dismisses post-call HUD
             BackHandler {
-                moveTaskToBack(true)
+                if (postCallHudEnabled && postCallSummary != null &&
+                    (currentCall == null || currentCall?.state == LineaCallState.DISCONNECTED)) {
+                    callManager.clearPostCallSummary()
+                    finishAndRemoveTask()
+                } else {
+                    moveTaskToBack(true)
+                }
             }
 
-            LaunchedEffect(currentCall?.state, secondaryCall?.state) {
+            LaunchedEffect(currentCall?.state, secondaryCall?.state, postCallSummary, postCallHudEnabled) {
                 val current = currentCall
                 val secondary = secondaryCall
                 val noActiveCalls = (current == null || current.state == LineaCallState.DISCONNECTED) &&
                         (secondary == null || secondary.state == LineaCallState.DISCONNECTED)
                 if (noActiveCalls) {
-                    delay(800)
-                    val stillNoCalls = (callManager.currentCall.value == null || callManager.currentCall.value?.state == LineaCallState.DISCONNECTED) &&
-                            (callManager.secondaryCall.value == null || callManager.secondaryCall.value?.state == LineaCallState.DISCONNECTED)
-                    if (stillNoCalls) {
-                        finishAndRemoveTask()
+                    if (!postCallHudEnabled || postCallSummary == null) {
+                        delay(800)
+                        val stillNoCalls = (callManager.currentCall.value == null || callManager.currentCall.value?.state == LineaCallState.DISCONNECTED) &&
+                                (callManager.secondaryCall.value == null || callManager.secondaryCall.value?.state == LineaCallState.DISCONNECTED)
+                        if (stillNoCalls && postCallSummary == null) {
+                            finishAndRemoveTask()
+                        }
                     }
                 } else {
                     volumeControlStream = if (current?.state == LineaCallState.ACTIVE || current?.state == LineaCallState.HOLDING ||
@@ -110,7 +129,7 @@ class InCallActivity : ComponentActivity() {
             CompositionLocalProvider(LocalReduceAnimations provides reduceAnimations) {
                 LineaTheme(theme = themePreference, reduceAnimations = reduceAnimations) {
                     val call = currentCall ?: secondaryCall
-                    if (call != null) {
+                    if (call != null && call.state != LineaCallState.DISCONNECTED) {
                         if (call.state == LineaCallState.RINGING && call.isIncoming) {
                             IncomingCallScreen(
                                 callInfo = call,
@@ -166,6 +185,72 @@ class InCallActivity : ComponentActivity() {
                                 onRejectWaiting = { callManager.rejectWaitingCall() },
                                 onSwapCalls = { callManager.swapCalls() },
                                 onMergeConference = { callManager.mergeConference() }
+                            )
+                        }
+                    } else if (postCallHudEnabled && postCallSummary != null) {
+                        val summary = postCallSummary!!
+                        androidx.compose.foundation.layout.Box(
+                            modifier = androidx.compose.ui.Modifier
+                                .fillMaxSize()
+                                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.72f)),
+                            contentAlignment = androidx.compose.ui.Alignment.BottomCenter
+                        ) {
+                            PostCallHudCard(
+                                summary = summary,
+                                initialDurationSeconds = postCallHudDuration,
+                                onDismiss = {
+                                    callManager.clearPostCallSummary()
+                                    finishAndRemoveTask()
+                                },
+                                onScheduleReminder = { delayMs, label ->
+                                    lifecycleScope.launch {
+                                        callbackReminderScheduler.scheduleReminder(
+                                            phoneNumber = summary.phoneNumber,
+                                            callerName = summary.callerName,
+                                            delayMs = delayMs
+                                        )
+                                    }
+                                },
+                                onSaveNote = { noteText ->
+                                    lifecycleScope.launch {
+                                        callNoteDao.insertNote(
+                                            com.ryanshelby.linea.data.local.entities.CallNoteEntity(
+                                                phoneNumber = summary.phoneNumber,
+                                                noteText = noteText,
+                                                timestamp = System.currentTimeMillis()
+                                            )
+                                        )
+                                    }
+                                },
+                                onSendSms = { msgText ->
+                                    try {
+                                        val smsUri = android.net.Uri.parse("smsto:${summary.phoneNumber}")
+                                        val smsIntent = Intent(Intent.ACTION_SENDTO, smsUri).apply {
+                                            putExtra("sms_body", msgText)
+                                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                        }
+                                        startActivity(smsIntent)
+                                    } catch (_: Exception) {
+                                        Toast.makeText(this@InCallActivity, "Unable to open SMS app", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onBlockNumber = {
+                                    lifecycleScope.launch {
+                                        val cleanNumber = summary.phoneNumber.replace(Regex("[^0-9+]"), "")
+                                        blockedNumberDao.insertBlockedNumber(
+                                            com.ryanshelby.linea.data.local.entities.BlockedNumberEntity(
+                                                numberOrPrefix = cleanNumber,
+                                                matchType = com.ryanshelby.linea.data.local.entities.BlockMatchType.EXACT,
+                                                reason = "Blocked via Post-Call HUD",
+                                                createdAt = System.currentTimeMillis()
+                                            )
+                                        )
+                                        com.ryanshelby.linea.telecom.screening.SystemBlockedNumberHelper.blockNumber(
+                                            this@InCallActivity,
+                                            cleanNumber
+                                        )
+                                    }
+                                }
                             )
                         }
                     }

@@ -41,7 +41,9 @@ data class SettingsUiState(
     val ringtoneType: String = com.ryanshelby.linea.data.preferences.LineaPreferences.RingtoneType.APP_DEFAULT,
     val flipToSilence: Boolean = false,
     val proximityWaveToSilence: Boolean = false,
-    val dialpadHapticProfile: String = com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS
+    val dialpadHapticProfile: String = com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS,
+    val postCallHudEnabled: Boolean = true,
+    val postCallHudDurationSeconds: Int = 8
 )
 
 @HiltViewModel
@@ -80,7 +82,9 @@ class SettingsViewModel @Inject constructor(
         preferences.ringtoneType,
         preferences.flipToSilenceEnabled,
         preferences.proximityWaveToSilenceEnabled,
-        preferences.dialpadHapticProfile
+        preferences.dialpadHapticProfile,
+        preferences.postCallHudEnabled,
+        preferences.postCallHudDurationSeconds
     ) { args ->
         val defaultSim = args[0] as Int
         val askSim = args[1] as Boolean
@@ -104,6 +108,8 @@ class SettingsViewModel @Inject constructor(
         val flip = args[19] as Boolean
         val proxWave = args[20] as Boolean
         val hapticProfile = args[21] as String
+        val hudEnabled = args[22] as Boolean
+        val hudDuration = args[23] as Int
 
         val quietRule = rulesList.filterIsInstance<com.ryanshelby.linea.data.local.entities.CallRuleEntity>()
             .firstOrNull { it.name.contains("Quiet", ignoreCase = true) || it.name.contains("Night", ignoreCase = true) }
@@ -131,7 +137,9 @@ class SettingsViewModel @Inject constructor(
             ringtoneType = ringtone,
             flipToSilence = flip,
             proximityWaveToSilence = proxWave,
-            dialpadHapticProfile = hapticProfile
+            dialpadHapticProfile = hapticProfile,
+            postCallHudEnabled = hudEnabled,
+            postCallHudDurationSeconds = if (hudDuration <= 0) 8 else hudDuration
         )
     }.stateIn(
         scope = viewModelScope,
@@ -220,6 +228,14 @@ class SettingsViewModel @Inject constructor(
 
     fun setReduceAnimations(enabled: Boolean) {
         viewModelScope.launch { preferences.setReduceAnimations(enabled) }
+    }
+
+    fun setPostCallHudEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferences.setPostCallHudEnabled(enabled) }
+    }
+
+    fun setPostCallHudDurationSeconds(seconds: Int) {
+        viewModelScope.launch { preferences.setPostCallHudDurationSeconds(seconds) }
     }
 
     val activeProfile: StateFlow<String> = preferences.activeProfile
