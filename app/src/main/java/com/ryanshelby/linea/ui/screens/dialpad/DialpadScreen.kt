@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material3.Icon
@@ -91,6 +92,7 @@ import com.ryanshelby.linea.ui.components.RoleBanner
 import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.screens.contacts.ContactCreateEditSheet
 import com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel
+import com.ryanshelby.linea.ui.screens.contacts.QrCodeScannerSheet
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -128,6 +130,7 @@ fun DialpadScreen(
     var showCountdownDialog by remember { mutableStateOf(false) }
     var showSimSelectSheet by remember { mutableStateOf(false) }
     var showCreateContactSheet by remember { mutableStateOf(false) }
+    var showQrScanner by remember { mutableStateOf(false) }
     var lastInitiateCallTime by remember { mutableLongStateOf(0L) }
     val simSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -292,6 +295,26 @@ fun DialpadScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // QR Scanner Button
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .neumorphic(
+                            shape = CircleShape,
+                            elevation = 3.dp,
+                            surfaceColor = LineaColors.NeuSurfaceRaised
+                        )
+                        .clickable { showQrScanner = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.QrCodeScanner,
+                        contentDescription = "Scan QR Code",
+                        tint = LineaColors.TitaniumBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
                 // Profile Switcher Pill
                 Box(
                     modifier = Modifier
@@ -774,6 +797,18 @@ fun DialpadScreen(
                 contactsViewModel.saveContact(displayName, company, numbers, emails, preferredSimSlot, notes, photoUri, photoBytes)
                 showCreateContactSheet = false
                 Toast.makeText(context, "Saved $displayName", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    if (showQrScanner) {
+        QrCodeScannerSheet(
+            onDismiss = { showQrScanner = false },
+            onSaveContact = { name, numbers ->
+                contactsViewModel.createContactFromQr(name, numbers)
+            },
+            onCallNumber = { number ->
+                initiateCall(number)
             }
         )
     }

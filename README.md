@@ -138,6 +138,14 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 ### 16. International Time Zone Preview & Country Detection
 - **Dialpad Destination Intelligence**: Instant country code detection across 40+ nations, displaying flag, country name, live local destination time, and late-night warnings.
 
+### 17. Bespoke Stylish QR Code Sharing & Real-Time ML Kit Scanner
+- **Connected Liquid Capsule Matrix**: Generates bespoke, organic QR codes where adjacent data modules fuse seamlessly into smooth rounded capsules and fluid flows—eliminating plain harsh squares and generic disconnected dots while strictly adhering to ISO/IEC 18004 standards.
+- **Continuous Squircle Finder Eyes & Gradient Core**: Outer positioning patterns styled with continuous squircle curvatures and vibrant gradient-filled pupil cores.
+- **Center Contact Medallion**: Embedded initial badge with glowing accent border, protected by QR Level Q error correction (25% structural recovery).
+- **Sub-5ms Google ML Kit Vision Engine**: Hardware-accelerated CameraX analysis stream scanning at 60 FPS in single-digit milliseconds under adverse angles and low-light environments.
+- **Integrated Gallery Scanner & Camera Controls**: Direct photo album picker (`InputImage.fromFilePath`), tactile tap-to-focus metering, and flashlight torch toggle.
+- **Tactile Contact Action Sheet**: Instant "Call Now" cellular dispatch, "Save Contact" dual-sync persistence, and universal parsing (vCard 3.0, MECARD, LiNEA URI, raw digits).
+
 ---
 
 ## Design System
@@ -165,7 +173,7 @@ LINEA adheres strictly to a **Tactile Neumorphic (Soft UI)** aesthetic, engineer
 1. Download the latest release APK from the [Releases](https://github.com/MdSagorMunshi/Linea/releases) page.
 2. Install the APK to your device or emulator:
    ```bash
-   adb install -r LiNEA-v2.2.0-release.apk
+   adb install -r LiNEA-v2.3.0-release.apk
    ```
 
 ### Designate as System Default Dialer

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.Star
@@ -102,6 +103,7 @@ fun ContactDetailSheet(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var showQrCodeSheet by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -147,6 +149,14 @@ fun ContactDetailSheet(
                         )
                     }
 
+                    IconButton(onClick = { showQrCodeSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.QrCode2,
+                            contentDescription = "Share Contact QR",
+                            tint = LineaColors.TitaniumBlue
+                        )
+                    }
+
                     IconButton(onClick = {
                         showDeleteConfirmation = true
                     }) {
@@ -157,6 +167,14 @@ fun ContactDetailSheet(
                         )
                     }
                 }
+            }
+
+            if (showQrCodeSheet) {
+                QrCodeSheet(
+                    name = contact.displayName,
+                    numbers = numbers.map { it.normalizedNumber.ifEmpty { it.number } },
+                    onDismiss = { showQrCodeSheet = false }
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))

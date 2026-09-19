@@ -402,6 +402,26 @@ class ContactsViewModel @Inject constructor(
         }
     }
 
+    fun createContactFromQr(name: String, numbers: List<String>) {
+        viewModelScope.launch {
+            val acc = _selectedContactAccount.value
+            val accName = if (acc != null && !acc.isDevice) acc.name else null
+            val accType = acc?.type
+            contactSyncRepository.createContact(
+                displayName = name.ifEmpty { "Scanned Contact" },
+                company = "",
+                numbers = numbers.map { it to "Mobile" },
+                emails = emptyList(),
+                preferredSimSlot = null,
+                notes = "Scanned via LiNEA QR",
+                accountName = accName,
+                accountType = accType,
+                photoUri = null,
+                photoBytes = null
+            )
+        }
+    }
+
     fun toggleFavorite(contact: ContactEntity) {
         viewModelScope.launch {
             val updated = contact.copy(isFavorite = !contact.isFavorite)
