@@ -71,6 +71,35 @@ object QrCodeEngine {
     }
 
     /**
+     * Determines whether a scanned QR code text is an authentic LiNEA QR code.
+     * Only codes with the LiNEA URI scheme (linea://contact or linea://) or
+     * LiNEA-branded vCards (containing LiNEA Contact note) are identified as LiNEA QR codes.
+     * All random QR codes (URLs, Wi-Fi, barcodes, generic text) return false.
+     */
+    fun isLineaQrCode(text: String?): Boolean {
+        if (text.isNullOrBlank()) return false
+        val trimmed = text.trim()
+        if (trimmed.startsWith("linea://contact", ignoreCase = true) ||
+            trimmed.startsWith("linea://", ignoreCase = true)
+        ) {
+            return true
+        }
+        if (trimmed.contains("BEGIN:VCARD", ignoreCase = true) && trimmed.contains("LiNEA", ignoreCase = true)) {
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Strictly parse a LiNEA QR code into ContactPayload.
+     * Returns null if the scanned text is not a LiNEA QR code or cannot be parsed.
+     */
+    fun parseLineaScannedText(text: String?): ContactPayload? {
+        if (!isLineaQrCode(text)) return null
+        return parseScannedText(text!!)
+    }
+
+    /**
      * Parse scanned QR text into ContactPayload.
      * Supports:
      * 1. LiNEA URI (linea://contact?name=...&number=...)
@@ -83,17 +112,17 @@ object QrCodeEngine {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return null
 
-        // 1. LiNEA URI
-        if (trimmed.startsWith("linea://contact", ignoreCase = true)) {
+        // 1. LiNEA URI (linea://contact?name=... or linea://...)
+        if (trimmed.startsWith("linea://", ignoreCase = true)) {
             try {
                 val query = if (trimmed.contains("?")) trimmed.substringAfter("?") else ""
                 var name = ""
                 val numbers = mutableListOf<String>()
                 for (param in query.split("&")) {
                     val parts = param.split("=")
-                    if (parts.size == 2) {
+                    if (parts.size >= 2) {
                         val key = URLDecoder.decode(parts[0], "UTF-8")
-                        val value = URLDecoder.decode(parts[1], "UTF-8")
+                        val value = URLDecoder.decode(parts.drop(1).joinToString("="), "UTF-8")
                         if (key.equals("name", ignoreCase = true)) {
                             name = value
                         } else if (key.equals("number", ignoreCase = true)) {

@@ -141,9 +141,13 @@ fun QrCodeScannerSheet(
                 )
                 scanner.process(inputImage)
                     .addOnSuccessListener { barcodes ->
-                        val barcode = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }
-                        if (barcode?.rawValue != null) {
-                            val payload = QrCodeEngine.parseScannedText(barcode.rawValue ?: "")
+                        // If there are many QR codes in the photo, only detect the LiNEA QR code:
+                        val lineaBarcode = barcodes.firstOrNull { barcode ->
+                            val raw = barcode.rawValue
+                            !raw.isNullOrBlank() && QrCodeEngine.isLineaQrCode(raw)
+                        }
+                        if (lineaBarcode?.rawValue != null) {
+                            val payload = QrCodeEngine.parseLineaScannedText(lineaBarcode.rawValue)
                             if (payload != null) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 decodedPayload = payload
@@ -151,25 +155,29 @@ fun QrCodeScannerSheet(
                                 isAnalyzingPhoto = false
                             } else {
                                 isAnalyzingPhoto = false
-                                Toast.makeText(context, "No contact details in QR code", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Invalid LiNEA QR code", Toast.LENGTH_SHORT).show()
                             }
                         } else {
                             // Fallback to ZXing dual-pass (normal + inverted for dark mode QR codes)
                             coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                val zxingRaw = decodeQrWithZxing(context, uri)
+                                val zxingRaw = decodeLineaQrWithZxing(context, uri)
                                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                     isAnalyzingPhoto = false
                                     if (!zxingRaw.isNullOrBlank()) {
-                                        val payload = QrCodeEngine.parseScannedText(zxingRaw)
+                                        val payload = QrCodeEngine.parseLineaScannedText(zxingRaw)
                                         if (payload != null) {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             decodedPayload = payload
                                             showResult = true
                                         } else {
-                                            Toast.makeText(context, "No contact details in QR code", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Invalid LiNEA QR code", Toast.LENGTH_SHORT).show()
                                         }
                                     } else {
-                                        Toast.makeText(context, "No QR code found in photo", Toast.LENGTH_SHORT).show()
+                                        if (barcodes.isNotEmpty()) {
+                                            Toast.makeText(context, "Not a LiNEA QR code. Please scan a LiNEA QR code.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "No LiNEA QR code found in photo", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 }
                             }
@@ -178,20 +186,20 @@ fun QrCodeScannerSheet(
                     .addOnFailureListener {
                         // Fallback to ZXing dual-pass on ML Kit failure
                         coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            val zxingRaw = decodeQrWithZxing(context, uri)
+                            val zxingRaw = decodeLineaQrWithZxing(context, uri)
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 isAnalyzingPhoto = false
                                 if (!zxingRaw.isNullOrBlank()) {
-                                    val payload = QrCodeEngine.parseScannedText(zxingRaw)
+                                    val payload = QrCodeEngine.parseLineaScannedText(zxingRaw)
                                     if (payload != null) {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         decodedPayload = payload
                                         showResult = true
                                     } else {
-                                        Toast.makeText(context, "No contact details in QR code", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Invalid LiNEA QR code", Toast.LENGTH_SHORT).show()
                                     }
                                 } else {
-                                    Toast.makeText(context, "Failed to analyze photo", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "No LiNEA QR code found in photo", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -202,17 +210,17 @@ fun QrCodeScannerSheet(
             } catch (_: Exception) {
                 // Fallback to ZXing if InputImage failed to load
                 coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                    val zxingRaw = decodeQrWithZxing(context, uri)
+                    val zxingRaw = decodeLineaQrWithZxing(context, uri)
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         isAnalyzingPhoto = false
                         if (!zxingRaw.isNullOrBlank()) {
-                            val payload = QrCodeEngine.parseScannedText(zxingRaw)
+                            val payload = QrCodeEngine.parseLineaScannedText(zxingRaw)
                             if (payload != null) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 decodedPayload = payload
                                 showResult = true
                             } else {
-                                Toast.makeText(context, "No contact details in QR code", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Invalid LiNEA QR code", Toast.LENGTH_SHORT).show()
                             }
                         } else {
                             Toast.makeText(context, "Failed to load photo", Toast.LENGTH_SHORT).show()
@@ -388,7 +396,7 @@ fun QrCodeScannerSheet(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Align QR code inside the frame",
+                    text = "Align LiNEA QR code inside the frame",
                     style = LineaTypography.bodySmall,
                     color = LineaColors.TextTertiary,
                     textAlign = TextAlign.Center
@@ -489,7 +497,7 @@ private fun CameraPreviewWithMlKit(
                                     scanner = scanner,
                                     isScanning = isScanning,
                                     onSuccess = { rawText ->
-                                        val payload = QrCodeEngine.parseScannedText(rawText)
+                                        val payload = QrCodeEngine.parseLineaScannedText(rawText)
                                         if (payload != null) {
                                             mainExecutor.execute {
                                                 try {
@@ -565,9 +573,15 @@ private fun processImageProxy(
         val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
         scanner.process(inputImage)
             .addOnSuccessListener { barcodes ->
-                val code = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }
-                if (code?.rawValue != null) {
-                    onSuccess(code.rawValue!!)
+                // Filter specifically for LiNEA QR code among all detected barcodes in the frame.
+                // If there are many QR codes in view, only detect the LiNEA QR code!
+                // Random QR codes (websites, Wi-Fi, barcodes, etc.) are ignored.
+                val lineaCode = barcodes.firstOrNull { barcode ->
+                    val raw = barcode.rawValue
+                    !raw.isNullOrBlank() && QrCodeEngine.isLineaQrCode(raw)
+                }
+                if (lineaCode?.rawValue != null) {
+                    onSuccess(lineaCode.rawValue!!)
                 }
             }
             .addOnCompleteListener {
@@ -777,10 +791,11 @@ private fun DecodedContactCard(
 }
 
 /**
- * Fast dual-pass ZXing decoder for imported photos.
+ * Fast dual-pass ZXing decoder for imported photos that filters specifically for LiNEA QR codes.
  * Decodes standard light-background and inverted dark-mode QR codes.
+ * If multiple QR codes exist in the image, it returns the LiNEA QR code.
  */
-private fun decodeQrWithZxing(context: android.content.Context, uri: Uri): String? {
+private fun decodeLineaQrWithZxing(context: android.content.Context, uri: Uri): String? {
     return try {
         val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
             android.graphics.ImageDecoder.decodeBitmap(
@@ -799,18 +814,37 @@ private fun decodeQrWithZxing(context: android.content.Context, uri: Uri): Strin
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
 
         val source = com.google.zxing.RGBLuminanceSource(width, height, pixels)
-        val reader = com.google.zxing.qrcode.QRCodeReader()
+        val multiReader = com.google.zxing.multi.qrcode.QRCodeMultiReader()
+        val singleReader = com.google.zxing.qrcode.QRCodeReader()
 
         // 1. Standard pass
         try {
             val binaryBitmap = com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(source))
-            return reader.decode(binaryBitmap).text
+            try {
+                val results = multiReader.decodeMultiple(binaryBitmap)
+                val lineaResult = results.firstOrNull { QrCodeEngine.isLineaQrCode(it.text) }
+                if (lineaResult != null) return lineaResult.text
+            } catch (_: Exception) {}
+
+            try {
+                val singleResult = singleReader.decode(binaryBitmap)
+                if (QrCodeEngine.isLineaQrCode(singleResult.text)) return singleResult.text
+            } catch (_: Exception) {}
         } catch (_: Exception) {}
 
         // 2. Inverted pass (for dark mode stylish QR codes)
         try {
             val invertedBitmap = com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(source.invert()))
-            return reader.decode(invertedBitmap).text
+            try {
+                val results = multiReader.decodeMultiple(invertedBitmap)
+                val lineaResult = results.firstOrNull { QrCodeEngine.isLineaQrCode(it.text) }
+                if (lineaResult != null) return lineaResult.text
+            } catch (_: Exception) {}
+
+            try {
+                val singleResult = singleReader.decode(invertedBitmap)
+                if (QrCodeEngine.isLineaQrCode(singleResult.text)) return singleResult.text
+            } catch (_: Exception) {}
         } catch (_: Exception) {}
 
         null

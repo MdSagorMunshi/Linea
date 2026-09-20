@@ -269,4 +269,79 @@ class QrCodeTest {
         assertNotNull("Decoded result must not be null", decoded)
         assertEquals("Decoded content must match", content, decoded.text)
     }
+
+    @Test
+    fun testIsLineaQrCode() {
+        // Valid LiNEA URIs
+        assertTrue(QrCodeEngine.isLineaQrCode("linea://contact?name=Arthur+Pendelton&number=%2B15552345678"))
+        assertTrue(QrCodeEngine.isLineaQrCode("LINEA://CONTACT?name=Test&number=123"))
+        assertTrue(QrCodeEngine.isLineaQrCode("linea://custom?foo=bar"))
+
+        // LiNEA-branded vCard
+        val lineaVCard = "BEGIN:VCARD\nVERSION:3.0\nFN:Alice\nNOTE:LiNEA Contact\nTEL:123\nEND:VCARD"
+        assertTrue(QrCodeEngine.isLineaQrCode(lineaVCard))
+    }
+
+    @Test
+    fun testRejectRandomQrCodes() {
+        // Website URLs
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode("https://google.com"))
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode("http://example.com/qr"))
+
+        // Wi-Fi configs
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode("WIFI:S:MyNetwork;T:WPA;P:secret123;;"))
+
+        // Generic vCards
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode("BEGIN:VCARD\nVERSION:3.0\nFN:Bob\nTEL:999\nEND:VCARD"))
+
+        // MECARD & JSON
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode("MECARD:N:Doe,John;TEL:111;;"))
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode("""{"name":"Unknown","numbers":["555"]}"""))
+
+        // Plain text / numbers
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode("+15551234567"))
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode("Random text content"))
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode(""))
+        org.junit.Assert.assertFalse(QrCodeEngine.isLineaQrCode(null))
+    }
+
+    @Test
+    fun testParseLineaScannedTextStrict() {
+        val lineaUri = "linea://contact?name=Arthur+Pendelton&number=%2B15552345678"
+        val payload = QrCodeEngine.parseLineaScannedText(lineaUri)
+        assertNotNull("LiNEA QR must be parsed", payload)
+        assertEquals("Arthur Pendelton", payload?.name)
+        assertEquals(listOf("+15552345678"), payload?.numbers)
+
+        // Random QR codes must return null
+        org.junit.Assert.assertNull(QrCodeEngine.parseLineaScannedText("https://google.com"))
+        org.junit.Assert.assertNull(QrCodeEngine.parseLineaScannedText("WIFI:S:Net;P:123;;"))
+        org.junit.Assert.assertNull(QrCodeEngine.parseLineaScannedText("+15551234567"))
+    }
+
+    @Test
+    fun testFilterLineaQrCodeAmongMultipleCodes() {
+        val multipleRawTexts = listOf(
+            "https://menu.restaurant.com/view",
+            "WIFI:S:CoffeeShop;T:WPA;P:password;;",
+            "linea://contact?name=Marcus+Vance&number=%2B15554321098",
+            "https://instagram.com/myprofile",
+            "1234567890"
+        )
+
+        // Find LiNEA QR code among multiple codes
+        val detected = multipleRawTexts.firstOrNull { QrCodeEngine.isLineaQrCode(it) }
+        assertNotNull("Must find the LiNEA QR code", detected)
+        assertEquals("linea://contact?name=Marcus+Vance&number=%2B15554321098", detected)
+
+        val payload = QrCodeEngine.parseLineaScannedText(detected)
+        assertNotNull("Payload must be parsed", payload)
+        assertEquals("Marcus Vance", payload?.name)
+        assertEquals(listOf("+15554321098"), payload?.numbers)
+
+        // If list contains only random QR codes, none should be detected
+        val onlyRandom = listOf("https://a.com", "https://b.com", "WIFI:S:c;P:d;;")
+        val noDetected = onlyRandom.firstOrNull { QrCodeEngine.isLineaQrCode(it) }
+        org.junit.Assert.assertNull("No LiNEA code should be found among random codes", noDetected)
+    }
 }
