@@ -57,6 +57,7 @@ import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 
+import android.widget.Toast
 import com.ryanshelby.linea.ui.screens.contacts.ContactCreateEditSheet
 import com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel
 import com.ryanshelby.linea.ui.screens.dialpad.SimSelectSheet
@@ -87,6 +88,8 @@ fun HistoryScreen(
     val savedNumbers by viewModel.savedNumbers.collectAsState()
     var createContactNumber by remember { mutableStateOf<String?>(null) }
     var swipedOpenItemId by remember { mutableStateOf<String?>(null) }
+    var selectedItemForOptions by remember { mutableStateOf<CallHistoryItem?>(null) }
+    var selectedSessionForOptions by remember { mutableStateOf<CallSessionItem?>(null) }
 
     LaunchedEffect(feedListState.isScrollInProgress) {
         if (feedListState.isScrollInProgress) {
@@ -388,7 +391,8 @@ fun HistoryScreen(
                                 }
                             },
                             onCallBack = { record -> viewModel.callBack(record) },
-                            onToggleExpand = { viewModel.toggleSessionExpanded(session.id) }
+                            onToggleExpand = { viewModel.toggleSessionExpanded(session.id) },
+                            onLongClick = { selectedSessionForOptions = it }
                         )
                     }
                 }
@@ -467,6 +471,7 @@ fun HistoryScreen(
                                     swipedOpenItemId = if (open) item.id else if (swipedOpenItemId == item.id) null else swipedOpenItemId
                                 },
                                 onClick = { viewModel.selectItemForDetail(item) },
+                                onLongClick = { selectedItemForOptions = it },
                                 onCallBack = { record -> viewModel.callBack(record) },
                                 onToggleExpand = { viewModel.toggleItemExpanded(item.id) },
                                 onAddContact = { number ->
@@ -569,6 +574,59 @@ fun HistoryScreen(
                 viewModel.placeCallWithSim(pendingRecord, account)
             },
             onDismiss = { viewModel.dismissSimSelection() }
+        )
+    }
+
+    // Recent Item Options Sheet (Hold for 1 sec)
+    val optionsItem = selectedItemForOptions
+    if (optionsItem != null) {
+        val phoneNumber = optionsItem.primaryRecord.phoneNumber
+        val contactName = optionsItem.primaryRecord.callerName
+        RecentItemOptionsSheet(
+            contactName = contactName,
+            phoneNumber = phoneNumber,
+            onCall = {
+                viewModel.callBack(optionsItem.primaryRecord)
+            },
+            onSms = {
+                try {
+                    val smsIntent = Intent(Intent.ACTION_VIEW).apply {
+                        data = Uri.parse("sms:$phoneNumber")
+                    }
+                    context.startActivity(smsIntent)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Cannot open SMS app", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDismiss = { selectedItemForOptions = null }
+        )
+    }
+
+    // Recent Session Options Sheet (Hold for 1 sec)
+    val optionsSession = selectedSessionForOptions
+    if (optionsSession != null) {
+        val phoneNumber = optionsSession.phoneNumber
+        val contactName = optionsSession.callerName
+        RecentItemOptionsSheet(
+            contactName = contactName,
+            phoneNumber = phoneNumber,
+            onCall = {
+                val primary = optionsSession.calls.firstOrNull()
+                if (primary != null) {
+                    viewModel.callBack(primary)
+                }
+            },
+            onSms = {
+                try {
+                    val smsIntent = Intent(Intent.ACTION_VIEW).apply {
+                        data = Uri.parse("sms:$phoneNumber")
+                    }
+                    context.startActivity(smsIntent)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Cannot open SMS app", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDismiss = { selectedSessionForOptions = null }
         )
     }
 }

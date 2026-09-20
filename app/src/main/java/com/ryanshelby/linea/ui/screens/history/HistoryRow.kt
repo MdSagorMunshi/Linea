@@ -52,6 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,10 +62,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
+import kotlinx.coroutines.delay
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -96,11 +100,14 @@ fun HistoryRow(
     isContactSaved: Boolean = false,
     onUnblockNumber: ((String) -> Unit)? = null,
     isSwipedOpen: Boolean = false,
-    onSwipeOpenChanged: ((Boolean) -> Unit)? = null
+    onSwipeOpenChanged: ((Boolean) -> Unit)? = null,
+    onLongClick: ((CallHistoryItem) -> Unit)? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
     var offsetX by remember { mutableFloatStateOf(0f) }
     var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var lastLongPressTime by remember { mutableLongStateOf(0L) }
     val density = LocalDensity.current
     val viewConfig = LocalViewConfiguration.current
     val touchSlop = viewConfig.touchSlop
@@ -329,6 +336,17 @@ fun HistoryRow(
                         var totalDy = 0f
                         var isDragging = false
                         val startOffset = offsetX
+                        var longPressed = false
+
+                        val longPressJob = coroutineScope.launch {
+                            delay(1000L)
+                            if (!isDragging && abs(totalDx) <= touchSlop && abs(totalDy) <= touchSlop && !isOpen) {
+                                longPressed = true
+                                lastLongPressTime = System.currentTimeMillis()
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onLongClick?.invoke(item)
+                            }
+                        }
 
                         while (true) {
                             val event = awaitPointerEvent(pass = PointerEventPass.Initial)
@@ -339,6 +357,10 @@ fun HistoryRow(
                                 val dy = change.position.y - change.previousPosition.y
                                 totalDx += dx
                                 totalDy += dy
+
+                                if (abs(totalDx) > touchSlop || abs(totalDy) > touchSlop) {
+                                    longPressJob.cancel()
+                                }
 
                                 if (!isDragging) {
                                     if (abs(totalDx) > touchSlop && abs(totalDx) > abs(totalDy) * 1.1f) {
@@ -363,6 +385,11 @@ fun HistoryRow(
                                 }
                             } else {
                                 // Finger lifted
+                                longPressJob.cancel()
+                                if (longPressed) {
+                                    change.consume()
+                                    break
+                                }
                                 if (isDragging) {
                                     change.consume()
                                     val current = offsetX
@@ -410,6 +437,9 @@ fun HistoryRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
+                        if (System.currentTimeMillis() - lastLongPressTime < 600L) {
+                            return@clickable
+                        }
                         if (isOpen) {
                             animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
                             onSwipeOpenChanged?.invoke(false)
@@ -680,13 +710,65 @@ fun CallSessionRow(
     onCallBack: (CallRecordEntity) -> Unit,
     onToggleExpand: () -> Unit,
     modifier: Modifier = Modifier,
-    isBlocked: Boolean = false
+    isBlocked: Boolean = false,
+    onLongClick: ((CallSessionItem) -> Unit)? = null
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    val viewConfig = LocalViewConfiguration.current
+    val touchSlop = viewConfig.touchSlop
+    var lastLongPressTime by remember { mutableLongStateOf(0L) }
+
     FrostedGlassBox(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick() }
+            .pointerInput(session.id) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    var totalDx = 0f
+                    var totalDy = 0f
+                    var longPressed = false
+
+                    val longPressJob = coroutineScope.launch {
+                        delay(1000L)
+                        if (abs(totalDx) <= touchSlop && abs(totalDy) <= touchSlop) {
+                            longPressed = true
+                            lastLongPressTime = System.currentTimeMillis()
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongClick?.invoke(session)
+                        }
+                    }
+
+                    while (true) {
+                        val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull() ?: break
+
+                        if (change.pressed) {
+                            val dx = change.position.x - change.previousPosition.x
+                            val dy = change.position.y - change.previousPosition.y
+                            totalDx += dx
+                            totalDy += dy
+
+                            if (abs(totalDx) > touchSlop || abs(totalDy) > touchSlop) {
+                                longPressJob.cancel()
+                            }
+                        } else {
+                            longPressJob.cancel()
+                            if (longPressed) {
+                                change.consume()
+                            }
+                            break
+                        }
+                    }
+                }
+            }
+            .clickable {
+                if (System.currentTimeMillis() - lastLongPressTime < 600L) {
+                    return@clickable
+                }
+                onClick()
+            }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(

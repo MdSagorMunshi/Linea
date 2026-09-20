@@ -1,6 +1,9 @@
 package com.ryanshelby.linea.ui.screens.contacts
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
@@ -20,8 +23,10 @@ import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +43,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -630,12 +636,36 @@ private fun DecodedContactCard(
 
         Spacer(modifier = Modifier.height(4.dp))
 
+        val context = LocalContext.current
+        val haptic = LocalHapticFeedback.current
+
         payload.numbers.forEach { number ->
-            Text(
-                text = number,
-                style = LineaTypography.bodyMedium,
-                color = LineaColors.TextSecondary
-            )
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("Phone Number", number)
+                        clipboard.setPrimaryClip(clip)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        Toast.makeText(context, "Copied $number to clipboard", Toast.LENGTH_SHORT).show()
+                    }
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = number,
+                    style = LineaTypography.bodyMedium,
+                    color = LineaColors.TextSecondary
+                )
+                Icon(
+                    imageVector = Icons.Filled.ContentCopy,
+                    contentDescription = "Copy number",
+                    tint = LineaColors.TextTertiary,
+                    modifier = Modifier.size(13.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -686,16 +716,62 @@ private fun DecodedContactCard(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        OutlinedButton(
-            onClick = onScanAgain,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                "Scan Again",
-                color = LineaColors.TextSecondary,
-                fontWeight = FontWeight.Medium
-            )
+            // Copy Number
+            OutlinedButton(
+                onClick = {
+                    val numberToCopy = payload.numbers.firstOrNull() ?: ""
+                    if (numberToCopy.isNotBlank()) {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("Phone Number", numberToCopy)
+                        clipboard.setPrimaryClip(clip)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        Toast.makeText(context, "Copied $numberToCopy to clipboard", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, LineaColors.GlassBorder),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = LineaColors.GlassFill,
+                    contentColor = LineaColors.TextPrimary
+                ),
+                enabled = payload.numbers.isNotEmpty()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = LineaColors.TextPrimary
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    "Copy",
+                    color = LineaColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            // Scan Again
+            OutlinedButton(
+                onClick = onScanAgain,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, LineaColors.GlassBorder),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = LineaColors.GlassFill,
+                    contentColor = LineaColors.TextSecondary
+                )
+            ) {
+                Text(
+                    "Scan Again",
+                    color = LineaColors.TextSecondary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
