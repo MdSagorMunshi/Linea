@@ -16,9 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Central Contact Medallion Badge**: Embedded initial monogram medallion framed with a glowing accent rim, protected by QR Level Q error correction (25% structural data recovery).
   - **Multi-Theme Color Palettes**: 5 tactile color schemes—Titanium Cyan, Emerald Mint, Cyber Amber, Neon Orchid, and Pure White.
   - **Sub-5ms Google ML Kit Vision Barcode Analysis**: Real-time CameraX frame analysis streaming `InputImage.fromMediaImage` directly into Google ML Kit Barcode Scanning with single-digit millisecond latency across difficult lighting conditions and viewing angles.
-  - **Tap-to-Focus, Flashlight Torch & Photo Gallery Scanner**: Full camera controls plus instant photo gallery decoding via `InputImage.fromFilePath`.
-  - **Universal Contact Parsing & Instant Action Sheet**: Decodes LiNEA URI (`linea://contact`), vCard 3.0, MECARD, JSON, and plain phone numbers into a tactile action sheet offering one-tap cellular calling ("Call Now") and local dual-sync ("Save Contact").
+  - **Strict LiNEA QR Code Filtering & Random Code Rejection**:
+    - Scanner strictly detects and decodes authentic LiNEA QR codes (`linea://contact` and `linea://` URIs), ignoring random QR codes (websites, Wi-Fi setups, generic barcodes, plain text).
+    - Prevents false triggers and accidental scans from random QR codes in view.
+  - **Intelligent Multi-QR Code Prioritization**:
+    - When multiple QR codes are simultaneously visible in the camera viewfinder or in an imported photo, the scanner automatically filters and specifically targets the authentic LiNEA QR code, completely ignoring surrounding non-LiNEA codes.
+  - **Instant One-Tap Number Copy & Per-Row Copying**:
+    - Added a prominent, styled frosted-glass **Copy** button to the decoded contact card alongside "Scan Again" for instant clipboard copying with tactile haptic feedback and toast confirmation.
+    - Added individual tap-to-copy capability on each phone number row inside the contact card.
+  - **Tap-to-Focus, Flashlight Torch & Photo Gallery Scanner**: Full camera controls plus instant photo gallery decoding via `InputImage.fromFilePath` and dual-pass ZXing fallback (with informative feedback when an imported photo contains no LiNEA QR code).
   - **Dialpad & Contact List Fast Access**: Integrated QR Scanner buttons directly into the Cellular Dialpad header and Contacts directory header, plus contact sharing action in contact profiles.
+
+- **Recent Call History Ultra-Compact 1-Second Hold-to-Copy Sheet**:
+  - Long-pressing any contact or call log item for 1 second on the **Recent** history page (both Feed and Session views) summons an **ultra-compact**, tactile frosted glass sheet.
+  - Minimalist layout featuring the caller avatar circle and name horizontally aligned, followed by a sleek card displaying `PHONE NUMBER`, the full number, and a `[ ⎘ Copy ]` pill badge.
+  - Stripped away unnecessary headers, subtitles, and redundant action rows for an ultra-clean, minimal footprint.
+  - Tapping anywhere on the card or badge copies the phone number to the clipboard with haptic feedback, shows a confirmation toast, and smoothly dismisses the sheet.
+  - Touch-slop gesture safety canceling hold triggers during vertical list scrolling or horizontal swiping.
 
 - **Post-Call Smart Action HUD (Transient Quick-Action Card)**:
   - Engineered an optional, tactile Neumorphic bottom sheet HUD card (`PostCallHudCard`) presented when any call concludes (incoming, outgoing, missed, or simulated). **Disabled by default (opt-in)** to preserve existing dialer flows unless explicitly activated by the user.
