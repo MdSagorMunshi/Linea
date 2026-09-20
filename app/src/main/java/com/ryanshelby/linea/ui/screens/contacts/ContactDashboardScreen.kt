@@ -60,6 +60,7 @@ fun ContactDashboardScreen(
     var isEditingNote by remember { mutableStateOf(false) }
     var isEditingContact by remember { mutableStateOf(false) }
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+    var showQrCodeSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.preCallNote) {
         if (state.preCallNote != null) {
@@ -259,11 +260,7 @@ fun ContactDashboardScreen(
                                     label = "Share",
                                     color = LineaColors.TextSecondary,
                                     onClick = {
-                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, "${contact.displayName}: $primaryNumber")
-                                        }
-                                        context.startActivity(Intent.createChooser(shareIntent, "Share Contact"))
+                                        showQrCodeSheet = true
                                     }
                                 )
                             }
@@ -826,6 +823,14 @@ fun ContactDashboardScreen(
                         Text("Cancel", color = LineaColors.TextSecondary)
                     }
                 }
+            )
+        }
+
+        if (showQrCodeSheet && contact != null) {
+            QrCodeSheet(
+                name = contact.displayName,
+                numbers = state.numbers.map { it.number },
+                onDismiss = { showQrCodeSheet = false }
             )
         }
     }

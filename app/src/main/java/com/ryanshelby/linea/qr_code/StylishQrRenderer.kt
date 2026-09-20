@@ -73,20 +73,22 @@ object StylishQrRenderer {
      * @param size The output bitmap width & height in pixels (e.g. 768).
      * @param theme The color theme for the gradient and accents.
      * @param badgeLetter Optional contact initial letter rendered in the center badge.
-     * @param backgroundColor Background color (default: dark titanium #0B0E14).
+     * @param backgroundColor Background color (default: Color.TRANSPARENT to blend with app bg, never black).
      */
     fun render(
         bitMatrix: BitMatrix,
         size: Int = 768,
         theme: QrTheme = QrTheme.TITANIUM_CYAN,
         badgeLetter: String? = null,
-        backgroundColor: Int = 0xFF0B0E14.toInt()
+        backgroundColor: Int = Color.TRANSPARENT
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        // 1. Draw sleek background
-        canvas.drawColor(backgroundColor)
+        // 1. Draw background only if not transparent (blends seamlessly with app bg)
+        if (backgroundColor != Color.TRANSPARENT) {
+            canvas.drawColor(backgroundColor)
+        }
 
         val matrixSize = bitMatrix.width
         val margin = 3.5f // quiet zone in module units (standard QR compliant)
@@ -209,8 +211,12 @@ object StylishQrRenderer {
 
         // Hollow inner background rect (preserves exact 1:1:3:1:1 scanner ratio)
         val hollowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = backgroundColor
-            style = Paint.Style.FILL
+            if (backgroundColor == Color.TRANSPARENT) {
+                xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
+            } else {
+                color = backgroundColor
+                style = Paint.Style.FILL
+            }
         }
         val hollowRect = RectF(
             x + strokeW,
@@ -251,12 +257,26 @@ object StylishQrRenderer {
         theme: QrTheme,
         backgroundColor: Int
     ) {
-        // Dark background medallion
-        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = backgroundColor
-            style = Paint.Style.FILL
+        // Medallion background (cleared for transparency or blended with app bg)
+        if (backgroundColor == Color.TRANSPARENT) {
+            val clearPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
+            }
+            canvas.drawCircle(centerX, centerY, radius, clearPaint)
+
+            // Subtle frosted glass fill behind letter (never pitch black)
+            val glassPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = 0x26FFFFFF
+                style = Paint.Style.FILL
+            }
+            canvas.drawCircle(centerX, centerY, radius * 0.90f, glassPaint)
+        } else {
+            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = backgroundColor
+                style = Paint.Style.FILL
+            }
+            canvas.drawCircle(centerX, centerY, radius, bgPaint)
         }
-        canvas.drawCircle(centerX, centerY, radius, bgPaint)
 
         // Accent border ring
         val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

@@ -56,6 +56,7 @@ import com.ryanshelby.linea.data.local.entities.CallNoteEntity
 import com.ryanshelby.linea.data.local.entities.CallRecordEntity
 import com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.screens.contacts.QrCodeSheet
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -80,6 +81,7 @@ fun CallDetailSheet(
     var noteInput by remember { mutableStateOf("") }
     var reminderMessage by remember { mutableStateOf<String?>(null) }
     var showReminderCustomSheet by remember { mutableStateOf(false) }
+    var showQrCodeSheet by remember { mutableStateOf(false) }
 
     val totalDuration = item.groupedCalls.sumOf { it.durationSeconds }
     val connectedCalls = item.groupedCalls.count { it.durationSeconds > 0 }
@@ -313,11 +315,7 @@ fun CallDetailSheet(
                     label = "Share",
                     tint = LineaColors.TextPrimary,
                     onClick = {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, "${item.primaryRecord.callerName ?: "Contact"}: ${item.primaryRecord.phoneNumber}")
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Contact"))
+                        showQrCodeSheet = true
                     }
                 )
                 if (isBlocked) {
@@ -570,6 +568,14 @@ fun CallDetailSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showQrCodeSheet) {
+        QrCodeSheet(
+            name = item.primaryRecord.callerName ?: item.primaryRecord.phoneNumber,
+            numbers = listOf(item.primaryRecord.phoneNumber),
+            onDismiss = { showQrCodeSheet = false }
+        )
     }
 }
 

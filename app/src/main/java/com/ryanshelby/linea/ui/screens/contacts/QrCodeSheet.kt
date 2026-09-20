@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -84,14 +86,29 @@ fun QrCodeSheet(
         QrCodeEngine.generateBitMatrix(content)
     }
 
-    // Render styled QR bitmap whenever theme changes
+    val appBgColor = LineaColors.BackgroundTop.toArgb()
+
+    // Render styled QR bitmap for in-app display (fully transparent background, seamlessly blending with app bg)
     val qrBitmap = remember(bitMatrix, currentTheme) {
-        val initialLetter = name.firstOrNull()?.uppercase() ?: "L"
+        val initialLetter = name.trim().firstOrNull()?.uppercase() ?: "C"
         StylishQrRenderer.render(
             bitMatrix = bitMatrix,
             size = 640,
             theme = currentTheme,
-            badgeLetter = initialLetter
+            badgeLetter = initialLetter,
+            backgroundColor = android.graphics.Color.TRANSPARENT
+        )
+    }
+
+    // High-res styled QR bitmap for saving/sharing (app background palette, never pitch black)
+    val exportBitmap = remember(bitMatrix, currentTheme, appBgColor) {
+        val initialLetter = name.trim().firstOrNull()?.uppercase() ?: "C"
+        StylishQrRenderer.render(
+            bitMatrix = bitMatrix,
+            size = 768,
+            theme = currentTheme,
+            badgeLetter = initialLetter,
+            backgroundColor = appBgColor
         )
     }
 
@@ -133,7 +150,7 @@ fun QrCodeSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Stylish QR Card
+            // Stylish QR Card - seamlessly blended with app glass fill
             Box(
                 modifier = Modifier
                     .size(280.dp)
@@ -146,9 +163,7 @@ fun QrCodeSheet(
                 Image(
                     bitmap = qrBitmap.asImageBitmap(),
                     contentDescription = "Contact QR Code",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
@@ -156,7 +171,7 @@ fun QrCodeSheet(
 
             // Contact Name & Number
             Text(
-                text = name.ifEmpty { "My Contact" },
+                text = name.ifBlank { "Contact" },
                 style = LineaTypography.headlineSmall,
                 color = LineaColors.TextPrimary,
                 fontWeight = FontWeight.Bold,
@@ -224,7 +239,7 @@ fun QrCodeSheet(
             ) {
                 OutlinedButton(
                     onClick = {
-                        saveQrToGallery(context, qrBitmap, name)
+                        saveQrToGallery(context, exportBitmap, name)
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp)
@@ -245,7 +260,7 @@ fun QrCodeSheet(
 
                 Button(
                     onClick = {
-                        shareQrImage(context, qrBitmap, name)
+                        shareQrImage(context, exportBitmap, name)
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
@@ -273,7 +288,8 @@ fun QrCodeSheet(
  */
 private fun saveQrToGallery(context: Context, bitmap: Bitmap, contactName: String) {
     try {
-        val filename = "LiNEA_QR_${contactName.replace(" ", "_")}_${System.currentTimeMillis()}.png"
+        val safeName = contactName.ifBlank { "Contact" }.replace(" ", "_")
+        val filename = "LiNEA_QR_${safeName}_${System.currentTimeMillis()}.png"
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, filename)
             put(MediaStore.Images.Media.MIME_TYPE, "image/png")
@@ -320,10 +336,16 @@ private fun shareQrImage(context: Context, bitmap: Bitmap, contactName: String) 
             file
         )
 
+        val shareText = if (contactName.isNotBlank()) {
+            "Scan this QR code to add $contactName on LiNEA"
+        } else {
+            "Scan this QR code to add contact on LiNEA"
+        }
+
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, contentUri)
-            putExtra(Intent.EXTRA_TEXT, "Scan this QR code to add $contactName on LiNEA")
+            putExtra(Intent.EXTRA_TEXT, shareText)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(shareIntent, "Share Contact QR"))

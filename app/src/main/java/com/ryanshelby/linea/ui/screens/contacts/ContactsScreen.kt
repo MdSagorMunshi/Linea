@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
@@ -101,7 +100,6 @@ fun ContactsScreen(
     var pendingSimSlot by remember { mutableStateOf<Int?>(null) }
     var showCountdownDialog by remember { mutableStateOf(false) }
     var isScannerSheetOpen by remember { mutableStateOf(false) }
-    var isMyQrSheetOpen by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
@@ -153,29 +151,6 @@ fun ContactsScreen(
                         Icon(
                             imageVector = Icons.Filled.QrCodeScanner,
                             contentDescription = "Scan Contact QR",
-                            tint = LineaColors.TitaniumBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // My QR Button
-                    IconButton(
-                        onClick = { isMyQrSheetOpen = true },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(LineaColors.GlassFill)
-                            .border(
-                                LineaDimensions.HairlineBorder,
-                                LineaColors.GlassBorder,
-                                CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.QrCode2,
-                            contentDescription = "My QR Code",
                             tint = LineaColors.TitaniumBlue,
                             modifier = Modifier.size(18.dp)
                         )
@@ -509,15 +484,6 @@ fun ContactsScreen(
             onCallNumber = { number ->
                 viewModel.callContact(number, null)
             }
-        )
-    }
-
-    // My QR Code Sheet
-    if (isMyQrSheetOpen) {
-        QrCodeSheet(
-            name = "My Contact",
-            numbers = emptyList(),
-            onDismiss = { isMyQrSheetOpen = false }
         )
     }
 

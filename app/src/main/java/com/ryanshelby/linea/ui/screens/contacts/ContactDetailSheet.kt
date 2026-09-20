@@ -248,11 +248,7 @@ fun ContactDetailSheet(
                     label = "Share",
                     tint = LineaColors.TextPrimary,
                     onClick = {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, "${contact.displayName}: $primaryNumber")
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Contact"))
+                        showQrCodeSheet = true
                     }
                 )
             }
