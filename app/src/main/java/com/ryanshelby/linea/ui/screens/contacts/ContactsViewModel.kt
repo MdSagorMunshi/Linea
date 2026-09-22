@@ -32,6 +32,7 @@ import javax.inject.Inject
 
 import android.content.Context
 import com.ryanshelby.linea.data.local.dao.CallRecordDao
+import com.ryanshelby.linea.qr_code.QrCodeEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -418,6 +419,45 @@ class ContactsViewModel @Inject constructor(
                 accountType = accType,
                 photoUri = null,
                 photoBytes = null
+            )
+        }
+    }
+
+    fun createContactFromPayload(payload: QrCodeEngine.ContactPayload) {
+        viewModelScope.launch {
+            val acc = _selectedContactAccount.value
+            val accName = if (acc != null && !acc.isDevice) acc.name else null
+            val accType = acc?.type
+
+            // Construct notes from social profiles
+            val notesList = mutableListOf<String>()
+            notesList.add("Shared via LiNEA Beam (NFC)")
+            if (!payload.social1Platform.isNullOrBlank() && !payload.social1Handle.isNullOrBlank()) {
+                notesList.add("${payload.social1Platform}: ${payload.social1Handle}")
+            }
+            if (!payload.social2Platform.isNullOrBlank() && !payload.social2Handle.isNullOrBlank()) {
+                notesList.add("${payload.social2Platform}: ${payload.social2Handle}")
+            }
+            val notes = notesList.joinToString("\n")
+
+            // Decode photo bytes if thumbnail base64 is present
+            val photoBytes = payload.photoThumbnailBase64?.let { base64 ->
+                try {
+                    android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
+                } catch (_: Exception) { null }
+            }
+
+            contactSyncRepository.createContact(
+                displayName = payload.name.ifEmpty { "Beamed Contact" },
+                company = "",
+                numbers = payload.numbers.map { it to "Mobile" },
+                emails = payload.email?.takeIf { it.isNotBlank() }?.let { listOf(it) } ?: emptyList(),
+                preferredSimSlot = null,
+                notes = notes,
+                accountName = accName,
+                accountType = accType,
+                photoUri = null,
+                photoBytes = photoBytes
             )
         }
     }

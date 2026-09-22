@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.ScreenRotation
@@ -113,6 +114,7 @@ fun SettingsScreen(
     onNavigateToBlocking: () -> Unit,
     onNavigateToDualSim: () -> Unit,
     onNavigateToPermissions: () -> Unit,
+    onNavigateToProfileCard: () -> Unit = {},
     onNavigateToVoicemail: () -> Unit = {},
     onNavigateToCallForwarding: () -> Unit = {},
     onNavigateToCallBarring: () -> Unit = {},
@@ -519,6 +521,18 @@ fun SettingsScreen(
                 }
             }
         }
+
+        // My Digital Card & LiNEA Beam
+        val isNfcSupported = remember {
+            android.nfc.NfcAdapter.getDefaultAdapter(context) != null
+        }
+        SettingsNavCard(
+            icon = Icons.Filled.Nfc,
+            title = "My Digital Card & LiNEA Beam",
+            subtitle = if (isNfcSupported) "Setup personal card for 1-tap NFC contact swap" else "Profile card setup • NFC not supported on this phone",
+            badge = if (isNfcSupported) "NFC" else "NOT SUPPORTED",
+            onClick = onNavigateToProfileCard
+        )
 
         Spacer(modifier = Modifier.height(10.dp))
 

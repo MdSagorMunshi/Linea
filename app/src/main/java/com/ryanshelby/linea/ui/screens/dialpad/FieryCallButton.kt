@@ -27,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -108,8 +110,9 @@ private data class AmbientEmber(
 /**
  * CallButton with:
  * 1. Default Titanium Blue neumorphic style OR Fiery Magma style.
- * 2. Regular tap triggers [onClick] (< 400ms).
- * 3. Tap & Hold for 3 seconds triggers the secret Easter Egg:
+ * 2. Regular tap triggers [onClick].
+ * 3. Hold (~400ms) triggers Orbital Speed Dial ([onLongPress]).
+ * 4. Double tap (when empty) or Triple tap triggers the secret Fiery Magma Easter Egg:
  *    - Slow-motion explosion of fragments, fire shockwave, and burning sparks.
  *    - Slow-motion healing / rearranging sequence as fragments pull inward.
  *    - Toggles permanent fiery style ([onToggleFiery]).
@@ -119,7 +122,9 @@ fun CallButton(
     isFiery: Boolean,
     onClick: () -> Unit,
     onToggleFiery: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLongPress: (() -> Unit)? = null,
+    isActionEmpty: Boolean = false
 ) {
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
@@ -127,6 +132,8 @@ fun CallButton(
     var isPressed by remember { mutableStateOf(false) }
     var holdProgress by remember { mutableFloatStateOf(0f) }
     var blastPhase by remember { mutableStateOf(BlastPhase.IDLE) }
+    var tapCount by remember { mutableIntStateOf(0) }
+    var lastTapTime by remember { mutableLongStateOf(0L) }
 
     // Blast phase progress: 0f -> 1f
     val blastProgress = remember { Animatable(0f) }
@@ -336,31 +343,26 @@ fun CallButton(
             }
         }
 
-        // --- CHARGING GLOW & HEAT RING (while holding 0..3s) ---
+        // --- CHARGING GLOW & RADIAL RING (while holding towards ~400ms orbital speed dial trigger) ---
         if (holdProgress > 0f && blastPhase == BlastPhase.IDLE) {
             Canvas(modifier = Modifier.size(82.dp)) {
-                val strokeWidth = 3.5.dp.toPx()
+                val strokeWidth = 3.dp.toPx()
                 val radius = (size.width - strokeWidth) / 2f
-                // Charging ring
                 drawCircle(
                     brush = Brush.sweepGradient(
                         listOf(
-                            Color(0xFFFF5722),
-                            Color(0xFFFFD54F),
-                            Color(0xFFFF3D00),
-                            Color(0xFFFFEB3B),
-                            Color(0xFFFF5722)
+                            LineaColors.CyanPrimary,
+                            LineaColors.EmeraldPrimary,
+                            LineaColors.CyanPrimary
                         )
                     ),
                     radius = radius,
                     style = Stroke(width = strokeWidth * holdProgress)
                 )
-
-                // Heat glow halo
                 drawCircle(
                     brush = Brush.radialGradient(
                         listOf(
-                            Color(0xFFFF9800).copy(alpha = 0.45f * holdProgress),
+                            LineaColors.CyanPrimary.copy(alpha = 0.35f * holdProgress),
                             Color.Transparent
                         )
                     ),
@@ -403,36 +405,26 @@ fun CallButton(
                             )
                         }
                     )
-                    // Pointer gesture detection: Handles quick tap vs 3-second hold
-                    .pointerInput(isAnimating) {
+                    // Pointer gesture detection: Handles quick tap, double/triple-tap Easter Egg, and hold for Orbital Speed Dial
+                    .pointerInput(isAnimating, isActionEmpty) {
                         if (isAnimating) return@pointerInput
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val startTime = SystemClock.elapsedRealtime()
                             isPressed = true
-                            var triggered = false
+                            var longPressHandled = false
 
-                            val holdDuration = 3000L
+                            val holdDuration = 400L
                             val holdJob = coroutineScope.launch {
-                                var lastHapticStep = 0
                                 while (true) {
                                     val elapsed = SystemClock.elapsedRealtime() - startTime
                                     val progress = (elapsed.toFloat() / holdDuration).coerceIn(0f, 1f)
                                     holdProgress = progress
 
-                                    // Periodic haptic pulses as charge approaches 3s
-                                    if (elapsed >= 1500L && lastHapticStep < 1) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        lastHapticStep = 1
-                                    } else if (elapsed >= 2400L && lastHapticStep < 2) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        lastHapticStep = 2
-                                    }
-
-                                    if (progress >= 1f) {
-                                        triggered = true
+                                    if (onLongPress != null && elapsed >= holdDuration && !longPressHandled) {
+                                        longPressHandled = true
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        triggerEasterEgg()
+                                        onLongPress()
                                         break
                                     }
                                     delay(16L)
@@ -445,8 +437,23 @@ fun CallButton(
                             isPressed = false
                             holdProgress = 0f
 
-                            if (!triggered && up != null && totalHeld < 400L) {
-                                onClick()
+                            if (!longPressHandled && up != null && totalHeld < 400L) {
+                                val now = SystemClock.elapsedRealtime()
+                                if (now - lastTapTime < 450L) {
+                                    tapCount++
+                                } else {
+                                    tapCount = 1
+                                }
+                                lastTapTime = now
+
+                                val threshold = if (isActionEmpty) 2 else 3
+                                if (tapCount >= threshold) {
+                                    tapCount = 0
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    triggerEasterEgg()
+                                } else {
+                                    onClick()
+                                }
                             }
                         }
                     },

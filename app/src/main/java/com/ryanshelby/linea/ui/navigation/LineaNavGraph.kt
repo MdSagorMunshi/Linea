@@ -31,13 +31,17 @@ import com.ryanshelby.linea.ui.screens.history.HistoryScreen
 import com.ryanshelby.linea.ui.screens.settings.SettingsScreen
 import com.ryanshelby.linea.ui.screens.settings.SettingsViewModel
 import com.ryanshelby.linea.ui.screens.settings.blocking.BlockingScreen
-import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.screens.settings.blocking.BlockingViewModel
+import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.screens.settings.dualsim.DualSimScreen
 import com.ryanshelby.linea.ui.screens.settings.permissions.PermissionsScreen
 import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
+import com.ryanshelby.linea.ui.screens.contacts.BeamedContactSheet
+import com.ryanshelby.linea.qr_code.QrCodeEngine
+import androidx.compose.runtime.LaunchedEffect
 
 enum class SettingsSubScreen {
+    MY_PROFILE_CARD,
     BLOCKING,
     DUAL_SIM,
     PERMISSIONS,
@@ -63,6 +67,7 @@ fun LineaNavGraph(
     onRequestPermissions: () -> Unit,
     modifier: Modifier = Modifier,
     callManager: com.ryanshelby.linea.telecom.CallManager? = null,
+    nfcBeamManager: com.ryanshelby.linea.nfc.NfcBeamManager? = null,
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     blockingViewModel: BlockingViewModel = hiltViewModel(),
     contactsViewModel: ContactsViewModel = hiltViewModel()
@@ -147,6 +152,7 @@ fun LineaNavGraph(
                         onNavigateToBlocking = { settingsSubScreen = SettingsSubScreen.BLOCKING },
                         onNavigateToDualSim = { settingsSubScreen = SettingsSubScreen.DUAL_SIM },
                         onNavigateToPermissions = { settingsSubScreen = SettingsSubScreen.PERMISSIONS },
+                        onNavigateToProfileCard = { settingsSubScreen = SettingsSubScreen.MY_PROFILE_CARD },
                         onNavigateToVoicemail = { settingsSubScreen = SettingsSubScreen.VOICEMAIL },
                         onNavigateToCallForwarding = { settingsSubScreen = SettingsSubScreen.CALL_FORWARDING },
                         onNavigateToCallBarring = { settingsSubScreen = SettingsSubScreen.CALL_BARRING_FDN },
@@ -252,6 +258,13 @@ fun LineaNavGraph(
                     ) {}
             ) {
                 when (settingsSubScreen) {
+                    SettingsSubScreen.MY_PROFILE_CARD -> {
+                        com.ryanshelby.linea.ui.screens.settings.profile.MyProfileCardScreen(
+                            lineaPreferences = lineaPreferences,
+                            nfcBeamManager = nfcBeamManager,
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
                     SettingsSubScreen.BLOCKING -> {
                         BlockingScreen(
                             viewModel = blockingViewModel,
@@ -363,6 +376,36 @@ fun LineaNavGraph(
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
             }
+        }
+
+        // Sync user's personal digital card to NFC Beam Manager for automatic HCE exchange
+        LaunchedEffect(lineaPreferences, nfcBeamManager) {
+            lineaPreferences.userProfile.collect { profile ->
+                nfcBeamManager?.setUserProfilePayload(profile.toContactPayload())
+            }
+        }
+
+        // Incoming LiNEA Beam Contact Sheet (triggered via NFC phone bump or NFC tag)
+        var beamedContactPayload by remember { mutableStateOf<QrCodeEngine.ContactPayload?>(null) }
+        LaunchedEffect(nfcBeamManager) {
+            nfcBeamManager?.incomingBeamedContact?.collect { payload ->
+                beamedContactPayload = payload
+            }
+        }
+
+        beamedContactPayload?.let { payload ->
+            BeamedContactSheet(
+                payload = payload,
+                onDismiss = { beamedContactPayload = null },
+                onSaveContact = { richPayload ->
+                    contactsViewModel.createContactFromPayload(richPayload)
+                    beamedContactPayload = null
+                },
+                onCallNumber = { number ->
+                    callManager?.placeCall(number)
+                    beamedContactPayload = null
+                }
+            )
         }
     }
 }

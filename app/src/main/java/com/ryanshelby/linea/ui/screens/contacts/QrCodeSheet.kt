@@ -56,6 +56,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.Nfc
+import com.ryanshelby.linea.nfc.NfcBeamManager
 import com.ryanshelby.linea.qr_code.QrCodeEngine
 import com.ryanshelby.linea.qr_code.StylishQrRenderer
 import com.ryanshelby.linea.ui.theme.LineaColors
@@ -72,12 +75,14 @@ import java.io.FileOutputStream
 fun QrCodeSheet(
     name: String,
     numbers: List<String>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    nfcBeamManager: NfcBeamManager = remember { NfcBeamManager() }
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var currentTheme by remember { mutableStateOf(StylishQrRenderer.QrTheme.TITANIUM_CYAN) }
+    var showBeamSheet by remember { mutableStateOf(false) }
 
     // Generate QR bit matrix once
     val bitMatrix = remember(name, numbers) {
@@ -232,6 +237,37 @@ fun QrCodeSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // LiNEA Beam NFC Action Button
+            Button(
+                onClick = { showBeamSheet = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = LineaColors.CyanPrimary.copy(alpha = 0.15f)
+                ),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, LineaColors.CyanPrimary.copy(alpha = 0.55f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Nfc,
+                    contentDescription = "LiNEA Beam",
+                    tint = LineaColors.CyanPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "LiNEA Beam (NFC Instant Tap)",
+                    style = LineaTypography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.6.sp
+                    ),
+                    color = LineaColors.CyanPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Action Buttons: Save to Gallery & Share
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -280,6 +316,15 @@ fun QrCodeSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showBeamSheet) {
+        LineaBeamSheet(
+            name = name,
+            numbers = numbers,
+            nfcBeamManager = nfcBeamManager,
+            onDismiss = { showBeamSheet = false }
+        )
     }
 }
 

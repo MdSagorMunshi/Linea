@@ -17,22 +17,42 @@ import java.net.URLEncoder
 object QrCodeEngine {
 
     /**
-     * Contact data payload.
+     * Contact data payload with rich profile details.
      */
     data class ContactPayload(
         val name: String,
-        val numbers: List<String>
+        val numbers: List<String>,
+        val email: String? = null,
+        val photoThumbnailBase64: String? = null,
+        val social1Platform: String? = null,
+        val social1Handle: String? = null,
+        val social2Platform: String? = null,
+        val social2Handle: String? = null
     )
 
     /**
      * Encode a contact payload into a universal LiNEA URI string.
-     * Example: linea://contact?name=Alice+Smith&number=%2B1234567890&number=%2B1987654321
+     * Example: linea://contact?name=Alice+Smith&number=%2B1234567890&email=alice%40example.com&s1p=INSTAGRAM&s1h=alice
      */
     fun serializeToUri(payload: ContactPayload): String {
         val encodedName = URLEncoder.encode(payload.name, "UTF-8")
         val params = mutableListOf("name=$encodedName")
         payload.numbers.forEach { number ->
             params.add("number=${URLEncoder.encode(number, "UTF-8")}")
+        }
+        if (!payload.email.isNullOrBlank()) {
+            params.add("email=${URLEncoder.encode(payload.email, "UTF-8")}")
+        }
+        if (!payload.photoThumbnailBase64.isNullOrBlank()) {
+            params.add("photo=${URLEncoder.encode(payload.photoThumbnailBase64, "UTF-8")}")
+        }
+        if (!payload.social1Platform.isNullOrBlank() && !payload.social1Handle.isNullOrBlank()) {
+            params.add("s1p=${URLEncoder.encode(payload.social1Platform, "UTF-8")}")
+            params.add("s1h=${URLEncoder.encode(payload.social1Handle, "UTF-8")}")
+        }
+        if (!payload.social2Platform.isNullOrBlank() && !payload.social2Handle.isNullOrBlank()) {
+            params.add("s2p=${URLEncoder.encode(payload.social2Platform, "UTF-8")}")
+            params.add("s2h=${URLEncoder.encode(payload.social2Handle, "UTF-8")}")
         }
         return "linea://contact?${params.joinToString("&")}"
     }
@@ -48,6 +68,15 @@ object QrCodeEngine {
         sb.append("FN:${payload.name}\n")
         payload.numbers.forEach { num ->
             sb.append("TEL;TYPE=CELL:$num\n")
+        }
+        if (!payload.email.isNullOrBlank()) {
+            sb.append("EMAIL;TYPE=INTERNET:${payload.email}\n")
+        }
+        if (!payload.social1Platform.isNullOrBlank() && !payload.social1Handle.isNullOrBlank()) {
+            sb.append("X-SOCIAL-1:${payload.social1Platform}:${payload.social1Handle}\n")
+        }
+        if (!payload.social2Platform.isNullOrBlank() && !payload.social2Handle.isNullOrBlank()) {
+            sb.append("X-SOCIAL-2:${payload.social2Platform}:${payload.social2Handle}\n")
         }
         sb.append("NOTE:LiNEA Contact\n")
         sb.append("END:VCARD")
@@ -118,20 +147,40 @@ object QrCodeEngine {
                 val query = if (trimmed.contains("?")) trimmed.substringAfter("?") else ""
                 var name = ""
                 val numbers = mutableListOf<String>()
+                var email: String? = null
+                var photo: String? = null
+                var s1p: String? = null
+                var s1h: String? = null
+                var s2p: String? = null
+                var s2h: String? = null
                 for (param in query.split("&")) {
                     val parts = param.split("=")
                     if (parts.size >= 2) {
                         val key = URLDecoder.decode(parts[0], "UTF-8")
                         val value = URLDecoder.decode(parts.drop(1).joinToString("="), "UTF-8")
-                        if (key.equals("name", ignoreCase = true)) {
-                            name = value
-                        } else if (key.equals("number", ignoreCase = true)) {
-                            numbers.add(value)
+                        when {
+                            key.equals("name", ignoreCase = true) -> name = value
+                            key.equals("number", ignoreCase = true) -> numbers.add(value)
+                            key.equals("email", ignoreCase = true) -> email = value
+                            key.equals("photo", ignoreCase = true) -> photo = value
+                            key.equals("s1p", ignoreCase = true) -> s1p = value
+                            key.equals("s1h", ignoreCase = true) -> s1h = value
+                            key.equals("s2p", ignoreCase = true) -> s2p = value
+                            key.equals("s2h", ignoreCase = true) -> s2h = value
                         }
                     }
                 }
-                if (name.isNotEmpty() || numbers.isNotEmpty()) {
-                    return ContactPayload(name = name.ifEmpty { "Scanned Contact" }, numbers = numbers)
+                if (name.isNotEmpty() || numbers.isNotEmpty() || !email.isNullOrBlank()) {
+                    return ContactPayload(
+                        name = name.ifEmpty { "Scanned Contact" },
+                        numbers = numbers,
+                        email = email,
+                        photoThumbnailBase64 = photo,
+                        social1Platform = s1p,
+                        social1Handle = s1h,
+                        social2Platform = s2p,
+                        social2Handle = s2h
+                    )
                 }
             } catch (_: Exception) {}
         }
@@ -141,6 +190,11 @@ object QrCodeEngine {
             try {
                 var name = ""
                 val numbers = mutableListOf<String>()
+                var email: String? = null
+                var s1p: String? = null
+                var s1h: String? = null
+                var s2p: String? = null
+                var s2h: String? = null
                 trimmed.lines().forEach { line ->
                     val clean = line.trim()
                     when {
@@ -157,10 +211,35 @@ object QrCodeEngine {
                             val num = clean.substringAfter(":").trim()
                             if (num.isNotEmpty()) numbers.add(num)
                         }
+                        clean.startsWith("EMAIL", ignoreCase = true) -> {
+                            email = clean.substringAfter(":").trim()
+                        }
+                        clean.startsWith("X-SOCIAL-1:", ignoreCase = true) -> {
+                            val parts = clean.substringAfter("X-SOCIAL-1:").split(":")
+                            if (parts.size >= 2) {
+                                s1p = parts[0].trim()
+                                s1h = parts.drop(1).joinToString(":").trim()
+                            }
+                        }
+                        clean.startsWith("X-SOCIAL-2:", ignoreCase = true) -> {
+                            val parts = clean.substringAfter("X-SOCIAL-2:").split(":")
+                            if (parts.size >= 2) {
+                                s2p = parts[0].trim()
+                                s2h = parts.drop(1).joinToString(":").trim()
+                            }
+                        }
                     }
                 }
-                if (name.isNotEmpty() || numbers.isNotEmpty()) {
-                    return ContactPayload(name = name.ifEmpty { "New Contact" }, numbers = numbers)
+                if (name.isNotEmpty() || numbers.isNotEmpty() || !email.isNullOrBlank()) {
+                    return ContactPayload(
+                        name = name.ifEmpty { "New Contact" },
+                        numbers = numbers,
+                        email = email,
+                        social1Platform = s1p,
+                        social1Handle = s1h,
+                        social2Platform = s2p,
+                        social2Handle = s2h
+                    )
                 }
             } catch (_: Exception) {}
         }

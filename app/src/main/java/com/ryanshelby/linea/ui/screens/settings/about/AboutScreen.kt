@@ -94,9 +94,9 @@ fun AboutScreen(
         }
     }
 
-    val versionName = packageInfo?.versionName ?: "2.3.0"
+    val versionName = packageInfo?.versionName ?: "2.4.0"
     val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        packageInfo?.longVersionCode?.toString() ?: "5"
+        packageInfo?.longVersionCode?.toString() ?: "6"
     } else {
         @Suppress("DEPRECATION")
         packageInfo?.versionCode?.toString() ?: "5"

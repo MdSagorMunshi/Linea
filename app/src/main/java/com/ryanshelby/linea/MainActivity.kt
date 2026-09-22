@@ -46,6 +46,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var permissionCoordinator: PermissionCoordinator
 
+    @Inject
+    lateinit var nfcBeamManager: com.ryanshelby.linea.nfc.NfcBeamManager
+
     private var isDefaultDialerState by mutableStateOf(false)
     private var simAccountsState by mutableStateOf<List<SimAccountInfo>>(emptyList())
     private var permissionMessage by mutableStateOf<String?>(null)
@@ -75,6 +78,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         handleCallIntent(intent)
+        nfcBeamManager.handleIntent(intent)
 
         setContent {
             val reduceAnimations by lineaPreferences.reduceAnimations.collectAsState(initial = false)
@@ -89,6 +93,7 @@ class MainActivity : ComponentActivity() {
                     phoneAccountManager = phoneAccountManager,
                     lineaPreferences = lineaPreferences,
                     callManager = callManager,
+                    nfcBeamManager = nfcBeamManager,
                     onRequestDefaultDialer = { requestDefaultDialerRole() },
                     onRequestPermissions = { requestAllPermissionsUpfront() }
                 )
@@ -133,12 +138,19 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         checkRoleAndAccounts()
         permissionCoordinator.resumePendingOutgoingCallIfPermitted()
+        nfcBeamManager.enableReaderMode(this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        nfcBeamManager.disableReaderMode(this)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleCallIntent(intent)
+        nfcBeamManager.handleIntent(intent)
     }
 
     private fun handleCallIntent(intent: Intent?) {

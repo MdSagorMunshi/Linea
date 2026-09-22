@@ -94,3 +94,22 @@ val LineaTypography = Typography(
         fontFeatureSettings = "tnum"
     )
 )
+
+val Typography.captionBold: TextStyle
+    get() = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 12.sp,
+        letterSpacing = 0.5.sp,
+        color = LineaColors.TextPrimary
+    )
+
+val Typography.captionMedium: TextStyle
+    get() = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        letterSpacing = 0.2.sp,
+        color = LineaColors.TextSecondary
+    )
+

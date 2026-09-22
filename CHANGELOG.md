@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.0] - 2026-09-23
+
+### Added
+- **LiNEA Beam: 1-Tap Mutual NFC Contact Sharing & HCE Protocol**:
+  - **Bidirectional SWAP APDU (`INS = 0xA5`)**: Engineered peer-to-peer exchange over ISO-DEP; in a single physical phone bump, Phone A sends its contact card to Phone B and receives Phone B's contact card in the response, displaying the animated contact card popup simultaneously on both devices.
+  - **Host Card Emulation (HCE) & NDEF Universal Compatibility**: Dual AID registration supporting LiNEA Custom AID (`F0010203040506`) for high-speed bumps and NFC Forum Type 4 Tag NDEF Application (`D2760000850101`) for compatibility with any NFC device or card.
+  - **Physical NFC Tag Programming**: Capability to program blank or rewritable physical NFC stickers, cards, or key fobs with the user's contact card.
+  - **Hardware Fallback & Non-NFC Device Support**: Explicit `NOT SUPPORTED` status badges and warning notifications for devices lacking NFC hardware, with seamless QR code fallback preserved.
+
+- **Personal Profile Card Setup in Settings ("My Digital Card")**:
+  - Dedicated profile editor in Settings supporting Full Name, Phone Number, Email Address, Compressed Profile Photo, and 2 simultaneous Social Usernames (Instagram, Telegram, GitHub, Reddit).
+  - **Intelligent Photo Compression Pipeline**: Automatically downscales picked images to max $128 \times 128$ px and compresses to 70% quality JPEG Base64 (~2–4 KB) for sub-100ms NFC transmission.
+  - **Live Holographic Digital Card Preview**: Real-time holographic glass card with reactive neon borders and dynamic avatar, phone, email, and social pills.
+  - **Dual Simultaneous Social Handles**: Configurable platform pickers with signature brand palettes and auto-prefixing (`@` for Instagram, Telegram, GitHub; `u/` for Reddit).
+
+- **Rich Animated Beamed Contact Sheet Popup**:
+  - Automatically triggered upon physical bump, displaying decoded photo avatar with rotating multi-spectral glowing ring.
+  - Quick action rows for phone numbers (copy / call) and email (copy / launch mail client).
+  - Interactive clickable social badges (Instagram, Telegram, GitHub, Reddit) launching the respective profile app or URL.
+  - One-tap "Save Contact" persisting photo bytes, numbers, email, and social notes directly into system contacts and local Room database.
+
+- **Orbital Speed Dial ("Planetary Dial") & Gesture Separation**:
+  - **Hold (~400ms) on Call Button**: Blossoms a futuristic radial speed dial with up to 7 favorite contacts in an upper arc within thumb reach, featuring laser tether guidance, magnetic node capture, haptic feedback, and instant drag-and-release dialing.
+  - **Clean Gesture Separation**: Call Button hold is strictly dedicated to Orbital Speed Dial, while double-tapping (when dialpad is empty) or triple-tapping (anytime) triggers the Fiery Magma Easter Egg.
+
+---
+
 ## [2.3.0] - 2026-09-20
 
 ### Added

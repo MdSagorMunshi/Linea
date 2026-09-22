@@ -18,6 +18,40 @@ import javax.inject.Singleton
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "linea_settings")
 
+enum class SocialPlatform(val id: String, val displayName: String, val handlePrefix: String) {
+    NONE("NONE", "None", ""),
+    INSTAGRAM("INSTAGRAM", "Instagram", "@"),
+    TELEGRAM("TELEGRAM", "Telegram", "@"),
+    GITHUB("GITHUB", "GitHub", "@"),
+    REDDIT("REDDIT", "Reddit", "u/")
+}
+
+data class UserProfile(
+    val name: String = "",
+    val number: String = "",
+    val email: String = "",
+    val photoBase64: String? = null,
+    val photoUri: String? = null,
+    val social1Platform: SocialPlatform = SocialPlatform.NONE,
+    val social1Handle: String = "",
+    val social2Platform: SocialPlatform = SocialPlatform.NONE,
+    val social2Handle: String = ""
+) {
+    fun toContactPayload(): com.ryanshelby.linea.qr_code.QrCodeEngine.ContactPayload? {
+        if (name.isBlank() && number.isBlank()) return null
+        return com.ryanshelby.linea.qr_code.QrCodeEngine.ContactPayload(
+            name = name.ifBlank { "LiNEA Contact" },
+            numbers = if (number.isNotBlank()) listOf(number) else emptyList(),
+            email = email.ifBlank { null },
+            photoThumbnailBase64 = photoBase64,
+            social1Platform = if (social1Platform != SocialPlatform.NONE && social1Handle.isNotBlank()) social1Platform.name else null,
+            social1Handle = social1Handle.ifBlank { null },
+            social2Platform = if (social2Platform != SocialPlatform.NONE && social2Handle.isNotBlank()) social2Platform.name else null,
+            social2Handle = social2Handle.ifBlank { null }
+        )
+    }
+}
+
 @Singleton
 class LineaPreferences @Inject constructor(
     @ApplicationContext private val context: Context
@@ -95,6 +129,17 @@ class LineaPreferences @Inject constructor(
         val KEY_POST_CALL_HUD_ENABLED = booleanPreferencesKey("post_call_hud_enabled")
         val KEY_POST_CALL_HUD_DURATION_SECONDS = intPreferencesKey("post_call_hud_duration_seconds")
 
+        // My Digital Card / Profile Beaming Keys
+        val KEY_PROFILE_NAME = stringPreferencesKey("profile_name")
+        val KEY_PROFILE_NUMBER = stringPreferencesKey("profile_number")
+        val KEY_PROFILE_EMAIL = stringPreferencesKey("profile_email")
+        val KEY_PROFILE_PHOTO_BASE64 = stringPreferencesKey("profile_photo_base64")
+        val KEY_PROFILE_PHOTO_URI = stringPreferencesKey("profile_photo_uri")
+        val KEY_PROFILE_SOCIAL1_PLATFORM = stringPreferencesKey("profile_social1_platform")
+        val KEY_PROFILE_SOCIAL1_HANDLE = stringPreferencesKey("profile_social1_handle")
+        val KEY_PROFILE_SOCIAL2_PLATFORM = stringPreferencesKey("profile_social2_platform")
+        val KEY_PROFILE_SOCIAL2_HANDLE = stringPreferencesKey("profile_social2_handle")
+
         // Quantum Vault & Anti-Brute-Force Keys
 
         val KEY_VAULT_HAS_PIN = booleanPreferencesKey("vault_has_pin")
@@ -107,6 +152,22 @@ class LineaPreferences @Inject constructor(
         val KEY_VAULT_RECOVERY_MASTER_KEY_ENC = stringPreferencesKey("vault_recovery_master_key_enc")
         val KEY_VAULT_FAILED_ATTEMPTS = intPreferencesKey("vault_failed_attempts")
         val KEY_VAULT_LOCKOUT_UNTIL = longPreferencesKey("vault_lockout_until")
+    }
+
+    val userProfile: Flow<UserProfile> = dataStore.data.map { prefs ->
+        val s1PlatformStr = prefs[KEY_PROFILE_SOCIAL1_PLATFORM] ?: SocialPlatform.NONE.name
+        val s2PlatformStr = prefs[KEY_PROFILE_SOCIAL2_PLATFORM] ?: SocialPlatform.NONE.name
+        UserProfile(
+            name = prefs[KEY_PROFILE_NAME] ?: "",
+            number = prefs[KEY_PROFILE_NUMBER] ?: "",
+            email = prefs[KEY_PROFILE_EMAIL] ?: "",
+            photoBase64 = prefs[KEY_PROFILE_PHOTO_BASE64],
+            photoUri = prefs[KEY_PROFILE_PHOTO_URI],
+            social1Platform = try { SocialPlatform.valueOf(s1PlatformStr) } catch (_: Exception) { SocialPlatform.NONE },
+            social1Handle = prefs[KEY_PROFILE_SOCIAL1_HANDLE] ?: "",
+            social2Platform = try { SocialPlatform.valueOf(s2PlatformStr) } catch (_: Exception) { SocialPlatform.NONE },
+            social2Handle = prefs[KEY_PROFILE_SOCIAL2_HANDLE] ?: ""
+        )
     }
 
     val reduceAnimations: Flow<Boolean> = dataStore.data.map { it[KEY_REDUCE_ANIMATIONS] ?: false }
@@ -350,6 +411,28 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setNavbarMode(mode: String) {
         dataStore.edit { it[KEY_NAVBAR_MODE] = mode }
+    }
+
+    suspend fun updateUserProfile(profile: UserProfile) {
+        dataStore.edit { prefs ->
+            prefs[KEY_PROFILE_NAME] = profile.name
+            prefs[KEY_PROFILE_NUMBER] = profile.number
+            prefs[KEY_PROFILE_EMAIL] = profile.email
+            if (profile.photoBase64 != null) {
+                prefs[KEY_PROFILE_PHOTO_BASE64] = profile.photoBase64
+            } else {
+                prefs.remove(KEY_PROFILE_PHOTO_BASE64)
+            }
+            if (profile.photoUri != null) {
+                prefs[KEY_PROFILE_PHOTO_URI] = profile.photoUri
+            } else {
+                prefs.remove(KEY_PROFILE_PHOTO_URI)
+            }
+            prefs[KEY_PROFILE_SOCIAL1_PLATFORM] = profile.social1Platform.name
+            prefs[KEY_PROFILE_SOCIAL1_HANDLE] = profile.social1Handle
+            prefs[KEY_PROFILE_SOCIAL2_PLATFORM] = profile.social2Platform.name
+            prefs[KEY_PROFILE_SOCIAL2_HANDLE] = profile.social2Handle
+        }
     }
 
     override suspend fun saveVaultConfig(

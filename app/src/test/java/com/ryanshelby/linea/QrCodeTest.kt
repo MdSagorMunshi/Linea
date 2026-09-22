@@ -23,6 +23,32 @@ class QrCodeTest {
     }
 
     @Test
+    fun testRichPayloadSerializationAndParsing() {
+        val payload = QrCodeEngine.ContactPayload(
+            name = "Elena Rostova",
+            numbers = listOf("+447700900077"),
+            email = "elena@quantum.io",
+            photoThumbnailBase64 = "k948jf923hf==",
+            social1Platform = "INSTAGRAM",
+            social1Handle = "elena_r",
+            social2Platform = "GITHUB",
+            social2Handle = "elena-code"
+        )
+        val uri = QrCodeEngine.serializeToUri(payload)
+        val parsed = QrCodeEngine.parseLineaScannedText(uri)
+
+        assertNotNull("Parsed rich payload must not be null", parsed)
+        assertEquals(payload.name, parsed?.name)
+        assertEquals(payload.numbers, parsed?.numbers)
+        assertEquals(payload.email, parsed?.email)
+        assertEquals(payload.photoThumbnailBase64, parsed?.photoThumbnailBase64)
+        assertEquals(payload.social1Platform, parsed?.social1Platform)
+        assertEquals(payload.social1Handle, parsed?.social1Handle)
+        assertEquals(payload.social2Platform, parsed?.social2Platform)
+        assertEquals(payload.social2Handle, parsed?.social2Handle)
+    }
+
+    @Test
     fun testVCardSerializationAndParsing() {
         val payload = QrCodeEngine.ContactPayload(
             name = "Sarah Connor",

@@ -252,6 +252,11 @@ object LineaColors {
     var TextTertiary by mutableStateOf(DarkPalette.TextTertiary)
         internal set
 
+    // Cyber & Neon Accents
+    val CyanPrimary: Color = Color(0xFF00E5FF)
+    val EmeraldPrimary: Color = Color(0xFF00E676)
+    val NeonOrchid: Color = Color(0xFFD500F9)
+
     // Neumorphic Tokens
     var NeuBackground by mutableStateOf(DarkPalette.NeuBackground)
         internal set
