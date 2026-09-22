@@ -1099,8 +1099,15 @@ fun SettingsScreen(
                     style = LineaTypography.titleLarge,
                     color = LineaColors.TextPrimary
                 )
+                val appVersionName = remember {
+                    try {
+                        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.4.0"
+                    } catch (_: Exception) {
+                        "2.4.0"
+                    }
+                }
                 Text(
-                    text = "Version 2.2.0 • Free & Open Source (FOSS)",
+                    text = "Version $appVersionName • Free & Open Source (FOSS)",
                     style = LineaTypography.labelSmall,
                     color = LineaColors.TitaniumBlue
                 )
