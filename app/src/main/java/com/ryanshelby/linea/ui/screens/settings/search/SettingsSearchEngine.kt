@@ -36,6 +36,22 @@ object SettingsSearchEngine {
     ): List<SettingsSearchItem> {
         val list = mutableListOf<SettingsSearchItem>()
 
+        // 0. My Digital Card & LiNEA Beam
+        list.add(
+            SettingsSearchItem(
+                id = "my_digital_card",
+                title = "My Digital Card & LiNEA Beam",
+                subtitle = "Configure personal digital business card, QR profile, and 1-tap NFC contact beaming",
+                category = SettingsCategory.GENERAL,
+                icon = Icons.Filled.Person,
+                keywords = listOf(
+                    "digital card", "profile", "nfc", "beam", "contact card", "my card", "share",
+                    "vcard", "qr", "linea beam", "avatar", "always share", "touch to share", "business card"
+                ),
+                action = SettingsSearchAction.Navigate(callbacks.onNavigateToProfileCard)
+            )
+        )
+
         // 1. Dual SIM Management
         list.add(
             SettingsSearchItem(

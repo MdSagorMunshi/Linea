@@ -6,6 +6,7 @@ import com.ryanshelby.linea.data.local.dao.BlockedNumberDao
 import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.data.local.dao.CallRuleDao
 import com.ryanshelby.linea.data.preferences.LineaPreferences
+import com.ryanshelby.linea.data.preferences.UserProfile
 import com.ryanshelby.linea.telecom.cleanup.CallHistoryCleanupManager
 import com.ryanshelby.linea.telecom.escape.EscapeCallManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -240,6 +241,9 @@ class SettingsViewModel @Inject constructor(
 
     val activeProfile: StateFlow<String> = preferences.activeProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "PERSONAL")
+
+    val userProfile: StateFlow<UserProfile> = preferences.userProfile
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserProfile())
 
     fun setActiveProfile(profile: String) {
         viewModelScope.launch {

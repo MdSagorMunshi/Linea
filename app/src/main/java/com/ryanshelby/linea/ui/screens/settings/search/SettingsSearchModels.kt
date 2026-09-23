@@ -91,5 +91,6 @@ data class SettingsSearchCallbacks(
     val onScrollToSection: (String) -> Unit = {},
     val onOpenEscapeCall: () -> Unit = {},
     val onOpenEscapeSettings: () -> Unit = {},
-    val onOpenEscapeHelp: () -> Unit = {}
+    val onOpenEscapeHelp: () -> Unit = {},
+    val onNavigateToProfileCard: () -> Unit = {}
 )

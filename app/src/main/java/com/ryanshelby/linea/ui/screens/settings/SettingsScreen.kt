@@ -85,6 +85,13 @@ import com.ryanshelby.linea.ui.components.RoleBanner
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
+import com.ryanshelby.linea.ui.theme.captionBold
+import com.ryanshelby.linea.ui.theme.captionMedium
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import com.ryanshelby.linea.ui.screens.settings.profile.decodeBase64ToBitmap
 
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Mic
@@ -129,6 +136,10 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val activeProfile by viewModel.activeProfile.collectAsState()
+    val userProfile by viewModel.userProfile.collectAsState()
+    val userPhotoBitmap = remember(userProfile.photoBase64) {
+        userProfile.photoBase64?.let { decodeBase64ToBitmap(it) }
+    }
     val searchQuery by viewModel.searchQuery.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -152,7 +163,8 @@ fun SettingsScreen(
         onRequestDefaultDialer, onNavigateToBlocking, onNavigateToDualSim,
         onNavigateToPermissions, onNavigateToVoicemail, onNavigateToCallForwarding,
         onNavigateToCallBarring, onNavigateToCallRules, onNavigateToDiagnostics,
-        onNavigateToStats, onNavigateToBackup, onNavigateToAbout, onNavigateToRingtone
+        onNavigateToStats, onNavigateToBackup, onNavigateToAbout, onNavigateToRingtone,
+        onNavigateToProfileCard
     ) {
         SettingsSearchCallbacks(
             onRequestDefaultDialer = onRequestDefaultDialer,
@@ -168,6 +180,7 @@ fun SettingsScreen(
             onNavigateToBackup = onNavigateToBackup,
             onNavigateToAbout = onNavigateToAbout,
             onNavigateToRingtone = onNavigateToRingtone,
+            onNavigateToProfileCard = onNavigateToProfileCard,
             onExportCsv = {
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 exportCsvLauncher.launch("linea_call_history_$timestamp.csv")
@@ -220,32 +233,111 @@ fun SettingsScreen(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = com.ryanshelby.linea.R.drawable.ic_linea_logo),
-                contentDescription = "Linea Logo",
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(
-                        LineaDimensions.HairlineBorder,
-                        LineaColors.GlassBorder,
-                        RoundedCornerShape(12.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f, fill = false)
+            ) {
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = com.ryanshelby.linea.R.drawable.ic_linea_logo),
+                    contentDescription = "Linea Logo",
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            LineaDimensions.HairlineBorder,
+                            LineaColors.GlassBorder,
+                            RoundedCornerShape(12.dp)
+                        )
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Settings",
+                        style = LineaTypography.headlineLarge,
+                        color = LineaColors.TextPrimary
                     )
-            )
-            Spacer(modifier = Modifier.width(14.dp))
-            Column {
-                Text(
-                    text = "Settings",
-                    style = LineaTypography.headlineLarge,
-                    color = LineaColors.TextPrimary
-                )
-                Text(
-                    text = "Telecom configuration & on-device security",
-                    style = LineaTypography.bodyMedium,
-                    color = LineaColors.TextSecondary
-                )
+                    Text(
+                        text = "Telecom & security",
+                        style = LineaTypography.captionMedium.copy(fontSize = 11.sp),
+                        color = LineaColors.TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // User Profile Image with Name on the Top Right Side
+            val displayName = userProfile.name.ifBlank { "My Profile" }
+            val initial = displayName.trim().firstOrNull()?.uppercase() ?: "U"
+
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(LineaColors.GlassFill)
+                    .border(
+                        width = LineaDimensions.HairlineBorder,
+                        color = LineaColors.CyanPrimary.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(22.dp)
+                    )
+                    .clickable(onClick = onNavigateToProfileCard)
+                    .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = displayName,
+                        style = LineaTypography.labelLarge.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                        color = LineaColors.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (userProfile.number.isNotBlank()) userProfile.number else "Digital Card",
+                        style = LineaTypography.captionMedium.copy(fontSize = 10.sp),
+                        color = LineaColors.CyanPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    LineaColors.CyanPrimary.copy(alpha = 0.35f),
+                                    LineaColors.GlassFill
+                                )
+                            )
+                        )
+                        .border(1.5.dp, LineaColors.CyanPrimary.copy(alpha = 0.7f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (userPhotoBitmap != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = userPhotoBitmap.asImageBitmap(),
+                            contentDescription = "User Avatar",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = initial,
+                            style = LineaTypography.captionBold.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
+                            color = LineaColors.CyanPrimary
+                        )
+                    }
+                }
             }
         }
 
@@ -325,6 +417,21 @@ fun SettingsScreen(
             )
 
             Spacer(modifier = Modifier.height(14.dp))
+
+            // My Digital Card & LiNEA Beam (Top of Settings Page)
+            val isNfcSupported = remember {
+                android.nfc.NfcAdapter.getDefaultAdapter(context) != null
+            }
+            SettingsNavCard(
+                icon = Icons.Filled.Person,
+                title = "My Digital Card & LiNEA Beam",
+                subtitle = if (isNfcSupported) "Setup personal card for 1-tap NFC contact swap" else "Profile card setup • NFC not supported on this phone",
+                badge = if (isNfcSupported) "NFC" else "NOT SUPPORTED",
+                avatarBitmap = userPhotoBitmap?.asImageBitmap(),
+                onClick = onNavigateToProfileCard
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Dual SIM Quick Link
             SettingsNavCard(
@@ -521,20 +628,6 @@ fun SettingsScreen(
                 }
             }
         }
-
-        // My Digital Card & LiNEA Beam
-        val isNfcSupported = remember {
-            android.nfc.NfcAdapter.getDefaultAdapter(context) != null
-        }
-        SettingsNavCard(
-            icon = Icons.Filled.Nfc,
-            title = "My Digital Card & LiNEA Beam",
-            subtitle = if (isNfcSupported) "Setup personal card for 1-tap NFC contact swap" else "Profile card setup • NFC not supported on this phone",
-            badge = if (isNfcSupported) "NFC" else "NOT SUPPORTED",
-            onClick = onNavigateToProfileCard
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
 
         // Cellular Diagnostics
         SettingsNavCard(
@@ -1206,6 +1299,7 @@ private fun SettingsNavCard(
     title: String,
     subtitle: String,
     badge: String? = null,
+    avatarBitmap: androidx.compose.ui.graphics.ImageBitmap? = null,
     onClick: () -> Unit
 ) {
     FrostedGlassBox(
@@ -1226,12 +1320,23 @@ private fun SettingsNavCard(
                     .background(LineaColors.GlassFill),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = LineaColors.TitaniumBlue,
-                    modifier = Modifier.size(22.dp)
-                )
+                if (avatarBitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = avatarBitmap,
+                        contentDescription = "Profile Avatar",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = LineaColors.TitaniumBlue,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(14.dp))
