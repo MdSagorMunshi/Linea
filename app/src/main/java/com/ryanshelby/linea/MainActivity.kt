@@ -139,6 +139,7 @@ class MainActivity : ComponentActivity() {
         checkRoleAndAccounts()
         permissionCoordinator.resumePendingOutgoingCallIfPermitted()
         nfcBeamManager.enableReaderMode(this)
+        nfcBeamManager.checkPendingBeamedContact(this)
     }
 
     override fun onPause() {
@@ -151,6 +152,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         handleCallIntent(intent)
         nfcBeamManager.handleIntent(intent)
+        nfcBeamManager.checkPendingBeamedContact(this)
     }
 
     private fun handleCallIntent(intent: Intent?) {

@@ -1,7 +1,14 @@
 package com.ryanshelby.linea.nfc
 
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
+import androidx.core.app.NotificationCompat
+import com.ryanshelby.linea.LineaApp
+import com.ryanshelby.linea.R
 import com.ryanshelby.linea.qr_code.QrCodeEngine
 import java.nio.charset.StandardCharsets
 import java.util.Arrays
@@ -10,14 +17,16 @@ import java.util.Arrays
  * Host Card Emulation (HCE) service for LiNEA Beam.
  *
  * Emulates:
- * 1. LiNEA Proprietary Contact Beam AID (F0010203040506) for high-speed LiNEA-to-LiNEA exchange.
+ * 1. LiNEA Proprietary Contact Beam AID (F0010203040506) for high-speed LiNEA-to-LiNEA mutual exchange.
  * 2. NFC Forum Type 4 Tag NDEF Application (D2760000850101) so ANY NFC phone or standard NFC reader
  *    can read the beamed contact card.
+ *
+ * Supports Always Share Mode: allows sharing contact card even when LiNEA is closed or backgrounded.
  */
 class LineaBeamApduService : HostApduService() {
 
     companion object {
-        // LiNEA Custom AID
+        // LiNEA Custom AID: F0 01 02 03 04 05 06
         val LINEA_AID = byteArrayOf(0xF0.toByte(), 0x01, 0x02, 0x03, 0x04, 0x05, 0x06)
         
         // NFC Forum Type 4 Tag NDEF Application AID: D2 76 00 00 85 01 01
@@ -43,7 +52,7 @@ class LineaBeamApduService : HostApduService() {
         // [7]    NDEF File Control TLV T: 04
         // [8]    L: 06
         // [9..10] File ID: E1 04
-        // [11..12] Max NDEF file size: 08 00 (2048 bytes)
+        // [11..12] Max NDEF file size: 20 00 (8192 bytes)
         // [13]   Read access: 00 (unrestricted)
         // [14]   Write access: FF (read only)
         val CC_FILE = byteArrayOf(
@@ -53,7 +62,7 @@ class LineaBeamApduService : HostApduService() {
             0x00, 0xFF.toByte(),
             0x04, 0x06,
             0xE1.toByte(), 0x04,
-            0x08, 0x00,
+            0x20, 0x00, // Max NDEF size: 8192 bytes
             0x00,
             0xFF.toByte()
         )
@@ -78,10 +87,28 @@ class LineaBeamApduService : HostApduService() {
             return STATUS_FAILED
         }
 
-        val cla = commandApdu[0].toInt() and 0xFF
         val ins = commandApdu[1].toInt() and 0xFF
         val p1 = commandApdu[2].toInt() and 0xFF
         val p2 = commandApdu[3].toInt() and 0xFF
+
+        // Check whether sharing is permitted:
+        // 1. If active in foreground (LineaApp.isAppInForeground or activePayload != null)
+        // 2. OR Always Share Mode is enabled in settings
+        val isAlwaysShare = try {
+            NfcProfileStorage.isAlwaysShareEnabled(this)
+        } catch (_: Exception) {
+            false
+        }
+        val isSharingAllowed = LineaApp.isAppInForeground || activePayload != null || isAlwaysShare
+
+        // Synchronously load profile from fast storage if not in memory
+        val currentPayload = activePayload ?: if (isSharingAllowed) {
+            try {
+                NfcProfileStorage.getEffectivePayload(this)
+            } catch (_: Exception) {
+                null
+            }
+        } else null
 
         // 1. SELECT command (INS = A4)
         if (ins == 0xA4) {
@@ -92,9 +119,8 @@ class LineaBeamApduService : HostApduService() {
                     val aid = commandApdu.copyOfRange(5, 5 + length)
                     if (Arrays.equals(aid, LINEA_AID)) {
                         // LiNEA-to-LiNEA direct protocol: return raw serialized URI
-                        val payload = activePayload
-                        return if (payload != null) {
-                            val uriBytes = QrCodeEngine.serializeToUri(payload).toByteArray(StandardCharsets.UTF_8)
+                        return if (currentPayload != null && isSharingAllowed) {
+                            val uriBytes = QrCodeEngine.serializeToUri(currentPayload).toByteArray(StandardCharsets.UTF_8)
                             uriBytes + STATUS_SUCCESS
                         } else {
                             STATUS_SUCCESS
@@ -129,7 +155,11 @@ class LineaBeamApduService : HostApduService() {
                 val response = CC_FILE.copyOfRange(offset, offset + bytesToRead)
                 return response + STATUS_SUCCESS
             } else if (Arrays.equals(selectedFile, NDEF_FILE_ID)) {
-                val ndefData = buildNdefFileContent()
+                val ndefData = if (isSharingAllowed && currentPayload != null) {
+                    buildNdefFileContent(currentPayload)
+                } else {
+                    byteArrayOf(0x00, 0x00)
+                }
                 if (offset >= ndefData.size) return STATUS_SUCCESS
                 val bytesToRead = minOf(requestedLength, ndefData.size - offset)
                 val response = ndefData.copyOfRange(offset, offset + bytesToRead)
@@ -151,14 +181,22 @@ class LineaBeamApduService : HostApduService() {
                 val text = String(trimmedBytes, StandardCharsets.UTF_8).trim()
                 val peerPayload = QrCodeEngine.parseLineaScannedText(text)
                 if (peerPayload != null) {
-                    onContactReceivedListener?.invoke(peerPayload)
+                    val listener = onContactReceivedListener
+                    if (listener != null) {
+                        listener.invoke(peerPayload)
+                    } else {
+                        // App was closed/backgrounded when phone was tapped
+                        try {
+                            NfcProfileStorage.savePendingBeamedContact(this, peerPayload)
+                            postBeamedContactNotification(peerPayload)
+                        } catch (_: Exception) {}
+                    }
                 }
             }
 
-            // Return local active contact payload
-            val payload = activePayload
-            return if (payload != null) {
-                val uriBytes = QrCodeEngine.serializeToUri(payload).toByteArray(StandardCharsets.UTF_8)
+            // Return local contact payload if sharing is enabled
+            return if (currentPayload != null && isSharingAllowed) {
+                val uriBytes = QrCodeEngine.serializeToUri(currentPayload).toByteArray(StandardCharsets.UTF_8)
                 uriBytes + STATUS_SUCCESS
             } else {
                 STATUS_SUCCESS
@@ -176,8 +214,7 @@ class LineaBeamApduService : HostApduService() {
      * Builds standard Type 4 Tag NDEF file contents:
      * 2 bytes big-endian length + NFC Forum NDEF Message bytes (RTD-URI).
      */
-    private fun buildNdefFileContent(): ByteArray {
-        val payload = activePayload ?: return byteArrayOf(0x00, 0x00)
+    private fun buildNdefFileContent(payload: QrCodeEngine.ContactPayload): ByteArray {
         val uri = QrCodeEngine.serializeToUri(payload)
         val uriBytes = uri.toByteArray(StandardCharsets.UTF_8)
 
@@ -208,5 +245,36 @@ class LineaBeamApduService : HostApduService() {
         val len = ndefRecord.size
         val lenBytes = byteArrayOf(((len shr 8) and 0xFF).toByte(), (len and 0xFF).toByte())
         return lenBytes + ndefRecord
+    }
+
+    /**
+     * Post a high-priority system notification when a contact is received while LiNEA is closed.
+     */
+    private fun postBeamedContactNotification(payload: QrCodeEngine.ContactPayload) {
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            val intent = Intent(this, com.ryanshelby.linea.MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                9921,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notification = NotificationCompat.Builder(this, LineaApp.CHANNEL_LINEA_BEAM)
+                .setSmallIcon(R.drawable.ic_contacts_filled)
+                .setContentTitle("LiNEA Beam: New Contact Received")
+                .setContentText("${payload.name} shared their digital card. Tap to view & save.")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .build()
+
+            notificationManager.notify(9921, notification)
+        } catch (_: Exception) {
+            // Notification failed or permissions not granted
+        }
     }
 }

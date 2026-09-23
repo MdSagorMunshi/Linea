@@ -58,8 +58,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -116,7 +119,8 @@ fun MyProfileCardScreen(
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    val currentProfile by lineaPreferences.userProfile.collectAsState(initial = UserProfile())
+    val currentProfileState by lineaPreferences.userProfile.collectAsState(initial = null)
+    val alwaysShareFlow by lineaPreferences.nfcAlwaysShare.collectAsState(initial = false)
 
     var name by remember { mutableStateOf("") }
     var number by remember { mutableStateOf("") }
@@ -127,6 +131,7 @@ fun MyProfileCardScreen(
     var social1Handle by remember { mutableStateOf("") }
     var social2Platform by remember { mutableStateOf(SocialPlatform.NONE) }
     var social2Handle by remember { mutableStateOf("") }
+    var isAlwaysShare by remember { mutableStateOf(false) }
 
     var isInitialized by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
@@ -139,36 +144,97 @@ fun MyProfileCardScreen(
         nfcBeamManager?.isNfcEnabled(context) ?: false
     }
 
-    // Populate local editing state once loaded
-    LaunchedEffect(currentProfile) {
-        if (!isInitialized) {
-            name = currentProfile.name
-            number = currentProfile.number
-            email = currentProfile.email
-            photoBase64 = currentProfile.photoBase64
-            photoUri = currentProfile.photoUri
-            social1Platform = currentProfile.social1Platform
-            social1Handle = currentProfile.social1Handle
-            social2Platform = currentProfile.social2Platform
-            social2Handle = currentProfile.social2Handle
+    fun saveProfileInternal(notifyToast: Boolean = false) {
+        val newProfile = UserProfile(
+            name = name.trim(),
+            number = number.trim(),
+            email = email.trim(),
+            photoBase64 = photoBase64,
+            photoUri = photoUri,
+            social1Platform = social1Platform,
+            social1Handle = social1Handle.trim(),
+            social2Platform = social2Platform,
+            social2Handle = social2Handle.trim()
+        )
+        // 1. Immediately persist synchronously to local fast storage
+        com.ryanshelby.linea.nfc.NfcProfileStorage.saveProfile(context, newProfile, isAlwaysShare)
+
+        // 2. Persist to DataStore and update active in-memory payload
+        scope.launch {
+            if (notifyToast) isSaving = true
+            lineaPreferences.updateUserProfile(newProfile)
+            lineaPreferences.setNfcAlwaysShare(isAlwaysShare)
+            nfcBeamManager?.setUserProfilePayload(newProfile.toContactPayload())
+            if (notifyToast) {
+                isSaving = false
+                Toast.makeText(context, "Profile card saved & synced for NFC Beam!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Auto-save on exit to guarantee user changes are never lost
+    DisposableEffect(Unit) {
+        onDispose {
+            if (isInitialized) {
+                saveProfileInternal(notifyToast = false)
+            }
+        }
+    }
+
+    // 1. Instantly load from fast synchronous storage on frame 1 to eliminate blank screen flicker
+    LaunchedEffect(Unit) {
+        val cached = com.ryanshelby.linea.nfc.NfcProfileStorage.loadProfile(context)
+        isAlwaysShare = com.ryanshelby.linea.nfc.NfcProfileStorage.isAlwaysShareEnabled(context)
+        if (cached.name.isNotBlank() || cached.number.isNotBlank() || cached.photoBase64 != null || cached.email.isNotBlank()) {
+            name = cached.name
+            number = cached.number
+            email = cached.email
+            photoBase64 = cached.photoBase64
+            photoUri = cached.photoUri
+            social1Platform = cached.social1Platform
+            social1Handle = cached.social1Handle
+            social2Platform = cached.social2Platform
+            social2Handle = cached.social2Handle
             isInitialized = true
         }
     }
 
-    // Photo picker with automatic downscaling & compression to <= 128x128 JPEG Base64 (~2-4 KB)
+    // 2. Also populate if DataStore emits a saved profile and local state was not yet initialized
+    LaunchedEffect(currentProfileState) {
+        val profile = currentProfileState ?: return@LaunchedEffect
+        if (!isInitialized) {
+            name = profile.name
+            number = profile.number
+            email = profile.email
+            photoBase64 = profile.photoBase64
+            photoUri = profile.photoUri
+            social1Platform = profile.social1Platform
+            social1Handle = profile.social1Handle
+            social2Platform = profile.social2Platform
+            social2Handle = profile.social2Handle
+            isInitialized = true
+        }
+    }
+
+    LaunchedEffect(alwaysShareFlow) {
+        isAlwaysShare = alwaysShareFlow
+    }
+
+    // Photo picker with automatic downscaling & compression to ultra-compact avatar (~800 B - 1.2 KB)
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
             scope.launch {
                 val compressed = withContext(Dispatchers.IO) {
-                    compressImageToThumbnailBase64(context, uri)
+                    com.ryanshelby.linea.util.ContactPhotoHelper.compressAvatarForNfcBeam(context, uri)
                 }
                 if (compressed != null) {
                     photoBase64 = compressed.first
                     photoUri = uri.toString()
-                    val kb = compressed.second.size / 1024
-                    Toast.makeText(context, "Photo compressed ($kb KB) for instant NFC Beam", Toast.LENGTH_SHORT).show()
+                    val byteCount = compressed.second.size
+                    val sizeDisplay = if (byteCount < 1024) "$byteCount B" else "${byteCount / 1024} KB"
+                    Toast.makeText(context, "Photo compressed ($sizeDisplay) for ultra-fast NFC Beam", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, "Failed to process photo", Toast.LENGTH_SHORT).show()
                 }
@@ -203,7 +269,10 @@ fun MyProfileCardScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onNavigateBack) {
+                IconButton(onClick = {
+                    saveProfileInternal(notifyToast = false)
+                    onNavigateBack()
+                }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
@@ -540,6 +609,118 @@ fun MyProfileCardScreen(
             onHandleChange = { social2Handle = it }
         )
 
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Always Share Mode (Background NFC Beam) Section
+        Text(
+            text = "NFC BEAM SHARING",
+            style = LineaTypography.captionBold.copy(letterSpacing = 1.2.sp),
+            color = LineaColors.TextTertiary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        NeumorphicCard(
+            modifier = Modifier.fillMaxWidth(),
+            surfaceColor = if (isAlwaysShare) Color(0xFF131F25) else Color(0xFF131922)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isAlwaysShare) LineaColors.EmeraldPrimary.copy(alpha = 0.2f)
+                                    else LineaColors.CyanPrimary.copy(alpha = 0.12f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Nfc,
+                                contentDescription = "NFC Always Share",
+                                tint = if (isAlwaysShare) LineaColors.EmeraldPrimary else LineaColors.CyanPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Always Share Mode",
+                                    style = LineaTypography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = LineaColors.TextPrimary
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            if (isAlwaysShare) LineaColors.EmeraldPrimary.copy(alpha = 0.2f)
+                                            else Color(0xFF263238)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (isAlwaysShare) "ALWAYS ACTIVE" else "APP OPEN ONLY",
+                                        style = LineaTypography.captionBold.copy(
+                                            fontSize = 9.sp,
+                                            color = if (isAlwaysShare) LineaColors.EmeraldPrimary else LineaColors.TextTertiary
+                                        )
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = if (isAlwaysShare)
+                                    "Your card will beam even when LiNEA is closed or running in background."
+                                else
+                                    "Your card is only shared when LiNEA is open on screen for maximum privacy.",
+                                style = LineaTypography.bodySmall,
+                                color = LineaColors.TextSecondary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Switch(
+                        checked = isAlwaysShare,
+                        onCheckedChange = { enabled ->
+                            isAlwaysShare = enabled
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            scope.launch {
+                                lineaPreferences.setNfcAlwaysShare(enabled)
+                                com.ryanshelby.linea.nfc.NfcProfileStorage.setAlwaysShareEnabled(context, enabled)
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = LineaColors.EmeraldPrimary,
+                            checkedTrackColor = LineaColors.EmeraldPrimary.copy(alpha = 0.35f),
+                            uncheckedThumbColor = LineaColors.TextTertiary,
+                            uncheckedTrackColor = Color(0xFF1E2732)
+                        )
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(28.dp))
 
         // Action Buttons
@@ -574,28 +755,7 @@ fun MyProfileCardScreen(
             Button(
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    scope.launch {
-                        isSaving = true
-                        val newProfile = UserProfile(
-                            name = name.trim(),
-                            number = number.trim(),
-                            email = email.trim(),
-                            photoBase64 = photoBase64,
-                            photoUri = photoUri,
-                            social1Platform = social1Platform,
-                            social1Handle = social1Handle.trim(),
-                            social2Platform = social2Platform,
-                            social2Handle = social2Handle.trim()
-                        )
-                        lineaPreferences.updateUserProfile(newProfile)
-
-                        // Update active payload in NfcBeamManager immediately
-                        val payload = newProfile.toContactPayload()
-                        nfcBeamManager?.setUserProfilePayload(payload)
-
-                        isSaving = false
-                        Toast.makeText(context, "Profile card saved & synced for NFC Beam!", Toast.LENGTH_SHORT).show()
-                    }
+                    saveProfileInternal(notifyToast = true)
                 },
                 modifier = Modifier
                     .weight(1.3f)
@@ -1012,37 +1172,11 @@ fun getPlatformColor(platform: SocialPlatform): Color {
 }
 
 /**
- * Downscales and compresses image to max 128x128 JPEG at 70% quality (~2-4 KB).
- * Returns Pair(Base64String, RawBytes) or null on failure.
+ * Ultra-compact image compressor for LiNEA digital card avatars.
+ * Corrects EXIF rotation, center-crops to square, and dynamically bounds file size to ~600 B - 1.2 KB.
  */
 fun compressImageToThumbnailBase64(context: Context, uri: Uri): Pair<String, ByteArray>? {
-    return try {
-        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-        val original = BitmapFactory.decodeStream(inputStream)
-        inputStream.close()
-        if (original == null) return null
-
-        val maxDim = 128
-        val width = original.width
-        val height = original.height
-
-        val scaled = if (width > maxDim || height > maxDim) {
-            val scale = maxDim.toFloat() / maxOf(width, height)
-            val newW = (width * scale).toInt().coerceAtLeast(1)
-            val newH = (height * scale).toInt().coerceAtLeast(1)
-            Bitmap.createScaledBitmap(original, newW, newH, true)
-        } else {
-            original
-        }
-
-        val baos = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 70, baos)
-        val bytes = baos.toByteArray()
-        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-        Pair(base64, bytes)
-    } catch (_: Exception) {
-        null
-    }
+    return com.ryanshelby.linea.util.ContactPhotoHelper.compressAvatarForNfcBeam(context, uri)
 }
 
 /**

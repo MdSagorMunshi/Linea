@@ -36,6 +36,7 @@ class LineaApp : Application() {
         const val CHANNEL_MISSED_CALLS = "linea_missed_calls"
         const val CHANNEL_VOICEMAIL = "linea_voicemail"
         const val CHANNEL_REMINDERS = "linea_reminders"
+        const val CHANNEL_LINEA_BEAM = "linea_beam"
 
         var isAppInForeground: Boolean = false
             private set
@@ -155,8 +156,17 @@ class LineaApp : Application() {
                 description = "Reminders to call back contacts"
             }
 
+            val beamChannel = NotificationChannel(
+                CHANNEL_LINEA_BEAM,
+                "LiNEA Beam Transfers",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Alerts when a contact card is received via LiNEA Beam NFC bump"
+                enableVibration(true)
+            }
+
             notificationManager.createNotificationChannels(
-                listOf(incomingCallChannel, ongoingCallChannel, missedCallChannel, voicemailChannel, reminderChannel)
+                listOf(incomingCallChannel, ongoingCallChannel, missedCallChannel, voicemailChannel, reminderChannel, beamChannel)
             )
         }
     }

@@ -62,6 +62,16 @@ class NfcBeamManager @Inject constructor() {
         }
     }
 
+    /**
+     * Checks if an incoming contact was received and stored while the app was closed.
+     */
+    fun checkPendingBeamedContact(context: Context) {
+        val pending = NfcProfileStorage.consumePendingBeamedContact(context)
+        if (pending != null) {
+            _incomingBeamedContact.tryEmit(pending)
+        }
+    }
+
     sealed class TagWriteResult {
         data class Success(val contactName: String) : TagWriteResult()
         data class Error(val message: String) : TagWriteResult()

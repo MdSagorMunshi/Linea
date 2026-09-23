@@ -139,6 +139,7 @@ class LineaPreferences @Inject constructor(
         val KEY_PROFILE_SOCIAL1_HANDLE = stringPreferencesKey("profile_social1_handle")
         val KEY_PROFILE_SOCIAL2_PLATFORM = stringPreferencesKey("profile_social2_platform")
         val KEY_PROFILE_SOCIAL2_HANDLE = stringPreferencesKey("profile_social2_handle")
+        val KEY_NFC_ALWAYS_SHARE = booleanPreferencesKey("nfc_always_share")
 
         // Quantum Vault & Anti-Brute-Force Keys
 
@@ -169,6 +170,8 @@ class LineaPreferences @Inject constructor(
             social2Handle = prefs[KEY_PROFILE_SOCIAL2_HANDLE] ?: ""
         )
     }
+
+    val nfcAlwaysShare: Flow<Boolean> = dataStore.data.map { it[KEY_NFC_ALWAYS_SHARE] ?: false }
 
     val reduceAnimations: Flow<Boolean> = dataStore.data.map { it[KEY_REDUCE_ANIMATIONS] ?: false }
     val defaultSim: Flow<Int> = dataStore.data.map { it[KEY_DEFAULT_SIM] ?: 0 }
@@ -413,6 +416,11 @@ class LineaPreferences @Inject constructor(
         dataStore.edit { it[KEY_NAVBAR_MODE] = mode }
     }
 
+    suspend fun setNfcAlwaysShare(enabled: Boolean) {
+        dataStore.edit { it[KEY_NFC_ALWAYS_SHARE] = enabled }
+        com.ryanshelby.linea.nfc.NfcProfileStorage.setAlwaysShareEnabled(context, enabled)
+    }
+
     suspend fun updateUserProfile(profile: UserProfile) {
         dataStore.edit { prefs ->
             prefs[KEY_PROFILE_NAME] = profile.name
@@ -433,6 +441,8 @@ class LineaPreferences @Inject constructor(
             prefs[KEY_PROFILE_SOCIAL2_PLATFORM] = profile.social2Platform.name
             prefs[KEY_PROFILE_SOCIAL2_HANDLE] = profile.social2Handle
         }
+        // Mirror synchronously to NfcProfileStorage for instant HostApduService (HCE) response
+        com.ryanshelby.linea.nfc.NfcProfileStorage.saveProfile(context, profile)
     }
 
     override suspend fun saveVaultConfig(

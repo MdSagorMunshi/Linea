@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.net.Uri
 import android.os.Build
 import android.provider.ContactsContract
+import android.util.Base64
 import android.util.LruCache
 import android.media.ExifInterface
 import androidx.core.content.FileProvider
@@ -206,5 +207,60 @@ object ContactPhotoHelper {
         val newWidth = (width * ratio).toInt()
         val newHeight = (height * ratio).toInt()
         return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+    }
+
+    /**
+     * Ultra-compact avatar compressor optimized for instantaneous NFC APDU transfer and clean QR codes.
+     * Features:
+     * - Memory safe: Uses inSampleSize sampling to avoid OOM even on 100MP photos
+     * - Orientation aware: Applies EXIF rotation
+     * - Center crop: Square 1:1 aspect ratio
+     * - Target size: 80x80 px (or down to 64x64 if necessary)
+     * - Adaptive quality: strictly bounds file size between ~600 bytes and ~1.2 KB
+     */
+    fun compressAvatarForNfcBeam(context: Context, uri: Uri): Pair<String, ByteArray>? {
+        return try {
+            val sampled = decodeSampledBitmapFromUri(context, uri, maxDimension = 160) ?: return null
+            val rotated = applyExifRotation(context, uri, sampled)
+
+            // Center crop to 1:1 square
+            val minSide = minOf(rotated.width, rotated.height)
+            val cropX = (rotated.width - minSide) / 2
+            val cropY = (rotated.height - minSide) / 2
+            val squareBitmap = Bitmap.createBitmap(rotated, cropX, cropY, minSide, minSide)
+
+            val targetDim = 80
+            val scaledBitmap = if (squareBitmap.width > targetDim || squareBitmap.height > targetDim) {
+                Bitmap.createScaledBitmap(squareBitmap, targetDim, targetDim, true)
+            } else {
+                squareBitmap
+            }
+
+            // Adaptive compression loop
+            var quality = 65
+            var baos = ByteArrayOutputStream()
+            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
+            var bytes = baos.toByteArray()
+
+            while (bytes.size > 1200 && quality > 25) {
+                quality -= 10
+                baos = ByteArrayOutputStream()
+                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
+                bytes = baos.toByteArray()
+            }
+
+            if (bytes.size > 1400) {
+                val tiny = Bitmap.createScaledBitmap(scaledBitmap, 64, 64, true)
+                baos = ByteArrayOutputStream()
+                tiny.compress(Bitmap.CompressFormat.JPEG, 45, baos)
+                bytes = baos.toByteArray()
+            }
+
+            val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            Pair(base64, bytes)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 }
