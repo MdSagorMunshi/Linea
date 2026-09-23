@@ -1,5 +1,6 @@
 package com.ryanshelby.linea.ui.screens.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ryanshelby.linea.data.local.dao.BlockedNumberDao
@@ -10,11 +11,13 @@ import com.ryanshelby.linea.data.preferences.UserProfile
 import com.ryanshelby.linea.telecom.cleanup.CallHistoryCleanupManager
 import com.ryanshelby.linea.telecom.escape.EscapeCallManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -49,6 +52,7 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val preferences: LineaPreferences,
     private val blockedNumberDao: BlockedNumberDao,
     private val callRuleDao: CallRuleDao,
@@ -243,7 +247,23 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "PERSONAL")
 
     val userProfile: StateFlow<UserProfile> = preferences.userProfile
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserProfile())
+        .map { profile ->
+            if (profile.name.isBlank() && profile.number.isBlank() && profile.photoBase64 == null) {
+                val cached = com.ryanshelby.linea.nfc.NfcProfileStorage.loadProfile(context)
+                if (cached.name.isNotBlank() || cached.number.isNotBlank() || cached.photoBase64 != null) {
+                    cached
+                } else {
+                    profile
+                }
+            } else {
+                profile
+            }
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            com.ryanshelby.linea.nfc.NfcProfileStorage.loadProfile(context)
+        )
 
     fun setActiveProfile(profile: String) {
         viewModelScope.launch {

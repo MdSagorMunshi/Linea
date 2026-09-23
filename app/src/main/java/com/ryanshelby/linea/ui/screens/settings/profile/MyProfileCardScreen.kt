@@ -159,16 +159,14 @@ fun MyProfileCardScreen(
         // 1. Immediately persist synchronously to local fast storage
         com.ryanshelby.linea.nfc.NfcProfileStorage.saveProfile(context, newProfile, isAlwaysShare)
 
-        // 2. Persist to DataStore and update active in-memory payload
-        scope.launch {
-            if (notifyToast) isSaving = true
+        // 2. Persist to DataStore and update active in-memory payload in non-cancellable IO scope
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob()).launch {
             lineaPreferences.updateUserProfile(newProfile)
             lineaPreferences.setNfcAlwaysShare(isAlwaysShare)
             nfcBeamManager?.setUserProfilePayload(newProfile.toContactPayload())
-            if (notifyToast) {
-                isSaving = false
-                Toast.makeText(context, "Profile card saved & synced for NFC Beam!", Toast.LENGTH_SHORT).show()
-            }
+        }
+        if (notifyToast) {
+            Toast.makeText(context, "Profile card saved & synced for NFC Beam!", Toast.LENGTH_SHORT).show()
         }
     }
 
