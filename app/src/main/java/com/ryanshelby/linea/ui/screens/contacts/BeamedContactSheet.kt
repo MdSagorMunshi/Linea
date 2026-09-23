@@ -3,12 +3,14 @@ package com.ryanshelby.linea.ui.screens.contacts
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,13 +46,19 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -86,6 +94,50 @@ fun BeamedContactSheet(
     val haptic = LocalHapticFeedback.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // Entrance Haptic Celebration
+    LaunchedEffect(Unit) {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+
+    // Infinite Cyber Celebratory Wave & Rotation Transitions
+    val infiniteTransition = rememberInfiniteTransition(label = "beamed_celebration")
+    val auraRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "aura_rotation"
+    )
+    val waveProgress1 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wave1"
+    )
+    val waveProgress2 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, delayMillis = 1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wave2"
+    )
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.98f,
+        targetValue = 1.03f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_scale"
+    )
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -109,7 +161,7 @@ fun BeamedContactSheet(
                 .padding(bottom = 36.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header Row
+            // Header Row with Live Status Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -143,10 +195,10 @@ fun BeamedContactSheet(
                     }
 
                     Text(
-                        text = "LiNEA BEAM RECEIVED",
+                        text = "NFC BEAM DETECTED • CARD RECEIVED",
                         style = LineaTypography.captionBold.copy(
                             fontSize = 11.sp,
-                            letterSpacing = 1.6.sp
+                            letterSpacing = 1.4.sp
                         ),
                         color = LineaColors.EmeraldPrimary
                     )
@@ -165,51 +217,106 @@ fun BeamedContactSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Avatar (Photo or Monogram)
+            // Holographic Pulsing Radar Aura & Rotating Avatar
             val photoBitmap = remember(payload.photoThumbnailBase64) {
                 payload.photoThumbnailBase64?.let { decodeBase64ToBitmap(it) }
             }
             val initial = payload.name.trim().firstOrNull()?.uppercase() ?: "C"
 
             Box(
-                modifier = Modifier
-                    .size(86.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF141A22))
-                    .border(
-                        width = 2.dp,
-                        brush = Brush.sweepGradient(
-                            listOf(
-                                LineaColors.EmeraldPrimary,
-                                LineaColors.CyanPrimary,
-                                LineaColors.NeonOrchid,
-                                LineaColors.EmeraldPrimary
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
+                modifier = Modifier.size(132.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (photoBitmap != null) {
-                    Image(
-                        bitmap = photoBitmap.asImageBitmap(),
-                        contentDescription = "Contact Photo",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Text(
-                        text = initial,
-                        style = LineaTypography.titleLarge.copy(
-                            fontSize = 36.sp,
-                            fontWeight = FontWeight.Bold
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val baseRadius = 44.dp.toPx()
+                    val maxRadius = size.width / 2f
+
+                    // Expanding Electromagnetic Wave 1
+                    val r1 = baseRadius + (maxRadius - baseRadius) * waveProgress1
+                    val a1 = (1f - waveProgress1).coerceIn(0f, 1f) * 0.75f
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            listOf(
+                                LineaColors.EmeraldPrimary.copy(alpha = a1 * 0.45f),
+                                Color.Transparent
+                            ),
+                            center = Offset(cx, cy),
+                            radius = r1
                         ),
-                        color = LineaColors.EmeraldPrimary
+                        radius = r1,
+                        center = Offset(cx, cy)
                     )
+                    drawCircle(
+                        color = LineaColors.EmeraldPrimary.copy(alpha = a1),
+                        radius = r1,
+                        center = Offset(cx, cy),
+                        style = Stroke(width = 1.5.dp.toPx())
+                    )
+
+                    // Expanding Electromagnetic Wave 2
+                    val r2 = baseRadius + (maxRadius - baseRadius) * waveProgress2
+                    val a2 = (1f - waveProgress2).coerceIn(0f, 1f) * 0.75f
+                    drawCircle(
+                        color = LineaColors.CyanPrimary.copy(alpha = a2),
+                        radius = r2,
+                        center = Offset(cx, cy),
+                        style = Stroke(width = 1.5.dp.toPx())
+                    )
+                }
+
+                // Central Rotating Border Ring
+                Box(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .scale(pulseScale)
+                        .rotate(auraRotation)
+                        .clip(CircleShape)
+                        .border(
+                            width = 2.5.dp,
+                            brush = Brush.sweepGradient(
+                                listOf(
+                                    LineaColors.EmeraldPrimary,
+                                    LineaColors.CyanPrimary,
+                                    LineaColors.NeonOrchid,
+                                    Color(0xFF7C4DFF),
+                                    LineaColors.EmeraldPrimary
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+
+                // Central Avatar Core
+                Box(
+                    modifier = Modifier
+                        .size(82.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF141A22)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (photoBitmap != null) {
+                        Image(
+                            bitmap = photoBitmap.asImageBitmap(),
+                            contentDescription = "Contact Photo",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = initial,
+                            style = LineaTypography.titleLarge.copy(
+                                fontSize = 36.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = LineaColors.EmeraldPrimary
+                        )
+                    }
                 }
             }
 

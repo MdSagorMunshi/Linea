@@ -1,11 +1,13 @@
 package com.ryanshelby.linea
 
 import com.ryanshelby.linea.nfc.LineaBeamApduService
+import com.ryanshelby.linea.nfc.NfcBeamManager
 import com.ryanshelby.linea.qr_code.QrCodeEngine
 import com.ryanshelby.linea.ui.screens.dialpad.OrbitalSpeedDialContact
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.charset.StandardCharsets
@@ -184,4 +186,50 @@ class NfcBeamAndOrbitalDialTest {
         assertEquals("GITHUB", parsedPhoneB?.social2Platform)
         assertEquals("bob-code", parsedPhoneB?.social2Handle)
     }
+
+    @Test
+    fun testNfcTagWriteResultTypes() {
+        val detected = NfcBeamManager.TagWriteResult.TagDetected(
+            tagType = "NTAG / Mifare Ultralight",
+            uidHex = "04:A2:3B:5C:8D:1E:80"
+        )
+        assertEquals("NTAG / Mifare Ultralight", detected.tagType)
+        assertEquals("04:A2:3B:5C:8D:1E:80", detected.uidHex)
+
+        val success = NfcBeamManager.TagWriteResult.Success(
+            contactName = "Sarah Connor",
+            tagType = "NFC Forum NDEF Tag",
+            bytesWritten = 480
+        )
+        assertEquals("Sarah Connor", success.contactName)
+        assertEquals(480, success.bytesWritten)
+
+        val errorSmall = NfcBeamManager.TagWriteResult.Error(
+            title = "Tag Memory Too Small",
+            reason = "Contact card requires 512 bytes, but this tag only holds 144 bytes.",
+            tagType = "Mifare Ultralight",
+            requiredBytes = 512,
+            availableBytes = 144
+        )
+        assertEquals("Tag Memory Too Small", errorSmall.title)
+        assertEquals(512, errorSmall.requiredBytes)
+        assertEquals(144, errorSmall.availableBytes)
+
+        val errorProtected = NfcBeamManager.TagWriteResult.Error(
+            title = "Tag Is Write-Protected",
+            reason = "This NFC tag or card is permanently locked.",
+            tagType = "ISO 7816 Smart Card"
+        )
+        assertEquals("Tag Is Write-Protected", errorProtected.title)
+        assertEquals("ISO 7816 Smart Card", errorProtected.tagType)
+    }
+
+    @Test
+    fun testNfcBeamManagerClearMethods() {
+        val manager = NfcBeamManager()
+        manager.clearIncomingBeamedContact()
+        manager.clearTagWriteStatus()
+        assertNull(manager.pendingTagWritePayload)
+    }
 }
+

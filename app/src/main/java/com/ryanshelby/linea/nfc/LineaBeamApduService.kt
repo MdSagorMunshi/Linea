@@ -4,6 +4,9 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.nfc.NdefMessage
+import android.nfc.NdefRecord
 import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
@@ -211,50 +214,59 @@ class LineaBeamApduService : HostApduService() {
     }
 
     /**
-     * Builds standard Type 4 Tag NDEF file contents:
-     * 2 bytes big-endian length + NFC Forum NDEF Message bytes (RTD-URI).
+     * Builds standard Type 4 Tag NDEF file contents with Android Application Record (AAR).
+     * 2 bytes big-endian length + NFC Forum NDEF Message bytes (URI + AAR com.ryanshelby.linea).
      */
     private fun buildNdefFileContent(payload: QrCodeEngine.ContactPayload): ByteArray {
         val uri = QrCodeEngine.serializeToUri(payload)
         val uriBytes = uri.toByteArray(StandardCharsets.UTF_8)
+        val uriPayloadData = byteArrayOf(0x00) + uriBytes
+        val isUriShortRecord = uriPayloadData.size <= 255
 
-        // NFC Forum NDEF Record (Type 'U' / URI):
-        // 0xD1 = MB(1) | ME(1) | CF(0) | SR(1) | IL(0) | TNF(001)
-        val payloadLen = 1 + uriBytes.size
-        val ndefRecord = if (payloadLen <= 255) {
-            byteArrayOf(
-                0xD1.toByte(),      // Header
-                0x01,               // Type length
-                payloadLen.toByte(),// Payload length
-                0x55.toByte(),      // Type = 'U' (0x55)
-                0x00                // Identifier code (0x00 = exact URI)
-            ) + uriBytes
+        // Record 1: RTD-URI ('U')
+        // MB=1, ME=0, CF=0, SR=(isShort), IL=0, TNF=001 (Well-Known)
+        val uriHeaderByte = if (isUriShortRecord) 0x91.toByte() else 0x81.toByte()
+        val uriTypeField = byteArrayOf(0x55.toByte()) // 'U'
+        val uriRecordBytes = if (isUriShortRecord) {
+            byteArrayOf(uriHeaderByte, 0x01.toByte(), uriPayloadData.size.toByte()) + uriTypeField + uriPayloadData
         } else {
+            val pLen = uriPayloadData.size
             byteArrayOf(
-                0xC1.toByte(),      // Header (SR=0)
-                0x01,               // Type length
-                ((payloadLen shr 24) and 0xFF).toByte(),
-                ((payloadLen shr 16) and 0xFF).toByte(),
-                ((payloadLen shr 8) and 0xFF).toByte(),
-                (payloadLen and 0xFF).toByte(),
-                0x55.toByte(),
-                0x00
-            ) + uriBytes
+                uriHeaderByte, 0x01.toByte(),
+                ((pLen shr 24) and 0xFF).toByte(),
+                ((pLen shr 16) and 0xFF).toByte(),
+                ((pLen shr 8) and 0xFF).toByte(),
+                (pLen and 0xFF).toByte()
+            ) + uriTypeField + uriPayloadData
         }
 
-        val len = ndefRecord.size
+        // Record 2: Android Application Record (AAR: "android.com:pkg" -> "com.ryanshelby.linea")
+        // MB=0, ME=1, CF=0, SR=1, IL=0, TNF=100 (NFC Forum External Type)
+        val aarHeaderByte = 0x54.toByte()
+        val aarType = "android.com:pkg".toByteArray(StandardCharsets.US_ASCII)
+        val aarPayload = "com.ryanshelby.linea".toByteArray(StandardCharsets.US_ASCII)
+        val aarRecordBytes = byteArrayOf(
+            aarHeaderByte,
+            aarType.size.toByte(),
+            aarPayload.size.toByte()
+        ) + aarType + aarPayload
+
+        val ndefMessageBytes = uriRecordBytes + aarRecordBytes
+        val len = ndefMessageBytes.size
         val lenBytes = byteArrayOf(((len shr 8) and 0xFF).toByte(), (len and 0xFF).toByte())
-        return lenBytes + ndefRecord
+        return lenBytes + ndefMessageBytes
     }
 
     /**
-     * Post a high-priority system notification when a contact is received while LiNEA is closed.
+     * Post a high-priority system notification and attempt direct launch when a contact is received while LiNEA is closed.
      */
     private fun postBeamedContactNotification(payload: QrCodeEngine.ContactPayload) {
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
             val intent = Intent(this, com.ryanshelby.linea.MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                action = Intent.ACTION_VIEW
+                data = Uri.parse(QrCodeEngine.serializeToUri(payload))
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
             val pendingIntent = PendingIntent.getActivity(
                 this,
@@ -263,11 +275,18 @@ class LineaBeamApduService : HostApduService() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
+            // Attempt direct launch if allowed by OS during NFC bump
+            try {
+                startActivity(intent)
+            } catch (_: Exception) {}
+
             val notification = NotificationCompat.Builder(this, LineaApp.CHANNEL_LINEA_BEAM)
                 .setSmallIcon(R.drawable.ic_contacts_filled)
                 .setContentTitle("LiNEA Beam: New Contact Received")
                 .setContentText("${payload.name} shared their digital card. Tap to view & save.")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setFullScreenIntent(pendingIntent, true)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
                 .build()

@@ -100,17 +100,35 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <!-- 3. LiNEA Beam NFC NDEF Discovered -->
+            <!-- 3. LiNEA Beam NFC NDEF & Tag Discovered -->
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="linea" android:host="contact" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="linea" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/vnd.linea.contact" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.nfc.action.TECH_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.nfc.action.TAG_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.action.TECH_DISCOVERED"
+                android:resource="@xml/nfc_tech_filter" />
         </activity>
 
         <!-- In-Call Activity -->

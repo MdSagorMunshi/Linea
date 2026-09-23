@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
         }
         handleCallIntent(intent)
         nfcBeamManager.handleIntent(intent)
+        nfcBeamManager.checkPendingBeamedContact(this)
 
         setContent {
             val reduceAnimations by lineaPreferences.reduceAnimations.collectAsState(initial = false)

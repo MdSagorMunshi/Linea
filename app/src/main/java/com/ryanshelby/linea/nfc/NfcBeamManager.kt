@@ -3,6 +3,7 @@ package com.ryanshelby.linea.nfc
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
@@ -33,16 +34,25 @@ import javax.inject.Singleton
  * 3. Fast ISO-DEP APDU exchange for LiNEA-to-LiNEA phone bumps.
  * 4. Standard NDEF read/write operations for physical NFC cards/tags/stickers.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Singleton
 class NfcBeamManager @Inject constructor() {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    private val _incomingBeamedContact = MutableSharedFlow<QrCodeEngine.ContactPayload>(extraBufferCapacity = 1)
+    private val _incomingBeamedContact = MutableSharedFlow<QrCodeEngine.ContactPayload>(replay = 1, extraBufferCapacity = 8)
     val incomingBeamedContact: SharedFlow<QrCodeEngine.ContactPayload> = _incomingBeamedContact.asSharedFlow()
 
-    private val _tagWriteStatus = MutableSharedFlow<TagWriteResult>(extraBufferCapacity = 1)
+    fun clearIncomingBeamedContact() {
+        _incomingBeamedContact.resetReplayCache()
+    }
+
+    private val _tagWriteStatus = MutableSharedFlow<TagWriteResult>(replay = 1, extraBufferCapacity = 8)
     val tagWriteStatus: SharedFlow<TagWriteResult> = _tagWriteStatus.asSharedFlow()
+
+    fun clearTagWriteStatus() {
+        _tagWriteStatus.resetReplayCache()
+    }
 
     // When set, the next scanned physical NFC tag will be programmed with this payload
     @Volatile
@@ -73,8 +83,24 @@ class NfcBeamManager @Inject constructor() {
     }
 
     sealed class TagWriteResult {
-        data class Success(val contactName: String) : TagWriteResult()
-        data class Error(val message: String) : TagWriteResult()
+        data class TagDetected(
+            val tagType: String,
+            val uidHex: String
+        ) : TagWriteResult()
+
+        data class Success(
+            val contactName: String,
+            val tagType: String,
+            val bytesWritten: Int
+        ) : TagWriteResult()
+
+        data class Error(
+            val title: String,
+            val reason: String,
+            val tagType: String? = null,
+            val requiredBytes: Int = 0,
+            val availableBytes: Int = 0
+        ) : TagWriteResult()
     }
 
     /**
@@ -168,12 +194,14 @@ class NfcBeamManager @Inject constructor() {
             // Check if there is a pending write request first
             val writePayload = pendingTagWritePayload
             if (writePayload != null) {
-                val writeSuccess = writePayloadToTag(tag, writePayload)
-                if (writeSuccess) {
-                    _tagWriteStatus.tryEmit(TagWriteResult.Success(writePayload.name))
+                val tagType = getTagTypeName(tag)
+                val uidHex = tag.id?.joinToString(":") { "%02X".format(it) } ?: "UNKNOWN"
+                _tagWriteStatus.tryEmit(TagWriteResult.TagDetected(tagType, uidHex))
+
+                val result = writePayloadToTagDetailed(tag, writePayload, tagType)
+                _tagWriteStatus.tryEmit(result)
+                if (result is TagWriteResult.Success) {
                     pendingTagWritePayload = null
-                } else {
-                    _tagWriteStatus.tryEmit(TagWriteResult.Error("Failed to write to NFC tag. Ensure tag is writable."))
                 }
                 return@launch
             }
@@ -191,6 +219,17 @@ class NfcBeamManager @Inject constructor() {
      */
     fun handleIntent(intent: Intent?) {
         if (intent == null) return
+
+        // 1. Direct deep-link URI (e.g. launched via NDEF_DISCOVERED, AAR, or VIEW)
+        val dataUri = intent.data?.toString()
+        if (!dataUri.isNullOrBlank()) {
+            val payload = QrCodeEngine.parseLineaScannedText(dataUri) ?: QrCodeEngine.parseScannedText(dataUri)
+            if (payload != null) {
+                _incomingBeamedContact.tryEmit(payload)
+                return
+            }
+        }
+
         val action = intent.action ?: return
         if (action == NfcAdapter.ACTION_NDEF_DISCOVERED ||
             action == NfcAdapter.ACTION_TECH_DISCOVERED ||
@@ -335,7 +374,7 @@ class NfcBeamManager @Inject constructor() {
             try {
                 val uri = record.toUri()
                 if (uri != null) {
-                    val parsed = QrCodeEngine.parseLineaScannedText(uri.toString())
+                    val parsed = QrCodeEngine.parseLineaScannedText(uri.toString()) ?: QrCodeEngine.parseScannedText(uri.toString())
                     if (parsed != null) return parsed
                 }
             } catch (_: Exception) {}
@@ -343,7 +382,7 @@ class NfcBeamManager @Inject constructor() {
             // Check payload as text/vcard or raw URI string
             try {
                 val text = String(record.payload, StandardCharsets.UTF_8).trim()
-                val parsed = QrCodeEngine.parseLineaScannedText(text)
+                val parsed = QrCodeEngine.parseLineaScannedText(text) ?: QrCodeEngine.parseScannedText(text)
                 if (parsed != null) return parsed
             } catch (_: Exception) {}
         }
@@ -351,35 +390,96 @@ class NfcBeamManager @Inject constructor() {
     }
 
     /**
-     * Writes contact payload to a physical rewritable NFC tag.
+     * Determines readable human tag technology name.
      */
-    private fun writePayloadToTag(tag: Tag, payload: QrCodeEngine.ContactPayload): Boolean {
+    fun getTagTypeName(tag: Tag): String {
+        val techList = tag.techList.map { it.substringAfterLast('.') }
+        return when {
+            techList.contains("Ndef") -> "NFC Forum NDEF Tag"
+            techList.contains("NdefFormatable") -> "Blank/Unformatted NFC Tag"
+            techList.contains("MifareUltralight") -> "NTAG / Mifare Ultralight"
+            techList.contains("MifareClassic") -> "Mifare Classic"
+            techList.contains("IsoDep") -> "ISO-DEP Smart Card / Phone"
+            techList.contains("NfcA") -> "NFC-A Tag"
+            techList.contains("NfcB") -> "NFC-B Tag"
+            techList.contains("NfcF") -> "NFC-F (FeliCa)"
+            techList.contains("NfcV") -> "NFC-V (ISO 15693)"
+            else -> techList.firstOrNull() ?: "Standard NFC Tag"
+        }
+    }
+
+    /**
+     * Writes contact payload to a physical rewritable NFC tag with exact diagnostics.
+     */
+    private fun writePayloadToTagDetailed(
+        tag: Tag,
+        payload: QrCodeEngine.ContactPayload,
+        tagType: String
+    ): TagWriteResult {
         val uri = QrCodeEngine.serializeToUri(payload)
-        val uriRecord = NdefRecord.createUri(uri)
+        val uriRecord = NdefRecord.createUri(Uri.parse(uri))
         val aarRecord = NdefRecord.createApplicationRecord("com.ryanshelby.linea")
         val message = NdefMessage(arrayOf(uriRecord, aarRecord))
-        val size = message.toByteArray().size
+        val requiredBytes = message.toByteArray().size
 
         val ndef = Ndef.get(tag)
         if (ndef != null) {
             try {
                 ndef.connect()
                 if (!ndef.isWritable) {
-                    ndef.close()
-                    return false
+                    try { ndef.close() } catch (_: Exception) {}
+                    return TagWriteResult.Error(
+                        title = "Tag Is Write-Protected",
+                        reason = "This NFC tag or card is permanently locked or configured as read-only. Please use an unlocked rewritable tag.",
+                        tagType = tagType
+                    )
                 }
-                if (ndef.maxSize < size) {
-                    ndef.close()
-                    return false
+                if (ndef.maxSize < requiredBytes) {
+                    val available = ndef.maxSize
+                    try { ndef.close() } catch (_: Exception) {}
+                    return TagWriteResult.Error(
+                        title = "Tag Memory Too Small",
+                        reason = "Contact card requires $requiredBytes bytes, but this tag only holds $available bytes. Consider using an NTAG215 (504 bytes) or NTAG216 (888 bytes), or remove profile photo to reduce card size.",
+                        tagType = tagType,
+                        requiredBytes = requiredBytes,
+                        availableBytes = available
+                    )
                 }
                 ndef.writeNdefMessage(message)
-                ndef.close()
-                return true
+                try { ndef.close() } catch (_: Exception) {}
+                return TagWriteResult.Success(
+                    contactName = payload.name,
+                    tagType = tagType,
+                    bytesWritten = requiredBytes
+                )
+            } catch (e: android.nfc.TagLostException) {
+                try { ndef.close() } catch (_: Exception) {}
+                return TagWriteResult.Error(
+                    title = "Tag Connection Lost",
+                    reason = "The tag was moved away before writing finished. Hold the tag firmly against the NFC antenna on the back of your phone.",
+                    tagType = tagType
+                )
+            } catch (e: android.nfc.FormatException) {
+                try { ndef.close() } catch (_: Exception) {}
+                return TagWriteResult.Error(
+                    title = "NDEF Format Error",
+                    reason = "Tag rejected NDEF structure: ${e.localizedMessage ?: "Corrupted sector format"}.",
+                    tagType = tagType
+                )
+            } catch (e: java.io.IOException) {
+                try { ndef.close() } catch (_: Exception) {}
+                return TagWriteResult.Error(
+                    title = "I/O Communication Error",
+                    reason = "Failed to communicate with tag (${e.localizedMessage ?: "Hardware timeout"}). Ensure tag is positioned steadily.",
+                    tagType = tagType
+                )
             } catch (e: Exception) {
-                try {
-                    ndef.close()
-                } catch (_: Exception) {}
-                return false
+                try { ndef.close() } catch (_: Exception) {}
+                return TagWriteResult.Error(
+                    title = "Writing Failed",
+                    reason = e.localizedMessage ?: "Unknown error writing to NFC tag.",
+                    tagType = tagType
+                )
             }
         }
 
@@ -388,16 +488,35 @@ class NfcBeamManager @Inject constructor() {
             try {
                 formatable.connect()
                 formatable.format(message)
-                formatable.close()
-                return true
+                try { formatable.close() } catch (_: Exception) {}
+                return TagWriteResult.Success(
+                    contactName = payload.name,
+                    tagType = "$tagType (Formatted)",
+                    bytesWritten = requiredBytes
+                )
+            } catch (e: android.nfc.TagLostException) {
+                try { formatable.close() } catch (_: Exception) {}
+                return TagWriteResult.Error(
+                    title = "Tag Connection Lost",
+                    reason = "The tag was moved away during formatting. Keep tag held steadily.",
+                    tagType = tagType
+                )
             } catch (e: Exception) {
-                try {
-                    formatable.close()
-                } catch (_: Exception) {}
-                return false
+                try { formatable.close() } catch (_: Exception) {}
+                return TagWriteResult.Error(
+                    title = "Formatting Failed",
+                    reason = "Failed to format tag as NDEF: ${e.localizedMessage ?: "Tag not compatible with NDEF standard"}.",
+                    tagType = tagType
+                )
             }
         }
 
-        return false
+        // Tag does not support NDEF or formatting
+        val techList = tag.techList.map { it.substringAfterLast('.') }.joinToString(", ")
+        return TagWriteResult.Error(
+            title = "Unsupported NFC Tag",
+            reason = "This tag does not support standard NDEF formatting (Detected: $techList). Linea requires rewritable NDEF tags (such as NTAG213, NTAG215, NTAG216, or Mifare Ultralight). Payment cards and transit tokens cannot be overwritten.",
+            tagType = tagType
+        )
     }
 }

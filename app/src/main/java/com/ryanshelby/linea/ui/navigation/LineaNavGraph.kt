@@ -396,14 +396,19 @@ fun LineaNavGraph(
         beamedContactPayload?.let { payload ->
             BeamedContactSheet(
                 payload = payload,
-                onDismiss = { beamedContactPayload = null },
+                onDismiss = {
+                    beamedContactPayload = null
+                    nfcBeamManager?.clearIncomingBeamedContact()
+                },
                 onSaveContact = { richPayload ->
                     contactsViewModel.createContactFromPayload(richPayload)
                     beamedContactPayload = null
+                    nfcBeamManager?.clearIncomingBeamedContact()
                 },
                 onCallNumber = { number ->
                     callManager?.placeCall(number)
                     beamedContactPayload = null
+                    nfcBeamManager?.clearIncomingBeamedContact()
                 }
             )
         }
