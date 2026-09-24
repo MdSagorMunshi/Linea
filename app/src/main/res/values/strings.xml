@@ -20,5 +20,6 @@
     <!-- NFC Beam -->
     <string name="nfc_beam_service_desc">LiNEA Beam Instant Contact Sharing Service</string>
     <string name="nfc_beam_aid_desc">LiNEA Contact Beam Protocol</string>
+    <string name="nfc_beam_ndef_aid_desc">NFC Forum Type 4 Tag NDEF Application</string>
 
 </resources>

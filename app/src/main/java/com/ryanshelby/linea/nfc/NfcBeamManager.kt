@@ -11,16 +11,22 @@ import android.nfc.Tag
 import android.nfc.tech.IsoDep
 import android.nfc.tech.Ndef
 import android.nfc.tech.NdefFormatable
+import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.provider.Settings
 import com.ryanshelby.linea.qr_code.QrCodeEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.lang.ref.WeakReference
 import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -156,34 +162,106 @@ class NfcBeamManager @Inject constructor() {
         LineaBeamApduService.setActiveContact(payload ?: userProfilePayload)
     }
 
+    @Volatile
+    private var isBeamSessionActive = false
+
+    @Volatile
+    private var isTagOperationInProgress = false
+
+    private var beamCycleJob: Job? = null
+    private val mainScope = CoroutineScope(Dispatchers.Main)
+    private var currentActivity: WeakReference<Activity>? = null
+
     /**
-     * Enables Reader Mode in the active activity.
+     * Enables Reader Mode in the active activity with adaptive duty cycling.
      */
     fun enableReaderMode(activity: Activity) {
-        val adapter = NfcAdapter.getDefaultAdapter(activity) ?: return
-        if (!adapter.isEnabled) return
-
-        val flags = NfcAdapter.FLAG_READER_NFC_A or
-                NfcAdapter.FLAG_READER_NFC_B or
-                NfcAdapter.FLAG_READER_NFC_F or
-                NfcAdapter.FLAG_READER_NFC_V or
-                NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS
-
-        adapter.enableReaderMode(activity, { tag ->
-            handleDiscoveredTag(tag)
-        }, flags, null)
+        startBeamSession(activity)
     }
 
     /**
      * Disables Reader Mode when activity pauses.
      */
     fun disableReaderMode(activity: Activity) {
+        stopBeamSession(activity)
+    }
+
+    @Synchronized
+    fun startBeamSession(activity: Activity) {
+        currentActivity = WeakReference(activity)
         val adapter = NfcAdapter.getDefaultAdapter(activity) ?: return
-        try {
-            adapter.disableReaderMode(activity)
-        } catch (_: Exception) {
-            // Activity might already be destroyed
+        if (!adapter.isEnabled) return
+
+        stopBeamSession(activity)
+        isBeamSessionActive = true
+        currentActivity = WeakReference(activity)
+
+        val readerFlags = NfcAdapter.FLAG_READER_NFC_A or
+                NfcAdapter.FLAG_READER_NFC_B or
+                NfcAdapter.FLAG_READER_NFC_F or
+                NfcAdapter.FLAG_READER_NFC_V or
+                NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS
+
+        val readerExtras = Bundle().apply {
+            putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 500)
         }
+
+        beamCycleJob = mainScope.launch {
+            while (isBeamSessionActive && !activity.isFinishing && !activity.isDestroyed) {
+                // When tag write or active tag communication is underway, stay locked in reader mode
+                if (pendingTagWritePayload != null || isTagOperationInProgress) {
+                    try {
+                        adapter.enableReaderMode(activity, { tag -> handleDiscoveredTag(tag) }, readerFlags, readerExtras)
+                    } catch (_: Exception) {}
+                    delay(300)
+                    continue
+                }
+
+                // Phase 1: Reader Mode (active tag/phone discovery)
+                try {
+                    adapter.enableReaderMode(activity, { tag -> handleDiscoveredTag(tag) }, readerFlags, readerExtras)
+                } catch (_: Exception) {}
+
+                val readerDuration = 320L + (0..100).random()
+                delay(readerDuration)
+
+                if (isTagOperationInProgress || pendingTagWritePayload != null) {
+                    continue
+                }
+
+                // Phase 2: Passive Listen Mode (disable reader mode so HCE chip can listen to peer's carrier)
+                try {
+                    adapter.disableReaderMode(activity)
+                } catch (_: Exception) {}
+
+                val listenDuration = 220L + (0..80).random()
+                delay(listenDuration)
+            }
+        }
+    }
+
+    @Synchronized
+    fun stopBeamSession(activity: Activity) {
+        isBeamSessionActive = false
+        beamCycleJob?.cancel()
+        beamCycleJob = null
+        try {
+            val adapter = NfcAdapter.getDefaultAdapter(activity)
+            adapter?.disableReaderMode(activity)
+        } catch (_: Exception) {}
+    }
+
+    private fun triggerHapticFeedback() {
+        try {
+            val ctx = currentActivity?.get() ?: return
+            val vibrator = ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 70, 50, 90), -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(120)
+            }
+        } catch (_: Exception) {}
     }
 
     /**
@@ -202,6 +280,7 @@ class NfcBeamManager @Inject constructor() {
                 _tagWriteStatus.tryEmit(result)
                 if (result is TagWriteResult.Success) {
                     pendingTagWritePayload = null
+                    triggerHapticFeedback()
                 }
                 return@launch
             }
@@ -209,6 +288,7 @@ class NfcBeamManager @Inject constructor() {
             // Otherwise, attempt to read contact
             val payload = readContactFromTag(tag)
             if (payload != null) {
+                triggerHapticFeedback()
                 _incomingBeamedContact.tryEmit(payload)
             }
         }
@@ -271,98 +351,162 @@ class NfcBeamManager @Inject constructor() {
      * Reads contact payload from tag using ISO-DEP (HCE bump) or NDEF (physical tag/card).
      */
     private fun readContactFromTag(tag: Tag): QrCodeEngine.ContactPayload? {
-        // 1. Try ISO-DEP (Peer-to-peer phone Host Card Emulation)
-        val isoDep = IsoDep.get(tag)
-        if (isoDep != null) {
-            try {
-                isoDep.connect()
-                isoDep.timeout = 2500
-
-                // Step A: Send SELECT AID command for LiNEA Custom AID F0010203040506:
-                // CLA=00, INS=A4, P1=04, P2=00, Lc=07, DATA=F0010203040506, Le=00
-                val selectAidApdu = byteArrayOf(
-                    0x00, 0xA4.toByte(), 0x04, 0x00, 0x07,
-                    0xF0.toByte(), 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-                    0x00
-                )
-                val selectResponse = isoDep.transceive(selectAidApdu)
-
-                var peerPayload: QrCodeEngine.ContactPayload? = null
-
-                // Step B: Bidirectional SWAP_CARDS (INS = A5).
-                // Send reader's own contact payload in command data so the other phone receives it,
-                // and parse peer's contact payload from the APDU response.
-                val outboundPayload = activeBeamPayload ?: userProfilePayload
-                val outboundUriBytes = if (outboundPayload != null) {
-                    QrCodeEngine.serializeToUri(outboundPayload).toByteArray(StandardCharsets.UTF_8)
-                } else ByteArray(0)
-
-                val swapApdu = if (outboundUriBytes.size <= 255) {
-                    byteArrayOf(0x00, 0xA5.toByte(), 0x00, 0x00, outboundUriBytes.size.toByte()) +
-                            outboundUriBytes + byteArrayOf(0x00)
-                } else {
-                    // Extended APDU format
-                    byteArrayOf(
-                        0x00, 0xA5.toByte(), 0x00, 0x00, 0x00,
-                        ((outboundUriBytes.size shr 8) and 0xFF).toByte(),
-                        (outboundUriBytes.size and 0xFF).toByte()
-                    ) + outboundUriBytes + byteArrayOf(0x00, 0x00)
-                }
-
+        isTagOperationInProgress = true
+        try {
+            // 1. Try ISO-DEP (Peer-to-peer phone Host Card Emulation)
+            val isoDep = IsoDep.get(tag)
+            if (isoDep != null) {
                 try {
-                    val swapResponse = isoDep.transceive(swapApdu)
-                    if (swapResponse != null && swapResponse.size >= 2) {
-                        val sw1 = swapResponse[swapResponse.size - 2]
-                        val sw2 = swapResponse[swapResponse.size - 1]
-                        if (sw1 == 0x90.toByte() && sw2 == 0x00.toByte()) {
-                            val payloadBytes = swapResponse.copyOfRange(0, swapResponse.size - 2)
+                    isoDep.connect()
+                    isoDep.timeout = 3000
+
+                    // Step A: Send SELECT AID command for LiNEA Custom AID F0010203040506:
+                    // CLA=00, INS=A4, P1=04, P2=00, Lc=07, DATA=F0010203040506 (clean 12 bytes)
+                    val selectAidApdu = byteArrayOf(
+                        0x00, 0xA4.toByte(), 0x04, 0x00, 0x07,
+                        0xF0.toByte(), 0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+                    )
+                    val selectResponse = isoDep.transceive(selectAidApdu)
+
+                    var peerPayload: QrCodeEngine.ContactPayload? = null
+
+                    if (selectResponse != null && selectResponse.size >= 2 &&
+                        selectResponse[selectResponse.size - 2] == 0x90.toByte() &&
+                        selectResponse[selectResponse.size - 1] == 0x00.toByte()
+                    ) {
+                        // Check if peer returned payload directly on SELECT AID (for small cards <= 240 bytes)
+                        if (selectResponse.size > 2) {
+                            val payloadBytes = selectResponse.copyOfRange(0, selectResponse.size - 2)
                             val text = String(payloadBytes, StandardCharsets.UTF_8).trim()
-                            peerPayload = QrCodeEngine.parseLineaScannedText(text)
+                            peerPayload = QrCodeEngine.parseLineaScannedText(text) ?: QrCodeEngine.parseScannedText(text)
+                        }
+
+                        // Prepare outbound chunks to transmit reader's contact card to the target phone
+                        val outboundPayload = activeBeamPayload ?: userProfilePayload
+                        val outboundUriBytes = if (outboundPayload != null) {
+                            QrCodeEngine.serializeToUri(outboundPayload).toByteArray(StandardCharsets.UTF_8)
+                        } else ByteArray(0)
+
+                        val outboundChunks = if (outboundUriBytes.isNotEmpty()) {
+                            outboundUriBytes.toList().chunked(LineaBeamApduService.CHUNK_SIZE).map { it.toByteArray() }
+                        } else emptyList()
+
+                        val readerTotalBytes = outboundUriBytes.size
+                        val readerTotalChunks = outboundChunks.size
+
+                        // Step B: INIT_EXCHANGE (INS = A0)
+                        val initApdu = byteArrayOf(
+                            0x00, LineaBeamApduService.INS_INIT_EXCHANGE.toByte(), 0x00, 0x00, 0x04,
+                            ((readerTotalBytes shr 8) and 0xFF).toByte(),
+                            (readerTotalBytes and 0xFF).toByte(),
+                            ((readerTotalChunks shr 8) and 0xFF).toByte(),
+                            (readerTotalChunks and 0xFF).toByte(),
+                            0x04
+                        )
+                        var targetTotalChunks = 0
+                        try {
+                            val initResp = isoDep.transceive(initApdu)
+                            if (initResp != null && initResp.size >= 6 &&
+                                initResp[initResp.size - 2] == 0x90.toByte() &&
+                                initResp[initResp.size - 1] == 0x00.toByte()
+                            ) {
+                                targetTotalChunks = ((initResp[2].toInt() and 0xFF) shl 8) or (initResp[3].toInt() and 0xFF)
+                            }
+                        } catch (_: Exception) {}
+
+                        // Step C: Send reader chunks to target (INS = A1)
+                        for (i in outboundChunks.indices) {
+                            val chunk = outboundChunks[i]
+                            val sendChunkApdu = byteArrayOf(
+                                0x00, LineaBeamApduService.INS_SEND_CHUNK.toByte(),
+                                ((i shr 8) and 0xFF).toByte(),
+                                (i and 0xFF).toByte(),
+                                chunk.size.toByte()
+                            ) + chunk + byteArrayOf(0x00)
+                            try {
+                                isoDep.transceive(sendChunkApdu)
+                            } catch (_: Exception) {
+                                break
+                            }
+                        }
+
+                        // Step D: Retrieve target chunks (INS = A2) if needed
+                        if (peerPayload == null && targetTotalChunks > 0) {
+                            val targetChunks = mutableListOf<ByteArray>()
+                            for (i in 0 until targetTotalChunks) {
+                                val getChunkApdu = byteArrayOf(
+                                    0x00, LineaBeamApduService.INS_GET_CHUNK.toByte(),
+                                    ((i shr 8) and 0xFF).toByte(),
+                                    (i and 0xFF).toByte(),
+                                    0x00
+                                )
+                                val chunkResp = isoDep.transceive(getChunkApdu)
+                                if (chunkResp != null && chunkResp.size >= 2 &&
+                                    chunkResp[chunkResp.size - 2] == 0x90.toByte() &&
+                                    chunkResp[chunkResp.size - 1] == 0x00.toByte()
+                                ) {
+                                    targetChunks.add(chunkResp.copyOfRange(0, chunkResp.size - 2))
+                                } else {
+                                    break
+                                }
+                            }
+
+                            if (targetChunks.size == targetTotalChunks) {
+                                val combinedBytes = targetChunks.flatMap { it.toList() }.toByteArray()
+                                val text = String(combinedBytes, StandardCharsets.UTF_8).trim()
+                                peerPayload = QrCodeEngine.parseLineaScannedText(text) ?: QrCodeEngine.parseScannedText(text)
+                            }
+                        }
+
+                        // Fallback: Legacy SWAP_CARDS (INS = A5) if chunking was not used
+                        if (peerPayload == null && outboundUriBytes.size <= 240) {
+                            try {
+                                val swapApdu = byteArrayOf(0x00, LineaBeamApduService.INS_SWAP_CARDS.toByte(), 0x00, 0x00, outboundUriBytes.size.toByte()) +
+                                        outboundUriBytes + byteArrayOf(0x00)
+                                val swapResponse = isoDep.transceive(swapApdu)
+                                if (swapResponse != null && swapResponse.size >= 2 &&
+                                    swapResponse[swapResponse.size - 2] == 0x90.toByte() &&
+                                    swapResponse[swapResponse.size - 1] == 0x00.toByte()
+                                ) {
+                                    val payloadBytes = swapResponse.copyOfRange(0, swapResponse.size - 2)
+                                    val text = String(payloadBytes, StandardCharsets.UTF_8).trim()
+                                    peerPayload = QrCodeEngine.parseLineaScannedText(text) ?: QrCodeEngine.parseScannedText(text)
+                                }
+                            } catch (_: Exception) {}
                         }
                     }
-                } catch (_: Exception) {
-                    // Fallback to selectResponse if peer did not support SWAP
-                }
 
-                // If SWAP did not return a payload, check response from initial SELECT
-                if (peerPayload == null && selectResponse != null && selectResponse.size >= 2) {
-                    val sw1 = selectResponse[selectResponse.size - 2]
-                    val sw2 = selectResponse[selectResponse.size - 1]
-                    if (sw1 == 0x90.toByte() && sw2 == 0x00.toByte()) {
-                        val payloadBytes = selectResponse.copyOfRange(0, selectResponse.size - 2)
-                        val text = String(payloadBytes, StandardCharsets.UTF_8).trim()
-                        peerPayload = QrCodeEngine.parseLineaScannedText(text)
-                    }
-                }
-
-                isoDep.close()
-                if (peerPayload != null) return peerPayload
-            } catch (_: Exception) {
-                try {
                     isoDep.close()
-                } catch (_: Exception) {}
-            }
-        }
-
-        // 2. Try standard NDEF reading (Type 2/4 tags, stickers, cards)
-        val ndef = Ndef.get(tag)
-        if (ndef != null) {
-            try {
-                ndef.connect()
-                val ndefMessage = ndef.ndefMessage
-                ndef.close()
-                if (ndefMessage != null) {
-                    val parsed = parseNdefMessage(ndefMessage)
-                    if (parsed != null) return parsed
+                    if (peerPayload != null) return peerPayload
+                } catch (_: Exception) {
+                    try {
+                        isoDep.close()
+                    } catch (_: Exception) {}
                 }
-            } catch (_: Exception) {
-                try {
-                    ndef.close()
-                } catch (_: Exception) {}
             }
-        }
 
-        return null
+            // 2. Try standard NDEF reading (Type 2/4 tags, stickers, cards)
+            val ndef = Ndef.get(tag)
+            if (ndef != null) {
+                try {
+                    ndef.connect()
+                    val ndefMessage = ndef.ndefMessage
+                    ndef.close()
+                    if (ndefMessage != null) {
+                        val parsed = parseNdefMessage(ndefMessage)
+                        if (parsed != null) return parsed
+                    }
+                } catch (_: Exception) {
+                    try {
+                        ndef.close()
+                    } catch (_: Exception) {}
+                }
+            }
+
+            return null
+        } finally {
+            isTagOperationInProgress = false
+        }
     }
 
     /**

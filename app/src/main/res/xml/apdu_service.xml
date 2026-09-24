@@ -6,6 +6,10 @@
         android:category="other"
         android:description="@string/nfc_beam_aid_desc">
         <aid-filter android:name="F0010203040506" />
+    </aid-group>
+    <aid-group
+        android:category="other"
+        android:description="@string/nfc_beam_ndef_aid_desc">
         <aid-filter android:name="D2760000850101" />
     </aid-group>
 </host-apdu-service>

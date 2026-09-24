@@ -5,14 +5,16 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.nfc.NdefMessage
-import android.nfc.NdefRecord
 import android.nfc.cardemulation.HostApduService
+import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.core.app.NotificationCompat
 import com.ryanshelby.linea.LineaApp
 import com.ryanshelby.linea.R
 import com.ryanshelby.linea.qr_code.QrCodeEngine
+import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.Arrays
 
@@ -20,9 +22,10 @@ import java.util.Arrays
  * Host Card Emulation (HCE) service for LiNEA Beam.
  *
  * Emulates:
- * 1. LiNEA Proprietary Contact Beam AID (F0010203040506) for high-speed LiNEA-to-LiNEA mutual exchange.
+ * 1. LiNEA Proprietary Contact Beam AID (F0010203040506) for high-speed LiNEA-to-LiNEA mutual exchange
+ *    using a robust chunked APDU protocol (<= 192 bytes per frame) compatible with Android's 261-byte limit.
  * 2. NFC Forum Type 4 Tag NDEF Application (D2760000850101) so ANY NFC phone or standard NFC reader
- *    can read the beamed contact card.
+ *    can read the beamed contact card via standard NDEF.
  *
  * Supports Always Share Mode: allows sharing contact card even when LiNEA is closed or backgrounded.
  */
@@ -31,7 +34,7 @@ class LineaBeamApduService : HostApduService() {
     companion object {
         // LiNEA Custom AID: F0 01 02 03 04 05 06
         val LINEA_AID = byteArrayOf(0xF0.toByte(), 0x01, 0x02, 0x03, 0x04, 0x05, 0x06)
-        
+
         // NFC Forum Type 4 Tag NDEF Application AID: D2 76 00 00 85 01 01
         val NDEF_AID = byteArrayOf(
             0xD2.toByte(), 0x76.toByte(), 0x00, 0x00, 0x85.toByte(), 0x01, 0x01
@@ -47,17 +50,14 @@ class LineaBeamApduService : HostApduService() {
         // NDEF File ID: E1 04
         val NDEF_FILE_ID = byteArrayOf(0xE1.toByte(), 0x04)
 
+        // Chunking protocol commands
+        const val INS_INIT_EXCHANGE = 0xA0
+        const val INS_SEND_CHUNK = 0xA1
+        const val INS_GET_CHUNK = 0xA2
+        const val INS_SWAP_CARDS = 0xA5
+        const val CHUNK_SIZE = 192
+
         // Type 4 Tag CC file content (15 bytes)
-        // [0..1] CCLEN: 00 0F
-        // [2]    Mapping version: 2.0 (20)
-        // [3..4] MLe: 00 FF
-        // [5..6] MLc: 00 FF
-        // [7]    NDEF File Control TLV T: 04
-        // [8]    L: 06
-        // [9..10] File ID: E1 04
-        // [11..12] Max NDEF file size: 20 00 (8192 bytes)
-        // [13]   Read access: 00 (unrestricted)
-        // [14]   Write access: FF (read only)
         val CC_FILE = byteArrayOf(
             0x00, 0x0F,
             0x20,
@@ -69,8 +69,6 @@ class LineaBeamApduService : HostApduService() {
             0x00,
             0xFF.toByte()
         )
-
-        const val INS_SWAP_CARDS = 0xA5
 
         @Volatile
         var activePayload: QrCodeEngine.ContactPayload? = null
@@ -84,6 +82,9 @@ class LineaBeamApduService : HostApduService() {
     }
 
     private var selectedFile: ByteArray? = null
+    private var outboundChunks: List<ByteArray> = emptyList()
+    private val incomingChunksBuffer = ByteArrayOutputStream()
+    private var expectedTotalChunks = 0
 
     override fun processCommandApdu(commandApdu: ByteArray?, extras: Bundle?): ByteArray {
         if (commandApdu == null || commandApdu.size < 4) {
@@ -121,9 +122,23 @@ class LineaBeamApduService : HostApduService() {
                 if (commandApdu.size >= 5 + length) {
                     val aid = commandApdu.copyOfRange(5, 5 + length)
                     if (Arrays.equals(aid, LINEA_AID)) {
-                        // LiNEA-to-LiNEA direct protocol: return raw serialized URI
-                        return if (currentPayload != null && isSharingAllowed) {
-                            val uriBytes = QrCodeEngine.serializeToUri(currentPayload).toByteArray(StandardCharsets.UTF_8)
+                        selectedFile = null
+                        incomingChunksBuffer.reset()
+                        expectedTotalChunks = 0
+
+                        val uriBytes = if (isSharingAllowed && currentPayload != null) {
+                            QrCodeEngine.serializeToUri(currentPayload).toByteArray(StandardCharsets.UTF_8)
+                        } else ByteArray(0)
+
+                        outboundChunks = if (uriBytes.isNotEmpty()) {
+                            uriBytes.toList().chunked(CHUNK_SIZE).map { it.toByteArray() }
+                        } else emptyList()
+
+                        // If payload fits safely within standard short APDU limit (<= 240 bytes),
+                        // return it directly on SELECT AID for sub-second single-shot exchange.
+                        // For larger payloads (e.g. with avatar photos), return STATUS_SUCCESS (90 00)
+                        // so the reader will stream chunks via INS_INIT_EXCHANGE / INS_GET_CHUNK.
+                        return if (uriBytes.isNotEmpty() && uriBytes.size <= 240) {
                             uriBytes + STATUS_SUCCESS
                         } else {
                             STATUS_SUCCESS
@@ -146,7 +161,81 @@ class LineaBeamApduService : HostApduService() {
             }
         }
 
-        // 2. READ BINARY command (INS = B0)
+        // 2. INIT_EXCHANGE command (INS = A0)
+        if (ins == INS_INIT_EXCHANGE) {
+            if (commandApdu.size >= 9) {
+                val readerTotalBytes = ((commandApdu[5].toInt() and 0xFF) shl 8) or (commandApdu[6].toInt() and 0xFF)
+                val readerTotalChunks = ((commandApdu[7].toInt() and 0xFF) shl 8) or (commandApdu[8].toInt() and 0xFF)
+                expectedTotalChunks = readerTotalChunks
+                incomingChunksBuffer.reset()
+
+                val totalOutboundBytes = outboundChunks.sumOf { it.size }
+                val totalOutboundChunks = outboundChunks.size
+                return byteArrayOf(
+                    ((totalOutboundBytes shr 8) and 0xFF).toByte(),
+                    (totalOutboundBytes and 0xFF).toByte(),
+                    ((totalOutboundChunks shr 8) and 0xFF).toByte(),
+                    (totalOutboundChunks and 0xFF).toByte()
+                ) + STATUS_SUCCESS
+            }
+            return STATUS_FAILED
+        }
+
+        // 3. SEND_CHUNK command (INS = A1)
+        if (ins == INS_SEND_CHUNK) {
+            val chunkIndex = (p1 shl 8) or p2
+            val lc = if (commandApdu.size > 4) commandApdu[4].toInt() and 0xFF else 0
+            if (commandApdu.size >= 5 + lc && lc > 0) {
+                val chunkData = commandApdu.copyOfRange(5, 5 + lc)
+                incomingChunksBuffer.write(chunkData)
+
+                if (chunkIndex >= expectedTotalChunks - 1 || (expectedTotalChunks > 0 && incomingChunksBuffer.size() >= 4096)) {
+                    val text = incomingChunksBuffer.toString(StandardCharsets.UTF_8.name()).trim()
+                    val peerPayload = QrCodeEngine.parseLineaScannedText(text) ?: QrCodeEngine.parseScannedText(text)
+                    if (peerPayload != null) {
+                        handleIncomingContact(peerPayload)
+                    }
+                }
+                return STATUS_SUCCESS
+            }
+            return STATUS_FAILED
+        }
+
+        // 4. GET_CHUNK command (INS = A2)
+        if (ins == INS_GET_CHUNK) {
+            val chunkIndex = (p1 shl 8) or p2
+            if (chunkIndex in outboundChunks.indices) {
+                return outboundChunks[chunkIndex] + STATUS_SUCCESS
+            }
+            return STATUS_FAILED
+        }
+
+        // 5. SWAP_CARDS command (INS = A5): Legacy fallback
+        if (ins == INS_SWAP_CARDS) {
+            if (commandApdu.size > 5) {
+                val isExtended = commandApdu.size >= 7 && commandApdu[4] == 0x00.toByte()
+                val dataStartIndex = if (isExtended) 7 else 5
+                val rawBytes = commandApdu.copyOfRange(dataStartIndex, commandApdu.size)
+                val trimmedBytes = if (rawBytes.isNotEmpty() && rawBytes.last() == 0x00.toByte()) {
+                    rawBytes.copyOfRange(0, rawBytes.size - 1)
+                } else rawBytes
+
+                val text = String(trimmedBytes, StandardCharsets.UTF_8).trim()
+                val peerPayload = QrCodeEngine.parseLineaScannedText(text) ?: QrCodeEngine.parseScannedText(text)
+                if (peerPayload != null) {
+                    handleIncomingContact(peerPayload)
+                }
+            }
+
+            return if (currentPayload != null && isSharingAllowed) {
+                val uriBytes = QrCodeEngine.serializeToUri(currentPayload).toByteArray(StandardCharsets.UTF_8)
+                uriBytes + STATUS_SUCCESS
+            } else {
+                STATUS_SUCCESS
+            }
+        }
+
+        // 6. READ BINARY command (INS = B0)
         if (ins == 0xB0) {
             val offset = ((p1 and 0x7F) shl 8) or (p2 and 0xFF)
             val le = if (commandApdu.size > 4) commandApdu[4].toInt() and 0xFF else 0
@@ -170,47 +259,39 @@ class LineaBeamApduService : HostApduService() {
             }
         }
 
-        // 3. SWAP_CARDS command (INS = A5): Bidirectional LiNEA-to-LiNEA Exchange
-        if (ins == INS_SWAP_CARDS) {
-            // Extract peer's transmitted contact payload if present
-            if (commandApdu.size > 5) {
-                val isExtended = commandApdu.size >= 7 && commandApdu[4] == 0x00.toByte()
-                val dataStartIndex = if (isExtended) 7 else 5
-                val rawBytes = commandApdu.copyOfRange(dataStartIndex, commandApdu.size)
-                val trimmedBytes = if (rawBytes.isNotEmpty() && rawBytes.last() == 0x00.toByte()) {
-                    rawBytes.copyOfRange(0, rawBytes.size - 1)
-                } else rawBytes
-
-                val text = String(trimmedBytes, StandardCharsets.UTF_8).trim()
-                val peerPayload = QrCodeEngine.parseLineaScannedText(text)
-                if (peerPayload != null) {
-                    val listener = onContactReceivedListener
-                    if (listener != null) {
-                        listener.invoke(peerPayload)
-                    } else {
-                        // App was closed/backgrounded when phone was tapped
-                        try {
-                            NfcProfileStorage.savePendingBeamedContact(this, peerPayload)
-                            postBeamedContactNotification(peerPayload)
-                        } catch (_: Exception) {}
-                    }
-                }
-            }
-
-            // Return local contact payload if sharing is enabled
-            return if (currentPayload != null && isSharingAllowed) {
-                val uriBytes = QrCodeEngine.serializeToUri(currentPayload).toByteArray(StandardCharsets.UTF_8)
-                uriBytes + STATUS_SUCCESS
-            } else {
-                STATUS_SUCCESS
-            }
-        }
-
         return STATUS_FAILED
     }
 
     override fun onDeactivated(reason: Int) {
         selectedFile = null
+        incomingChunksBuffer.reset()
+        expectedTotalChunks = 0
+    }
+
+    private fun handleIncomingContact(peerPayload: QrCodeEngine.ContactPayload) {
+        triggerHapticFeedback()
+        val listener = onContactReceivedListener
+        if (listener != null) {
+            listener.invoke(peerPayload)
+        } else {
+            // App was closed/backgrounded when phone was tapped (Always Share Mode)
+            try {
+                NfcProfileStorage.savePendingBeamedContact(this, peerPayload)
+                postBeamedContactNotification(peerPayload)
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun triggerHapticFeedback() {
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 70, 50, 90), -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(120)
+            }
+        } catch (_: Exception) {}
     }
 
     /**
@@ -292,8 +373,6 @@ class LineaBeamApduService : HostApduService() {
                 .build()
 
             notificationManager.notify(9921, notification)
-        } catch (_: Exception) {
-            // Notification failed or permissions not granted
-        }
+        } catch (_: Exception) {}
     }
 }

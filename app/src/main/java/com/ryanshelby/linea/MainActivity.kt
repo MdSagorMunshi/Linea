@@ -1,12 +1,16 @@
 package com.ryanshelby.linea
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.nfc.NfcAdapter
+import android.nfc.cardemulation.CardEmulation
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import com.ryanshelby.linea.nfc.LineaBeamApduService
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -139,12 +143,26 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         checkRoleAndAccounts()
         permissionCoordinator.resumePendingOutgoingCallIfPermitted()
+        val nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        if (nfcAdapter != null) {
+            try {
+                val cardEmulation = CardEmulation.getInstance(nfcAdapter)
+                cardEmulation.setPreferredService(this, ComponentName(this, LineaBeamApduService::class.java))
+            } catch (_: Exception) {}
+        }
         nfcBeamManager.enableReaderMode(this)
         nfcBeamManager.checkPendingBeamedContact(this)
     }
 
     override fun onPause() {
         super.onPause()
+        val nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        if (nfcAdapter != null) {
+            try {
+                val cardEmulation = CardEmulation.getInstance(nfcAdapter)
+                cardEmulation.unsetPreferredService(this)
+            } catch (_: Exception) {}
+        }
         nfcBeamManager.disableReaderMode(this)
     }
 

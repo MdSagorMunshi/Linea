@@ -231,5 +231,117 @@ class NfcBeamAndOrbitalDialTest {
         manager.clearTagWriteStatus()
         assertNull(manager.pendingTagWritePayload)
     }
+
+    @Test
+    fun testLineaBeamChunkedProtocol() {
+        val service = LineaBeamApduService()
+
+        // Target Phone (HCE service)
+        val targetPayload = QrCodeEngine.ContactPayload(
+            name = "Daedalus Prime",
+            numbers = listOf("+18005550199", "+18005550188"),
+            email = "daedalus@linea.mesh",
+            photoThumbnailBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mNk+M9QzwAEjDAGBiYACc8B3Z46/x0AAAAASUVORK5CYII=",
+            social1Platform = "TELEGRAM",
+            social1Handle = "daedalus_prime",
+            social2Platform = "GITHUB",
+            social2Handle = "daedalus-dev"
+        )
+        LineaBeamApduService.setActiveContact(targetPayload)
+
+        var receivedOnTarget: QrCodeEngine.ContactPayload? = null
+        LineaBeamApduService.onContactReceivedListener = {
+            receivedOnTarget = it
+        }
+
+        // 1. SELECT LiNEA AID
+        val selectApdu = byteArrayOf(
+            0x00, 0xA4.toByte(), 0x04, 0x00, 0x07,
+            0xF0.toByte(), 0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+        )
+        val selectResp = service.processCommandApdu(selectApdu, null)
+        assertNotNull(selectResp)
+        assertEquals(0x90.toByte(), selectResp[selectResp.size - 2])
+        assertEquals(0x00.toByte(), selectResp[selectResp.size - 1])
+
+        // Reader Phone has its own large payload
+        val readerPayload = QrCodeEngine.ContactPayload(
+            name = "Cassandra Cross",
+            numbers = listOf("+18005550144"),
+            email = "cassandra@linea.mesh",
+            photoThumbnailBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mNk+M9QzwAEjDAGBiYACc8B3Z46/x0AAAAASUVORK5CYII=",
+            social1Platform = "INSTAGRAM",
+            social1Handle = "cassandra_x"
+        )
+        val readerUriBytes = QrCodeEngine.serializeToUri(readerPayload).toByteArray(StandardCharsets.UTF_8)
+        val readerChunks = readerUriBytes.toList().chunked(LineaBeamApduService.CHUNK_SIZE).map { it.toByteArray() }
+
+        // 2. INIT_EXCHANGE (0xA0)
+        val initApdu = byteArrayOf(
+            0x00, LineaBeamApduService.INS_INIT_EXCHANGE.toByte(), 0x00, 0x00, 0x04,
+            ((readerUriBytes.size shr 8) and 0xFF).toByte(),
+            (readerUriBytes.size and 0xFF).toByte(),
+            ((readerChunks.size shr 8) and 0xFF).toByte(),
+            (readerChunks.size and 0xFF).toByte(),
+            0x04
+        )
+        val initResp = service.processCommandApdu(initApdu, null)
+        assertNotNull(initResp)
+        assertTrue(initResp.size >= 6)
+        assertEquals(0x90.toByte(), initResp[initResp.size - 2])
+        assertEquals(0x00.toByte(), initResp[initResp.size - 1])
+
+        val targetTotalBytes = ((initResp[0].toInt() and 0xFF) shl 8) or (initResp[1].toInt() and 0xFF)
+        val targetTotalChunks = ((initResp[2].toInt() and 0xFF) shl 8) or (initResp[3].toInt() and 0xFF)
+        assertTrue("Target total bytes should be > 0", targetTotalBytes > 0)
+        assertTrue("Target total chunks should be > 0", targetTotalChunks > 0)
+
+        // 3. SEND_CHUNK (0xA1): Reader streams chunks to Target
+        for (i in readerChunks.indices) {
+            val chunk = readerChunks[i]
+            val sendApdu = byteArrayOf(
+                0x00, LineaBeamApduService.INS_SEND_CHUNK.toByte(),
+                ((i shr 8) and 0xFF).toByte(),
+                (i and 0xFF).toByte(),
+                chunk.size.toByte()
+            ) + chunk + byteArrayOf(0x00)
+            val sendResp = service.processCommandApdu(sendApdu, null)
+            assertArrayEquals(LineaBeamApduService.STATUS_SUCCESS, sendResp)
+        }
+
+        // Verify Target received Reader's contact
+        assertNotNull("Target should have received Reader's contact card", receivedOnTarget)
+        assertEquals("Cassandra Cross", receivedOnTarget?.name)
+        assertEquals(listOf("+18005550144"), receivedOnTarget?.numbers)
+        assertEquals("cassandra@linea.mesh", receivedOnTarget?.email)
+
+        // 4. GET_CHUNK (0xA2): Reader retrieves chunks from Target
+        val targetChunks = mutableListOf<ByteArray>()
+        for (i in 0 until targetTotalChunks) {
+            val getApdu = byteArrayOf(
+                0x00, LineaBeamApduService.INS_GET_CHUNK.toByte(),
+                ((i shr 8) and 0xFF).toByte(),
+                (i and 0xFF).toByte(),
+                0x00
+            )
+            val getResp = service.processCommandApdu(getApdu, null)
+            assertTrue("Chunk response must have data + status words", getResp.size >= 2)
+            assertEquals(0x90.toByte(), getResp[getResp.size - 2])
+            assertEquals(0x00.toByte(), getResp[getResp.size - 1])
+            targetChunks.add(getResp.copyOfRange(0, getResp.size - 2))
+        }
+
+        assertEquals(targetTotalChunks, targetChunks.size)
+        val combinedTargetBytes = targetChunks.flatMap { it.toList() }.toByteArray()
+        val targetUriText = String(combinedTargetBytes, StandardCharsets.UTF_8).trim()
+        val parsedTarget = QrCodeEngine.parseLineaScannedText(targetUriText)
+
+        assertNotNull("Reader should parse Target's reconstructed contact card", parsedTarget)
+        assertEquals("Daedalus Prime", parsedTarget?.name)
+        assertEquals(listOf("+18005550199", "+18005550188"), parsedTarget?.numbers)
+        assertEquals("daedalus@linea.mesh", parsedTarget?.email)
+        assertEquals("TELEGRAM", parsedTarget?.social1Platform)
+        assertEquals("daedalus_prime", parsedTarget?.social1Handle)
+    }
 }
 
