@@ -35,7 +35,6 @@ data class SettingsUiState(
     val dialpadVibration: Boolean = true,
     val callVibration: Boolean = true,
     val theme: String = "DARK",
-    val dialpadMaterial: String = com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.FROSTED_GLASS,
     val cleanupDays: Int = 0,
     val reduceAnimations: Boolean = false,
     val blockedRulesCount: Int = 0,
@@ -78,7 +77,6 @@ class SettingsViewModel @Inject constructor(
         preferences.dialpadVibrationEnabled,
         preferences.callVibrationEnabled,
         preferences.themePreference,
-            preferences.dialpadMaterial,
         preferences.cleanupDays,
         preferences.reduceAnimations,
         blockedNumberDao.getAllBlockedNumbers(),
@@ -104,20 +102,19 @@ class SettingsViewModel @Inject constructor(
         val haptic = args[8] as Boolean
         val callVib = args[9] as Boolean
         val theme = args[10] as String
-        val dialpadMaterial = args[11] as String
-        val cleanup = args[12] as Int
-        val reduceAnim = args[13] as Boolean
-        val blockedList = args[14] as List<*>
-        val rulesList = args[15] as List<*>
-        val missedCount = args[16] as Int
-        val durationWarn = args[17] as Int
-        val vmNumber = args[18] as String
-        val ringtone = args[19] as String
-        val flip = args[20] as Boolean
-        val proxWave = args[21] as Boolean
-        val hapticProfile = args[22] as String
-        val hudEnabled = args[23] as Boolean
-        val hudDuration = args[24] as Int
+        val cleanup = args[11] as Int
+        val reduceAnim = args[12] as Boolean
+        val blockedList = args[13] as List<*>
+        val rulesList = args[14] as List<*>
+        val missedCount = args[15] as Int
+        val durationWarn = args[16] as Int
+        val vmNumber = args[17] as String
+        val ringtone = args[18] as String
+        val flip = args[19] as Boolean
+        val proxWave = args[20] as Boolean
+        val hapticProfile = args[21] as String
+        val hudEnabled = args[22] as Boolean
+        val hudDuration = args[23] as Int
 
         val quietRule = rulesList.filterIsInstance<com.ryanshelby.linea.data.local.entities.CallRuleEntity>()
             .firstOrNull { it.name.contains("Quiet", ignoreCase = true) || it.name.contains("Night", ignoreCase = true) }
@@ -135,7 +132,6 @@ class SettingsViewModel @Inject constructor(
             dialpadVibration = haptic,
             callVibration = callVib,
             theme = theme,
-            dialpadMaterial = dialpadMaterial,
             cleanupDays = cleanup,
             reduceAnimations = reduceAnim,
             blockedRulesCount = blockedList.size,
@@ -161,12 +157,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
-    }
-
-    fun setDialpadMaterial(material: String) {
-        viewModelScope.launch {
-            preferences.setDialpadMaterial(material)
-        }
     }
 
     fun setFlipToSilence(enabled: Boolean) {

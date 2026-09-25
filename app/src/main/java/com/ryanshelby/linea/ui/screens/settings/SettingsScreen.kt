@@ -1011,42 +1011,6 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Text(
-                    text = "Dialpad Material",
-                    style = LineaTypography.bodyMedium,
-                    color = LineaColors.TextPrimary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val material = uiState.dialpadMaterial
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    SelectionPill(
-                        label = "Glass",
-                        isSelected = material == com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.FROSTED_GLASS,
-                        onClick = { viewModel.setDialpadMaterial(com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.FROSTED_GLASS) }
-                    )
-                    SelectionPill(
-                        label = "Titanium",
-                        isSelected = material == com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.BRUSHED_TITANIUM,
-                        onClick = { viewModel.setDialpadMaterial(com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.BRUSHED_TITANIUM) }
-                    )
-                    SelectionPill(
-                        label = "Carbon",
-                        isSelected = material == com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.MATTE_CARBON,
-                        onClick = { viewModel.setDialpadMaterial(com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.MATTE_CARBON) }
-                    )
-                    SelectionPill(
-                        label = "Silicone",
-                        isSelected = material == com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.SOFT_SILICONE,
-                        onClick = { viewModel.setDialpadMaterial(com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.SOFT_SILICONE) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
                 SettingsToggleRow(
                     title = "Reduce Animations",
                     subtitle = "Swaps spring physics for fast cross-fades",

@@ -32,10 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Hold (~400ms) on Call Button**: Blossoms a futuristic radial speed dial with up to 7 favorite contacts in an upper arc within thumb reach, featuring laser tether guidance, magnetic node capture, haptic feedback, and instant drag-and-release dialing.
   - **Clean Gesture Separation**: Call Button hold is strictly dedicated to Orbital Speed Dial, while double-tapping (when dialpad is empty) or triple-tapping (anytime) triggers the Fiery Magma Easter Egg.
 
-- **🎨 Custom Neumorphic Dialpad Themes & Materials**:
-  - Added material selector in Settings > Appearance & Motion.
-  - Four tactile finishes available: **Frosted Glass** (classic translucent), **Brushed Titanium** (dark metallic linear gradient), **Matte Carbon Fiber** (deep dark radial finish), and **Soft Silicone** (soft rubberized gradient).
-  - Material surfaces integrate directly into the existing dual-shadow neumorphic system, automatically rendering correctly when depressed.
+
 
 ### Fixed
 - **LiNEA Beam NFC Reliability**:

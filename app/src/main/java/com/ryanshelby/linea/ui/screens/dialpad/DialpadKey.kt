@@ -60,7 +60,6 @@ fun DialpadKey(
     soundEnabled: Boolean = true,
     vibrationEnabled: Boolean = true,
     hapticProfile: String = LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS,
-    material: String = LineaPreferences.DialpadMaterialTheme.FROSTED_GLASS,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -103,87 +102,36 @@ fun DialpadKey(
         label = "KeyScale"
     )
 
-    val isLightMode = LineaColors.isLight
-    val materialBgBrush = remember(isPressed, material, isLightMode) {
-        when (material) {
-            LineaPreferences.DialpadMaterialTheme.FROSTED_GLASS -> {
-                if (isLightMode) {
-                    Brush.verticalGradient(
-                        colors = if (isPressed) {
-                            listOf(Color.White.copy(alpha = 0.85f), Color.White.copy(alpha = 0.55f))
-                        } else {
-                            listOf(Color.White.copy(alpha = 0.65f), Color.White.copy(alpha = 0.25f))
-                        }
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        colors = if (isPressed) {
-                            listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.05f))
-                        } else {
-                            listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.02f))
-                        }
-                    )
-                }
-            }
-            LineaPreferences.DialpadMaterialTheme.BRUSHED_TITANIUM -> {
-                if (isLightMode) {
-                    Brush.linearGradient(
-                        colors = if (isPressed) {
-                            listOf(Color(0xFFE2E7EE), Color(0xFFCBD4DE))
-                        } else {
-                            listOf(Color(0xFFFFFFFF), Color(0xFFE8EDF3), Color(0xFFD4DAE3))
-                        }
-                    )
-                } else {
-                    Brush.linearGradient(
-                        colors = if (isPressed) {
-                            listOf(Color(0xFF2A2E35), Color(0xFF1E2228))
-                        } else {
-                            listOf(Color(0xFF383E46), Color(0xFF262B33))
-                        }
-                    )
-                }
-            }
-            LineaPreferences.DialpadMaterialTheme.MATTE_CARBON -> {
-                if (isLightMode) {
-                    Brush.verticalGradient(
-                        colors = if (isPressed) {
-                            listOf(Color(0xFF202329), Color(0xFF14171A)) // Dark contrast in light mode!
-                        } else {
-                            listOf(Color(0xFF2F343C), Color(0xFF20242A)) // High contrast dark carbon
-                        }
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        colors = if (isPressed) {
-                            listOf(Color(0xFF16191D), Color(0xFF0F1114))
-                        } else {
-                            listOf(Color(0xFF1D2127), Color(0xFF121417))
-                        }
-                    )
-                }
-            }
-            LineaPreferences.DialpadMaterialTheme.SOFT_SILICONE -> {
-                if (isLightMode) {
-                    Brush.verticalGradient(
-                        colors = if (isPressed) {
-                            listOf(Color(0xFFE8EEF4), Color(0xFFDFE6ED))
-                        } else {
-                            listOf(Color(0xFFFAFCFD), Color(0xFFF0F4F8)) // Stark flat white
-                        }
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        colors = if (isPressed) {
-                            listOf(Color(0xFF25313D), Color(0xFF1E2630))
-                        } else {
-                            listOf(Color(0xFF2A3745), Color(0xFF212A35))
-                        }
-                    )
-                }
-            }
-            else -> null
-        }
+    val bgBrush = if (isPressed) {
+        Brush.verticalGradient(
+            colors = listOf(
+                LineaColors.TitaniumBlue.copy(alpha = 0.36f),
+                LineaColors.TitaniumBlue.copy(alpha = 0.18f)
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.08f),
+                Color.White.copy(alpha = 0.03f)
+            )
+        )
+    }
+
+    val borderBrush = if (isPressed) {
+        Brush.verticalGradient(
+            colors = listOf(
+                LineaColors.TitaniumBlue,
+                LineaColors.TitaniumBlue.copy(alpha = 0.45f)
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.18f),
+                Color.White.copy(alpha = 0.06f)
+            )
+        )
     }
 
     Box(
@@ -193,8 +141,7 @@ fun DialpadKey(
             .neumorphic(
                 shape = CircleShape,
                 elevation = if (isPressed) 1.dp else 5.dp,
-                isPressed = isPressed,
-                surfaceBrush = materialBgBrush
+                isPressed = isPressed
             )
             .pointerInput(digit) {
                 detectTapGestures(
@@ -251,7 +198,6 @@ fun DialpadKey(
             },
         contentAlignment = Alignment.Center
     ) {
-        val needsWhiteText = isLightMode && material == LineaPreferences.DialpadMaterialTheme.MATTE_CARBON
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -262,7 +208,7 @@ fun DialpadKey(
                     fontWeight = FontWeight.SemiBold,
                     fontFeatureSettings = "tnum"
                 ),
-                color = if (isPressed || needsWhiteText) Color.White else LineaColors.TextPrimary,
+                color = if (isPressed) Color.White else LineaColors.TextPrimary,
                 fontSize = if (digit in listOf('*', '#')) 24.sp else 26.sp
             )
 
@@ -274,11 +220,7 @@ fun DialpadKey(
                         letterSpacing = 1.8.sp,
                         fontWeight = FontWeight.Medium
                     ),
-                    color = if (isPressed) {
-                        if (needsWhiteText) Color.White else LineaColors.TextPrimary
-                    } else {
-                        if (needsWhiteText) Color.White.copy(alpha = 0.7f) else LineaColors.TextSecondary
-                    },
+                    color = if (isPressed) LineaColors.TextPrimary else LineaColors.TextSecondary,
                     fontSize = 9.sp
                 )
             }

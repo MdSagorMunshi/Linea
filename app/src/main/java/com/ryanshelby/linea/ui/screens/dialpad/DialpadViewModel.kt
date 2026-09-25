@@ -60,12 +60,6 @@ class DialpadViewModel @Inject constructor(
     val defaultSim: StateFlow<Int> = preferences.defaultSim
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val dialpadHapticProfile: StateFlow<String> = preferences.dialpadHapticProfile
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS)
-
-    val dialpadMaterial: StateFlow<String> = preferences.dialpadMaterial
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LineaPreferences.DialpadMaterialTheme.FROSTED_GLASS)
-
     val askSimBeforeDial: StateFlow<Boolean> = preferences.askSimBeforeDial
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -105,7 +99,8 @@ class DialpadViewModel @Inject constructor(
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-
+    val dialpadHapticProfile: StateFlow<String> = preferences.dialpadHapticProfile
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS)
 
     val simSelectorPosition: StateFlow<String> = preferences.simSelectorPosition
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LineaPreferences.SimPopupPosition.MIDDLE)

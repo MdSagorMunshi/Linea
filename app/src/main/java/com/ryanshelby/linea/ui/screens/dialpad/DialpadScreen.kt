@@ -125,7 +125,6 @@ fun DialpadScreen(
     val callerIdResult by viewModel.callerIdResult.collectAsState()
     val internationalPreview by viewModel.internationalPreview.collectAsState()
     val dialpadHapticProfile by viewModel.dialpadHapticProfile.collectAsState()
-    val dialpadMaterial by viewModel.dialpadMaterial.collectAsState()
     val simSelectorPosition by viewModel.simSelectorPosition.collectAsState()
     val isFieryCallButton by viewModel.isFieryCallButton.collectAsState()
 
@@ -716,8 +715,7 @@ fun DialpadScreen(
                             size = 68.dp,
                             soundEnabled = soundEnabled,
                             vibrationEnabled = vibrationEnabled,
-                            hapticProfile = dialpadHapticProfile,
-                            material = dialpadMaterial
+                            hapticProfile = dialpadHapticProfile
                         )
                     }
                 }
