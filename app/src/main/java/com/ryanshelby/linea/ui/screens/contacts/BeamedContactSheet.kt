@@ -628,12 +628,29 @@ private fun BeamedSocialCard(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(brandColor)
-        )
+        val iconRes = when (platform.uppercase()) {
+            "INSTAGRAM" -> com.ryanshelby.linea.R.drawable.ic_instagram
+            "TELEGRAM" -> com.ryanshelby.linea.R.drawable.ic_telegram
+            "GITHUB" -> com.ryanshelby.linea.R.drawable.ic_github
+            "REDDIT" -> com.ryanshelby.linea.R.drawable.ic_reddit
+            else -> null
+        }
+        
+        if (iconRes != null) {
+            androidx.compose.material3.Icon(
+                painter = androidx.compose.ui.res.painterResource(id = iconRes),
+                contentDescription = platform,
+                tint = brandColor,
+                modifier = Modifier.size(14.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(brandColor)
+            )
+        }
         Column {
             Text(
                 text = platform.uppercase(),

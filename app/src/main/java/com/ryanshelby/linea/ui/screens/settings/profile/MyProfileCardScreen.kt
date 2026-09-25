@@ -80,6 +80,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -93,6 +94,7 @@ import com.ryanshelby.linea.nfc.NfcBeamManager
 import com.ryanshelby.linea.ui.components.NeumorphicCard
 import com.ryanshelby.linea.ui.components.NeumorphicWell
 import com.ryanshelby.linea.ui.screens.contacts.LineaBeamSheet
+import com.ryanshelby.linea.ui.theme.InterFontFamily
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaTypography
 import com.ryanshelby.linea.ui.theme.captionBold
@@ -431,7 +433,7 @@ fun MyProfileCardScreen(
                         modifier = Modifier
                             .size(68.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF141A22))
+                            .background(LineaColors.SurfaceElevated)
                             .border(
                                 2.dp,
                                 Brush.sweepGradient(
@@ -619,7 +621,7 @@ fun MyProfileCardScreen(
 
         NeumorphicCard(
             modifier = Modifier.fillMaxWidth(),
-            surfaceColor = if (isAlwaysShare) Color(0xFF131F25) else Color(0xFF131922)
+            surfaceColor = LineaColors.SurfaceElevated
         ) {
             Column(
                 modifier = Modifier
@@ -669,7 +671,7 @@ fun MyProfileCardScreen(
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(
                                             if (isAlwaysShare) LineaColors.EmeraldPrimary.copy(alpha = 0.2f)
-                                            else Color(0xFF263238)
+                                            else LineaColors.NeuBorderShadow
                                         )
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
@@ -712,7 +714,7 @@ fun MyProfileCardScreen(
                             checkedThumbColor = LineaColors.EmeraldPrimary,
                             checkedTrackColor = LineaColors.EmeraldPrimary.copy(alpha = 0.35f),
                             uncheckedThumbColor = LineaColors.TextTertiary,
-                            uncheckedTrackColor = Color(0xFF1E2732)
+                            uncheckedTrackColor = LineaColors.NeuDarkShadow
                         )
                     )
                 }
@@ -833,15 +835,7 @@ private fun DigitalCardPreview(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFF131922),
-                        Color(0xFF0D1219),
-                        Color(0xFF101720)
-                    )
-                )
-            )
+            .background(LineaColors.NeuRaisedGradient)
             .border(
                 1.5.dp,
                 Brush.linearGradient(
@@ -891,7 +885,7 @@ private fun DigitalCardPreview(
                 Text(
                     text = if (isNfcSupported) "TAP TO SHARE" else "QR ONLY",
                     style = LineaTypography.captionBold.copy(fontSize = 9.sp),
-                    color = if (isNfcSupported) LineaColors.CyanPrimary else Color(0xFFFFB74D)
+                    color = if (isNfcSupported) LineaColors.CyanPrimary else LineaColors.Warning
                 )
             }
 
@@ -906,7 +900,7 @@ private fun DigitalCardPreview(
                     modifier = Modifier
                         .size(62.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF1A222D))
+                        .background(LineaColors.SurfaceElevated)
                         .border(1.5.dp, LineaColors.EmeraldPrimary, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1031,29 +1025,35 @@ private fun SocialSlotEditor(
                             .clip(RoundedCornerShape(10.dp))
                             .background(
                                 if (isSelected) brandColor.copy(alpha = 0.22f)
-                                else Color(0xFF141A22)
+                                else LineaColors.SurfaceElevated
                             )
                             .border(
                                 width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) brandColor else Color(0xFF2A3644),
+                                color = if (isSelected) brandColor else LineaColors.NeuBorderShadow,
                                 shape = RoundedCornerShape(10.dp)
                             )
                             .clickable { onPlatformSelected(platform) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = when (platform) {
-                                SocialPlatform.NONE -> "Off"
-                                SocialPlatform.INSTAGRAM -> "IG"
-                                SocialPlatform.TELEGRAM -> "TG"
-                                SocialPlatform.GITHUB -> "GH"
-                                SocialPlatform.REDDIT -> "Reddit"
-                            },
-                            style = LineaTypography.captionBold.copy(fontSize = 11.sp),
-                            color = if (isSelected) brandColor else LineaColors.TextSecondary,
-                            maxLines = 1
-                        )
+                        if (platform == SocialPlatform.NONE) {
+                            Text(
+                                text = "Off",
+                                style = LineaTypography.captionBold.copy(fontSize = 11.sp),
+                                color = if (isSelected) brandColor else LineaColors.TextSecondary,
+                                maxLines = 1
+                            )
+                        } else {
+                            val iconRes = getPlatformIcon(platform)
+                            if (iconRes != null) {
+                                androidx.compose.material3.Icon(
+                                    painter = androidx.compose.ui.res.painterResource(id = iconRes),
+                                    contentDescription = platform.displayName,
+                                    tint = if (isSelected) brandColor else LineaColors.TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1095,12 +1095,22 @@ fun SocialBadgePill(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(brandColor)
-        )
+        val iconRes = getPlatformIcon(platform)
+        if (iconRes != null) {
+            androidx.compose.material3.Icon(
+                painter = androidx.compose.ui.res.painterResource(id = iconRes),
+                contentDescription = platform.displayName,
+                tint = brandColor,
+                modifier = Modifier.size(12.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(brandColor)
+            )
+        }
 
         Column {
             Text(
@@ -1131,8 +1141,8 @@ private fun ProfileInputField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, style = LineaTypography.bodySmall) },
-        placeholder = { Text(placeholder, style = LineaTypography.bodySmall) },
+        label = { Text(label, style = LineaTypography.bodySmall, color = LineaColors.TextSecondary) },
+        placeholder = { Text(placeholder, style = LineaTypography.bodySmall, color = LineaColors.TextTertiary) },
         leadingIcon = {
             Icon(
                 imageVector = leadingIcon,
@@ -1145,13 +1155,25 @@ private fun ProfileInputField(
         shape = RoundedCornerShape(14.dp),
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        textStyle = TextStyle(
+            color = LineaColors.TextPrimary,
+            fontSize = 15.sp,
+            fontFamily = InterFontFamily
+        ),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = LineaColors.EmeraldPrimary,
-            unfocusedBorderColor = Color(0xFF2E3A4A),
+            unfocusedBorderColor = if (LineaColors.isLight) androidx.compose.ui.graphics.Color(0xFFCFD8DC) else androidx.compose.ui.graphics.Color(0xFF2E3A4A),
             focusedTextColor = LineaColors.TextPrimary,
             unfocusedTextColor = LineaColors.TextPrimary,
-            focusedContainerColor = Color(0xFF111720),
-            unfocusedContainerColor = Color(0xFF111720)
+            cursorColor = LineaColors.EmeraldPrimary,
+            focusedContainerColor = LineaColors.SurfaceElevated,
+            unfocusedContainerColor = LineaColors.SurfaceElevated,
+            focusedLabelColor = LineaColors.EmeraldPrimary,
+            unfocusedLabelColor = LineaColors.TextSecondary,
+            focusedPlaceholderColor = LineaColors.TextTertiary,
+            unfocusedPlaceholderColor = LineaColors.TextTertiary,
+            focusedLeadingIconColor = LineaColors.CyanPrimary,
+            unfocusedLeadingIconColor = LineaColors.CyanPrimary
         )
     )
 }
@@ -1164,7 +1186,7 @@ fun getPlatformColor(platform: SocialPlatform): Color {
         SocialPlatform.NONE -> Color(0xFF78909C)
         SocialPlatform.INSTAGRAM -> Color(0xFFE1306C)
         SocialPlatform.TELEGRAM -> Color(0xFF29B6F6)
-        SocialPlatform.GITHUB -> Color(0xFFE0E0E0)
+        SocialPlatform.GITHUB -> if (LineaColors.isLight) Color(0xFF24292E) else Color(0xFFE0E0E0)
         SocialPlatform.REDDIT -> Color(0xFFFF5722)
     }
 }
@@ -1187,5 +1209,18 @@ fun decodeBase64ToBitmap(base64Str: String?): Bitmap? {
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
     } catch (_: Exception) {
         null
+    }
+}
+
+/**
+ * Returns icon resource for social platforms.
+ */
+fun getPlatformIcon(platform: SocialPlatform): Int? {
+    return when (platform) {
+        SocialPlatform.NONE -> null
+        SocialPlatform.INSTAGRAM -> com.ryanshelby.linea.R.drawable.ic_instagram
+        SocialPlatform.TELEGRAM -> com.ryanshelby.linea.R.drawable.ic_telegram
+        SocialPlatform.GITHUB -> com.ryanshelby.linea.R.drawable.ic_github
+        SocialPlatform.REDDIT -> com.ryanshelby.linea.R.drawable.ic_reddit
     }
 }
