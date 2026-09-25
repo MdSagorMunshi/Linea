@@ -73,6 +73,13 @@ class LineaPreferences @Inject constructor(
         const val BOTTOM = "BOTTOM"
     }
 
+    object DialpadMaterialTheme {
+        const val FROSTED_GLASS = "FROSTED_GLASS"
+        const val BRUSHED_TITANIUM = "BRUSHED_TITANIUM"
+        const val MATTE_CARBON = "MATTE_CARBON"
+        const val SOFT_SILICONE = "SOFT_SILICONE"
+    }
+
     object DialpadHapticProfile {
         const val TITANIUM_GLASS = "TITANIUM_GLASS"
         const val MECHANICAL_RELAY = "MECHANICAL_RELAY"
@@ -115,7 +122,8 @@ class LineaPreferences @Inject constructor(
         val KEY_RINGTONE_TYPE = stringPreferencesKey("ringtone_type") // "APP_DEFAULT", "SYSTEM_DEFAULT"
         val KEY_FLIP_TO_SILENCE = booleanPreferencesKey("flip_to_silence")
         val KEY_PROXIMITY_WAVE_TO_SILENCE = booleanPreferencesKey("proximity_wave_to_silence")
-        val KEY_DIALPAD_HAPTIC_PROFILE = stringPreferencesKey("dialpad_haptic_profile") // TITANIUM_GLASS, MECHANICAL_RELAY, STEALTH, CLASSIC
+        val KEY_DIALPAD_HAPTIC_PROFILE = stringPreferencesKey("dialpad_haptic_profile")
+        val KEY_DIALPAD_MATERIAL = stringPreferencesKey("dialpad_material") // TITANIUM_GLASS, MECHANICAL_RELAY, STEALTH, CLASSIC
         val KEY_PERMISSION_INTRO_SHOWN = booleanPreferencesKey("permission_intro_shown")
         val KEY_SIM_SELECTOR_POSITION = stringPreferencesKey("sim_selector_position") // "MIDDLE", "BOTTOM"
         val KEY_FIERY_CALL_BUTTON = booleanPreferencesKey("fiery_call_button")
@@ -207,6 +215,7 @@ class LineaPreferences @Inject constructor(
     val flipToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_FLIP_TO_SILENCE] ?: false }
     val proximityWaveToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_PROXIMITY_WAVE_TO_SILENCE] ?: false }
     val dialpadHapticProfile: Flow<String> = dataStore.data.map { it[KEY_DIALPAD_HAPTIC_PROFILE] ?: DialpadHapticProfile.TITANIUM_GLASS }
+    val dialpadMaterial: Flow<String> = dataStore.data.map { it[KEY_DIALPAD_MATERIAL] ?: DialpadMaterialTheme.FROSTED_GLASS }
     val permissionIntroShown: Flow<Boolean> = dataStore.data.map { it[KEY_PERMISSION_INTRO_SHOWN] ?: false }
     val simSelectorPosition: Flow<String> = dataStore.data.map { it[KEY_SIM_SELECTOR_POSITION] ?: SimPopupPosition.MIDDLE }
     val fieryCallButton: Flow<Boolean> = dataStore.data.map { it[KEY_FIERY_CALL_BUTTON] ?: false }
@@ -258,6 +267,10 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setProximityWaveToSilence(enabled: Boolean) {
         dataStore.edit { it[KEY_PROXIMITY_WAVE_TO_SILENCE] = enabled }
+    }
+
+    suspend fun setDialpadMaterial(material: String) {
+        dataStore.edit { it[KEY_DIALPAD_MATERIAL] = material }
     }
 
     suspend fun setDialpadHapticProfile(profile: String) {

@@ -355,7 +355,7 @@ object InternationalCountryHelper {
 
         // Resolve matched country with precision for shared dial codes (+1 for US/CA, +7 for RU/KZ)
         val matchedCountry = when {
-            normalized.startsWith("+1") && normalized.length >= 4 -> {
+            normalized.startsWith("+1") && normalized.length >= 5 -> {
                 val area = normalized.substring(2, 5)
                 if (com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.isCanadianAreaCode(area)) {
                     countryList.firstOrNull { it.isoCode == "CA" } ?: countryList.firstOrNull { it.dialCode == "+1" }

@@ -563,6 +563,29 @@ object SettingsSearchEngine {
             )
         )
 
+        // 25b. Dialpad Material
+        list.add(
+            SettingsSearchItem(
+                id = "dialpad_material",
+                title = "Dialpad Material",
+                subtitle = "Choose Frosted Glass, Brushed Titanium, Matte Carbon, or Soft Silicone",
+                category = SettingsCategory.APPEARANCE,
+                icon = Icons.Filled.Palette,
+                keywords = listOf("material", "texture", "finish", "frosted glass", "brushed titanium", "matte carbon", "soft silicone", "neumorphic", "keypad texture"),
+                action = SettingsSearchAction.Select(
+                    currentValue = { state ->
+                        when (state.dialpadMaterial) {
+                            com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.FROSTED_GLASS -> "Glass"
+                            com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.BRUSHED_TITANIUM -> "Titanium"
+                            com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadMaterialTheme.MATTE_CARBON -> "Carbon"
+                            else -> "Silicone"
+                        }
+                    },
+                    onAction = { callbacks.onScrollToSection("dialpad_material") }
+                )
+            )
+        )
+
         // 26. Reduce Animations
         list.add(
             SettingsSearchItem(
