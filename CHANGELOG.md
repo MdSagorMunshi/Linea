@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.1] - 2026-09-28
+
+### Fixed
+- **QR Code Scanner Physical Device Camera Crash & Blank Screen**:
+  - **R8 / ProGuard Minification Protection for ML Kit**: Added `-keep` rules for Google ML Kit vision components, `ComponentRegistrar` discovery services, CameraX, and ZXing in `proguard-rules.pro`. This prevents R8 from stripping ML Kit reflection in release builds, resolving the physical device crash (`Attempt to read from field 'lt3 ko3.a' on a null object reference in method 'zq3 nx3.d(wj)'`).
+  - **Safe Initialization & Real-Time Offline ZXing Fallback**: Safely encapsulated `BarcodeScanning.getClient(...)` inside try/catch so ML Kit initialization failure never prevents camera hardware binding. Implemented an offline fallback analyzer using CameraX 8-bit Y-plane luminance (`com.google.zxing.PlanarYUVLuminanceSource`), allowing immediate offline QR scanning without Google Play Services.
+  - **LifecycleOwner Resolution**: Traversed context wrapper hierarchy (`Context.findActivity()`) to bind CameraX directly to the hosting `ComponentActivity` lifecycle (`effectiveLifecycleOwner`), eliminating blank preview frames caused by synthetic dialog window lifecycles on OEM skins (Samsung OneUI, Xiaomi HyperOS, ColorOS).
+  - **Resilient 3-Tier Surface Binding Strategy**: Replaced rigid 4:3 `ResolutionSelector` with automatic multi-tier fallback (720p `ResolutionStrategy` &rarr; Android CDD guaranteed default stream combination &rarr; Preview-only fallback), preventing `IllegalArgumentException` surface combination crashes across diverse camera sensors and hardware levels (`LEGACY`, `LIMITED`, `FULL`).
+  - **Exception & Error Handling**: Replaced silent error swallowing with structured logging and an interactive error state UI featuring **"Retry Camera"** and **"Scan Photo"** buttons.
+  - **Camera Hardware Resource Cleanup**: Implemented `cameraProviderRef` with explicit `cameraProvider.unbindAll()` inside `DisposableEffect.onDispose` to prevent camera device locks when dismissing and reopening the sheet.
+  - **Live Streaming Synchronization & Permissions**: Observed `PreviewView.previewStreamState` to render a smooth loading spinner until frames actively stream, and added an automatic camera permission prompt with lifecycle resume refresh.
+
+- **Full Application Audit & Multi-Phase Bug Fixes (Phases 1–3)**:
+  - **Telecom & In-Call Stability**:
+    - Resolved `CallManager` double-dispose crash hazard on rejected or disconnected calls.
+    - Added missing `FOREGROUND_SERVICE_PHONE_CALL` handling on Android 14+ (API 34+).
+    - Fixed audio route desync when toggling between speakerphone and earpiece under Android Telecom framework.
+    - Fixed SIM account selection race condition when placing calls during dual-SIM state transitions.
+    - Corrected in-call duration timer drift when the device is locked or screen turns off.
+    - Added fallback audio sources for call recording when `VOICE_CALL` is restricted by OEM hardware.
+  - **Security & Vault Protection**:
+    - Hardened `PrivateSafeScreen` with mandatory biometric re-authentication and strict lifecycle re-lock upon app backgrounding.
+    - Secured `PrivateVaultSecurityManager` Master PIN verification against timing attacks using constant-time string comparison (`MessageDigest.isEqual`).
+    - Fixed contact deletion cleanup to prevent orphaned entries in private call notes and speed dial mappings.
+  - **UI/UX & Performance Optimization**:
+    - Eliminated Recent call list scroll jank by memoizing date header calculations.
+    - Fixed DTMF tone overlap when rapidly pressing dialpad keys.
+    - Resolved keyboard dismissal and highlight desync in Settings search results.
+    - Added number formatting normalization before saving to blocked numbers list.
+    - Added robust error handling and validation for corrupt JSON files during backup and restore.
+    - Fixed light theme text contrast on digital card profile inputs and replaced placeholders with local vector social icons.
+
+### Added
+- **NFC Beaming & Digital Card Enhancements**:
+  - Added closed-app mutual beam processing, tag detection diagnostics, and retry workflows.
+  - Added "Always Share" mode and persistent digital card profile fast-cache synchronization in the Settings header.
+  - Dynamically displayed the installed application version in the Settings footer.
+
+---
+
 ## [2.4.0] - 2026-09-23
 
 ### Added
