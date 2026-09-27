@@ -58,8 +58,10 @@ import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 
 import android.widget.Toast
+import com.ryanshelby.linea.data.local.entities.CallRecordEntity
 import com.ryanshelby.linea.ui.screens.contacts.ContactCreateEditSheet
 import com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel
+import com.ryanshelby.linea.ui.screens.dialpad.CallCountdownDialog
 import com.ryanshelby.linea.ui.screens.dialpad.SimSelectSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -86,6 +88,20 @@ fun HistoryScreen(
     val context = LocalContext.current
 
     val savedNumbers by viewModel.savedNumbers.collectAsState()
+    val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
+    val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
+    var pendingConfirmationRecord by remember { mutableStateOf<CallRecordEntity?>(null) }
+    var showCountdownDialog by remember { mutableStateOf(false) }
+
+    val triggerCall: (CallRecordEntity) -> Unit = { record ->
+        if (callConfirmationEnabled && callCountdownSeconds > 0) {
+            pendingConfirmationRecord = record
+            showCountdownDialog = true
+        } else {
+            viewModel.callBack(record)
+        }
+    }
+
     var createContactNumber by remember { mutableStateOf<String?>(null) }
     var swipedOpenItemId by remember { mutableStateOf<String?>(null) }
     var selectedItemForOptions by remember { mutableStateOf<CallHistoryItem?>(null) }
@@ -390,7 +406,7 @@ fun HistoryScreen(
                                     )
                                 }
                             },
-                            onCallBack = { record -> viewModel.callBack(record) },
+                            onCallBack = { record -> triggerCall(record) },
                             onToggleExpand = { viewModel.toggleSessionExpanded(session.id) },
                             onLongClick = { selectedSessionForOptions = it }
                         )
@@ -472,7 +488,7 @@ fun HistoryScreen(
                                 },
                                 onClick = { viewModel.selectItemForDetail(item) },
                                 onLongClick = { selectedItemForOptions = it },
-                                onCallBack = { record -> viewModel.callBack(record) },
+                                onCallBack = { record -> triggerCall(record) },
                                 onToggleExpand = { viewModel.toggleItemExpanded(item.id) },
                                 onAddContact = { number ->
                                     createContactNumber = number
@@ -515,7 +531,7 @@ fun HistoryScreen(
             onDismiss = { viewModel.selectItemForDetail(null) },
             onCall = { record ->
                 viewModel.selectItemForDetail(null)
-                viewModel.callBack(record)
+                triggerCall(record)
             },
             onBlockNumber = { number ->
                 viewModel.blockNumber(number)
@@ -586,7 +602,8 @@ fun HistoryScreen(
             contactName = contactName,
             phoneNumber = phoneNumber,
             onCall = {
-                viewModel.callBack(optionsItem.primaryRecord)
+                selectedItemForOptions = null
+                triggerCall(optionsItem.primaryRecord)
             },
             onSms = {
                 try {
@@ -611,9 +628,10 @@ fun HistoryScreen(
             contactName = contactName,
             phoneNumber = phoneNumber,
             onCall = {
+                selectedSessionForOptions = null
                 val primary = optionsSession.calls.firstOrNull()
                 if (primary != null) {
-                    viewModel.callBack(primary)
+                    triggerCall(primary)
                 }
             },
             onSms = {
@@ -627,6 +645,24 @@ fun HistoryScreen(
                 }
             },
             onDismiss = { selectedSessionForOptions = null }
+        )
+    }
+
+    // Call Countdown Dialog
+    if (showCountdownDialog && pendingConfirmationRecord != null) {
+        CallCountdownDialog(
+            phoneNumber = pendingConfirmationRecord!!.phoneNumber,
+            totalSeconds = callCountdownSeconds,
+            onConfirmCall = {
+                showCountdownDialog = false
+                val rec = pendingConfirmationRecord!!
+                pendingConfirmationRecord = null
+                viewModel.callBack(rec)
+            },
+            onCancel = {
+                showCountdownDialog = false
+                pendingConfirmationRecord = null
+            }
         )
     }
 }

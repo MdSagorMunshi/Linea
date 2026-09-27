@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,13 +36,17 @@ fun CallDiagnosticsScreen(
     viewModel: CallDiagnosticsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(LineaColors.BackgroundGradient)
             .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(scrollState)
             .padding(horizontal = 20.dp)
+            .padding(bottom = 32.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 

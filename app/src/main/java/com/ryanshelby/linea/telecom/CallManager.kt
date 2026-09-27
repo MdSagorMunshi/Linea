@@ -677,9 +677,8 @@ class CallManager @Inject constructor(
         _currentCall.value = _currentCall.value?.copy(isMuted = audioState.isMuted, audioRoute = route)
         _secondaryCall.value = _secondaryCall.value?.copy(isMuted = audioState.isMuted, audioRoute = route)
 
-        val isSpeaker = route == LineaAudioRoute.SPEAKER
         val isCallActive = _currentCall.value?.state == LineaCallState.ACTIVE
-        proximitySensorManager.onCallStateOrAudioChanged(isCallActive, isSpeaker)
+        proximitySensorManager.onCallStateOrAudioChanged(isCallActive, route)
         refreshOngoingCallNotification()
     }
 
@@ -723,8 +722,7 @@ class CallManager @Inject constructor(
             floatingOverlayManager.update(updatedInfo)
         }
 
-        val isSpeaker = _audioRoute.value == LineaAudioRoute.SPEAKER
-        proximitySensorManager.onCallStateOrAudioChanged(state == LineaCallState.ACTIVE, isSpeaker)
+        proximitySensorManager.onCallStateOrAudioChanged(state == LineaCallState.ACTIVE, _audioRoute.value)
 
         if (state == LineaCallState.ACTIVE) {
             _isRingerSilenced.value = false
@@ -911,7 +909,7 @@ class CallManager @Inject constructor(
                 durationSeconds = 0
             )
             startDurationTimer(connectTime)
-            proximitySensorManager.onCallStateOrAudioChanged(true, _audioRoute.value == LineaAudioRoute.SPEAKER)
+            proximitySensorManager.onCallStateOrAudioChanged(true, _audioRoute.value)
             scope.launch {
                 if (preferences.callVibrationEnabled.first()) {
                     vibrateFeedback(longArrayOf(0, 80))
@@ -1070,7 +1068,7 @@ class CallManager @Inject constructor(
         _currentCall.value = _currentCall.value?.copy(audioRoute = routeEnum)
         _secondaryCall.value = _secondaryCall.value?.copy(audioRoute = routeEnum)
         val isCallActive = _currentCall.value?.state == LineaCallState.ACTIVE
-        proximitySensorManager.onCallStateOrAudioChanged(isCallActive, enable)
+        proximitySensorManager.onCallStateOrAudioChanged(isCallActive, routeEnum)
         refreshOngoingCallNotification()
     }
 

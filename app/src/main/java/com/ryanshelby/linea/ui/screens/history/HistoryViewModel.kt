@@ -97,6 +97,12 @@ class HistoryViewModel @Inject constructor(
     val simSelectorPosition: StateFlow<String> = preferences.simSelectorPosition
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LineaPreferences.SimPopupPosition.MIDDLE)
 
+    val callConfirmationEnabled: StateFlow<Boolean> = preferences.callConfirmationEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val callCountdownSeconds: StateFlow<Int> = preferences.callCountdownSeconds
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 5)
+
     fun isContactSaved(phoneNumber: String, callerName: String?): Boolean {
         if (!callerName.isNullOrBlank() && callerName.trim() != phoneNumber.trim()) return true
         val digits = phoneNumber.filter { it.isDigit() }

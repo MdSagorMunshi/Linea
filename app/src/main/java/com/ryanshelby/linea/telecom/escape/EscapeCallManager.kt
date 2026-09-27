@@ -1,6 +1,7 @@
 package com.ryanshelby.linea.telecom.escape
 
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.telecom.CallManager
@@ -151,6 +152,42 @@ class EscapeCallManager @Inject constructor(
         }
     }
 
+    private val notificationManager by lazy {
+        context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+    }
+    private val ESCAPE_CALL_NOTIFICATION_ID = 9991
+
+    private fun showDisarmNotification(callerName: String, remainingSecs: Int) {
+        if (!disarmNotification.value) return
+        val disarmIntent = Intent(context, com.ryanshelby.linea.notifications.CallActionReceiver::class.java).apply {
+            action = com.ryanshelby.linea.notifications.CallActionReceiver.ACTION_DISARM_ESCAPE_CALL
+        }
+        val disarmPendingIntent = android.app.PendingIntent.getBroadcast(
+            context,
+            9991,
+            disarmIntent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+        val notif = androidx.core.app.NotificationCompat.Builder(context, com.ryanshelby.linea.LineaApp.CHANNEL_REMINDERS)
+            .setSmallIcon(com.ryanshelby.linea.R.drawable.ic_stat_call)
+            .setContentTitle("Escape Call Armed (${remainingSecs}s)")
+            .setContentText("Call from $callerName in $remainingSecs seconds")
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .addAction(0, "Disarm / Cancel", disarmPendingIntent)
+            .build()
+        try {
+            notificationManager.notify(ESCAPE_CALL_NOTIFICATION_ID, notif)
+        } catch (_: Exception) {}
+    }
+
+    private fun dismissDisarmNotification() {
+        try {
+            notificationManager.cancel(ESCAPE_CALL_NOTIFICATION_ID)
+        } catch (_: Exception) {}
+    }
+
     fun scheduleEscapeCall(
         delaySeconds: Int = _selectedDelaySeconds.value,
         callerName: String? = null,
@@ -170,6 +207,7 @@ class EscapeCallManager @Inject constructor(
 
         _isArmed.value = true
         _remainingSeconds.value = delaySeconds
+        showDisarmNotification(finalName, delaySeconds)
 
         if (showToast) {
             Toast.makeText(context, "Tactical Escape Call armed (${delaySeconds}s)", Toast.LENGTH_SHORT).show()
@@ -181,10 +219,14 @@ class EscapeCallManager @Inject constructor(
                 delay(1000)
                 secsLeft--
                 _remainingSeconds.value = secsLeft
+                if (secsLeft > 0) {
+                    showDisarmNotification(finalName, secsLeft)
+                }
             }
             if (isActive) {
                 _isArmed.value = false
                 _remainingSeconds.value = 0
+                dismissDisarmNotification()
                 triggerNow(finalName, finalNumber)
             }
         }
@@ -204,5 +246,6 @@ class EscapeCallManager @Inject constructor(
         countdownJob = null
         _isArmed.value = false
         _remainingSeconds.value = 0
+        dismissDisarmNotification()
     }
 }

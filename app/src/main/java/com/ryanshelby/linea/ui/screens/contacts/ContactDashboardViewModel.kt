@@ -15,14 +15,17 @@ import com.ryanshelby.linea.telecom.PhoneAccountManager
 import com.ryanshelby.linea.ui.screens.history.HistoryGrouper
 import com.ryanshelby.linea.telecom.logic.AvailabilityInsight
 import com.ryanshelby.linea.telecom.logic.AvailabilityInsightEngine
+import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.data.repository.ContactSyncRepository
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,10 +59,17 @@ class ContactDashboardViewModel @Inject constructor(
     private val callManager: CallManager,
     private val phoneAccountManager: PhoneAccountManager,
     private val contactSyncRepository: ContactSyncRepository,
+    private val preferences: LineaPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val contactId: Long = savedStateHandle.get<Long>("contactId") ?: 0L
+
+    val callConfirmationEnabled: StateFlow<Boolean> = preferences.callConfirmationEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val callCountdownSeconds: StateFlow<Int> = preferences.callCountdownSeconds
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 5)
 
     private val _state = MutableStateFlow(ContactDashboardState())
     val state: StateFlow<ContactDashboardState> = _state.asStateFlow()

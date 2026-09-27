@@ -83,7 +83,11 @@ class PhoneAccountManager @Inject constructor(
                     // An explicit SIM must have its own enabled phone-account handle. Never
                     // reuse the system-default handle for another subscription.
                     val handle = handlesBySubscriptionId[subInfo.subscriptionId] ?: return@forEach
-                    val phoneAccount = telecomManager.getPhoneAccount(handle)
+                    val phoneAccount = try {
+                        telecomManager.getPhoneAccount(handle)
+                    } catch (e: Exception) {
+                        null
+                    }
                     val displayName = subInfo.displayName?.toString()
                         ?: phoneAccount?.label?.toString()
                         ?: "SIM ${subInfo.simSlotIndex + 1}"
@@ -104,7 +108,11 @@ class PhoneAccountManager @Inject constructor(
             val existingHandles = registeredAccounts.map { it.phoneAccountHandle }.toSet()
             callCapableHandles.forEachIndexed { index, handle ->
                 if (!existingHandles.contains(handle)) {
-                    val phoneAccount = telecomManager.getPhoneAccount(handle)
+                    val phoneAccount = try {
+                        telecomManager.getPhoneAccount(handle)
+                    } catch (e: Exception) {
+                        null
+                    }
                     val isSim = phoneAccount?.hasCapabilities(PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION) == true ||
                             handle.componentName.className.contains("TelephonyConnectionService", ignoreCase = true)
                     if (isSim) {

@@ -64,6 +64,22 @@ fun AddEditCallRuleSheet(
     var nameInput by remember { mutableStateOf(existingRule?.name ?: "") }
     var startTimeInput by remember { mutableStateOf(existingRule?.startTime ?: "22:00") }
     var endTimeInput by remember { mutableStateOf(existingRule?.endTime ?: "07:00") }
+
+    val timeRegex = remember { Regex("^([01]?\\d|2[0-3]):[0-5]\\d$") }
+    val isStartTimeValid = startTimeInput.trim().matches(timeRegex)
+    val isEndTimeValid = endTimeInput.trim().matches(timeRegex)
+    val isTimeValid = isStartTimeValid && isEndTimeValid
+
+    fun formatTime(t: String): String {
+        val parts = t.trim().split(":")
+        if (parts.size >= 2) {
+            val h = parts[0].trim().toIntOrNull() ?: 0
+            val m = parts[1].trim().toIntOrNull() ?: 0
+            return String.format(java.util.Locale.US, "%02d:%02d", h, m)
+        }
+        return t.trim()
+    }
+
     var selectedDays by remember {
         mutableStateOf(
             existingRule?.daysOfWeek?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.toSet()
@@ -175,11 +191,16 @@ fun AddEditCallRuleSheet(
                     value = startTimeInput,
                     onValueChange = { startTimeInput = it },
                     label = { Text("Start Time") },
+                    isError = !isStartTimeValid,
+                    supportingText = if (!isStartTimeValid) {
+                        { Text("Use HH:mm (e.g. 22:00)", color = LineaColors.Danger) }
+                    } else null,
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = LineaColors.TitaniumBlue,
                         unfocusedBorderColor = LineaColors.GlassBorder,
+                        errorBorderColor = LineaColors.Danger,
                         focusedTextColor = LineaColors.TextPrimary,
                         unfocusedTextColor = LineaColors.TextPrimary,
                         focusedContainerColor = LineaColors.GlassFill,
@@ -192,11 +213,16 @@ fun AddEditCallRuleSheet(
                     value = endTimeInput,
                     onValueChange = { endTimeInput = it },
                     label = { Text("End Time") },
+                    isError = !isEndTimeValid,
+                    supportingText = if (!isEndTimeValid) {
+                        { Text("Use HH:mm (e.g. 07:00)", color = LineaColors.Danger) }
+                    } else null,
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = LineaColors.TitaniumBlue,
                         unfocusedBorderColor = LineaColors.GlassBorder,
+                        errorBorderColor = LineaColors.Danger,
                         focusedTextColor = LineaColors.TextPrimary,
                         unfocusedTextColor = LineaColors.TextPrimary,
                         focusedContainerColor = LineaColors.GlassFill,
@@ -352,14 +378,14 @@ fun AddEditCallRuleSheet(
             // Save Button
             Button(
                 onClick = {
-                    if (nameInput.isNotBlank()) {
+                    if (nameInput.isNotBlank() && isTimeValid) {
                         val daysString = selectedDays.sorted().joinToString(",")
                         val rule = CallRuleEntity(
                             id = existingRule?.id ?: 0L,
                             name = nameInput.trim(),
                             isEnabled = existingRule?.isEnabled ?: true,
-                            startTime = startTimeInput.trim(),
-                            endTime = endTimeInput.trim(),
+                            startTime = formatTime(startTimeInput),
+                            endTime = formatTime(endTimeInput),
                             daysOfWeek = daysString,
                             allowedFilter = selectedAllowedFilter,
                             allowedGroupId = selectedGroupId,
@@ -370,7 +396,7 @@ fun AddEditCallRuleSheet(
                         onDismiss()
                     }
                 },
-                enabled = nameInput.isNotBlank(),
+                enabled = nameInput.isNotBlank() && isTimeValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),

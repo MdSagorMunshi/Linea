@@ -449,22 +449,42 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(10.dp))
 
         // Call Screening & Blocking Quick Link
+        val blockedRulesSubtitle = when (uiState.blockedRulesCount) {
+            0 -> "No active rules"
+            1 -> "1 active rule"
+            else -> "${uiState.blockedRulesCount} active rules"
+        }
+        val blockedRulesBadge = when (uiState.blockedRulesCount) {
+            0 -> null
+            1 -> "1 RULE"
+            else -> "${uiState.blockedRulesCount} RULES"
+        }
         SettingsNavCard(
             icon = Icons.Filled.Block,
             title = "Call Screening & Blocking",
-            subtitle = "${uiState.blockedRulesCount} active rules • Quiet hours ${if (uiState.isQuietHoursActive) "ON" else "OFF"}",
-            badge = "${uiState.blockedRulesCount} RULES",
+            subtitle = "$blockedRulesSubtitle • Quiet hours ${if (uiState.isQuietHoursActive) "ON" else "OFF"}",
+            badge = blockedRulesBadge,
             onClick = onNavigateToBlocking
         )
 
         Spacer(modifier = Modifier.height(10.dp))
 
         // Smart Rules & Schedules (Phase 5)
+        val callRulesSubtitle = when (uiState.callRulesCount) {
+            0 -> "No rules configured"
+            1 -> "1 rule configured"
+            else -> "${uiState.callRulesCount} rules configured"
+        }
+        val callRulesBadge = when (uiState.callRulesCount) {
+            0 -> null
+            1 -> "1 RULE"
+            else -> "${uiState.callRulesCount} RULES"
+        }
         SettingsNavCard(
             icon = Icons.Filled.Schedule,
             title = "Smart Rules & Schedules",
-            subtitle = "${uiState.callRulesCount} rules configured • Nighttime & workday filters",
-            badge = if (uiState.callRulesCount > 0) "${uiState.callRulesCount} RULES" else null,
+            subtitle = "$callRulesSubtitle • Nighttime & workday filters",
+            badge = callRulesBadge,
             onClick = onNavigateToCallRules
         )
 

@@ -196,7 +196,7 @@ fun BackupRestoreScreen(
                         ) {
                             OutlinedButton(
                                 onClick = {
-                                    viewModel.exportData()
+                                    viewModel.exportForShare()
                                 },
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp)
@@ -213,10 +213,9 @@ fun BackupRestoreScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    viewModel.exportData()
-                                    state.exportedJson?.let {
+                                    viewModel.exportToClipboard { json ->
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText("LINEA_BACKUP", it)
+                                        val clip = ClipData.newPlainText("LINEA_BACKUP", json)
                                         clipboard.setPrimaryClip(clip)
                                         Toast.makeText(context, "Backup copied to clipboard!", Toast.LENGTH_SHORT).show()
                                     }
@@ -244,18 +243,17 @@ fun BackupRestoreScreen(
                             )
                         }
 
-                        // Handle share when JSON ready
-                        LaunchedEffect(state.exportedJson) {
-                            state.exportedJson?.let { json ->
-                                if (state.exportSuccessMessage == null) {
-                                    val sendIntent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        putExtra(Intent.EXTRA_TEXT, json)
-                                        type = "text/plain"
-                                    }
-                                    val shareIntent = Intent.createChooser(sendIntent, "Share Linea Backup")
-                                    context.startActivity(shareIntent)
+                        // Handle share when JSON ready for sharing
+                        LaunchedEffect(state.shareJson) {
+                            state.shareJson?.let { json ->
+                                val sendIntent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(Intent.EXTRA_TEXT, json)
+                                    type = "text/plain"
                                 }
+                                val shareIntent = Intent.createChooser(sendIntent, "Share Linea Backup")
+                                context.startActivity(shareIntent)
+                                viewModel.clearShareJson()
                             }
                         }
                     }

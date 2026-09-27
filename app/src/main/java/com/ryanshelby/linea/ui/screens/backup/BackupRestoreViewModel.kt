@@ -20,6 +20,7 @@ import javax.inject.Inject
 data class BackupScreenState(
     val isExporting: Boolean = false,
     val exportedJson: String? = null,
+    val shareJson: String? = null,
     val isRestoring: Boolean = false,
     val restoreResult: BackupRestoreResult? = null,
     val exportSuccessMessage: String? = null
@@ -94,7 +95,20 @@ class BackupRestoreViewModel @Inject constructor(
         }
     }
 
-    fun exportData() {
+    fun exportForShare() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isExporting = true, exportSuccessMessage = null)
+            val json = withContext(Dispatchers.IO) {
+                backupManager.generateBackupJson()
+            }
+            _state.value = _state.value.copy(
+                isExporting = false,
+                shareJson = json
+            )
+        }
+    }
+
+    fun exportToClipboard(onCopied: (String) -> Unit) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isExporting = true, exportSuccessMessage = null)
             val json = withContext(Dispatchers.IO) {
@@ -104,7 +118,16 @@ class BackupRestoreViewModel @Inject constructor(
                 isExporting = false,
                 exportedJson = json
             )
+            onCopied(json)
         }
+    }
+
+    fun clearShareJson() {
+        _state.value = _state.value.copy(shareJson = null)
+    }
+
+    fun exportData() {
+        exportForShare()
     }
 
     fun restoreData(jsonText: String) {

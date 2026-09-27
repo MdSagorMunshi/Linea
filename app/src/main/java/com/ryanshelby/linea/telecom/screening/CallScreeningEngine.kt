@@ -320,8 +320,13 @@ object ScreeningRuleMatcher {
 
         return try {
             val nowMinutes = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
-            val (startH, startM) = rule.startTime.split(":").map { it.toInt() }
-            val (endH, endM) = rule.endTime.split(":").map { it.toInt() }
+            val startParts = rule.startTime.trim().split(":")
+            val endParts = rule.endTime.trim().split(":")
+            if (startParts.size < 2 || endParts.size < 2) return false
+            val startH = startParts[0].trim().toIntOrNull() ?: return false
+            val startM = startParts[1].trim().toIntOrNull() ?: return false
+            val endH = endParts[0].trim().toIntOrNull() ?: return false
+            val endM = endParts[1].trim().toIntOrNull() ?: return false
 
             val startMinutes = startH * 60 + startM
             val endMinutes = endH * 60 + endM
@@ -338,13 +343,15 @@ object ScreeningRuleMatcher {
         }
     }
 
-    fun isInternationalNumber(rawNumber: String, simCountryIso: String = "BD"): Boolean {
+    fun isInternationalNumber(rawNumber: String, simCountryIso: String = SimCountryDetector.currentCountryIso): Boolean {
         if (!rawNumber.startsWith("+")) return false
         val localPrefix = getCountryCodePrefix(simCountryIso)
         return !rawNumber.startsWith(localPrefix)
     }
 
     fun getCountryCodePrefix(countryIso: String): String {
+        val detected = OfflineCallerIdEngine.getCountryInfoByIso(countryIso)?.dialCode
+        if (detected != null) return detected
         return when (countryIso.uppercase()) {
             "BD" -> "+880"
             "US", "CA" -> "+1"
@@ -352,7 +359,12 @@ object ScreeningRuleMatcher {
             "IN" -> "+91"
             "AU" -> "+61"
             "DE" -> "+49"
-            else -> "+880"
+            "FR" -> "+33"
+            "JP" -> "+81"
+            "CN" -> "+86"
+            "BR" -> "+55"
+            "RU" -> "+7"
+            else -> "+1"
         }
     }
 }

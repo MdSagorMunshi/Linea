@@ -30,3 +30,5 @@ out/
 .DS_Store
 Thumbs.db
 SHA256SUMS.txt
+report.md
+.kotlin/

@@ -152,16 +152,20 @@ class CallStatsViewModel @Inject constructor(
         val sim1 = timeFiltered.count { it.simSlot == 0 }
         val sim2 = timeFiltered.count { it.simSlot == 1 }
 
-        val topContacts = filtered.groupBy { it.callerName?.ifBlank { null } ?: it.formattedNumber.ifBlank { it.phoneNumber } }
-            .map { (key, list) ->
-                ContactCallRank(
-                    nameOrNumber = key,
-                    callCount = list.size,
-                    totalDuration = list.sumOf { it.durationSeconds }
-                )
-            }
-            .sortedByDescending { it.callCount }
-            .take(5)
+        val topContacts = filtered.groupBy { record ->
+            val cleanDigits = record.phoneNumber.filter { it.isDigit() }
+            if (cleanDigits.length >= 7) cleanDigits.takeLast(10) else (record.callerName?.trim()?.ifBlank { null } ?: record.phoneNumber.trim())
+        }.map { (_, list) ->
+            val displayName = list.firstOrNull { !it.callerName.isNullOrBlank() }?.callerName
+                ?: list.firstOrNull { it.formattedNumber.isNotBlank() }?.formattedNumber
+                ?: list.first().phoneNumber
+            ContactCallRank(
+                nameOrNumber = displayName,
+                callCount = list.size,
+                totalDuration = list.sumOf { it.durationSeconds }
+            )
+        }.sortedByDescending { it.callCount }
+         .take(5)
 
         val longest = filtered.filter { it.durationSeconds > 0 }
             .sortedByDescending { it.durationSeconds }

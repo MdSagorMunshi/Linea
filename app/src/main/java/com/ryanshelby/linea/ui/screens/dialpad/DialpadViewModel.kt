@@ -170,7 +170,10 @@ class DialpadViewModel @Inject constructor(
 
     fun onSpeedDialLongPress(digit: Char) {
         if (digit == '1') {
-            placeCall("123")
+            viewModelScope.launch {
+                val vmNumber = preferences.voicemailNumber.first().ifBlank { "123" }
+                placeCall(vmNumber)
+            }
         } else {
             val contacts = _contacts.value
             val index = digit.digitToIntOrNull()?.minus(2) ?: -1

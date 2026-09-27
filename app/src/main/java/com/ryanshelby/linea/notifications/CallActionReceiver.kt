@@ -18,6 +18,9 @@ class CallActionReceiver : BroadcastReceiver() {
     @Inject
     lateinit var notificationManager: CallNotificationManager
 
+    @Inject
+    lateinit var escapeCallManager: javax.inject.Provider<com.ryanshelby.linea.telecom.escape.EscapeCallManager>
+
     companion object {
         const val ACTION_ANSWER = "com.ryanshelby.linea.ACTION_ANSWER"
         const val ACTION_REJECT = "com.ryanshelby.linea.ACTION_REJECT"
@@ -30,6 +33,7 @@ class CallActionReceiver : BroadcastReceiver() {
         const val ACTION_UNHOLD = "com.ryanshelby.linea.ACTION_UNHOLD"
         const val ACTION_IGNORE = "com.ryanshelby.linea.ACTION_IGNORE"
         const val ACTION_MESSAGE = "com.ryanshelby.linea.ACTION_MESSAGE"
+        const val ACTION_DISARM_ESCAPE_CALL = "com.ryanshelby.linea.ACTION_DISARM_ESCAPE_CALL"
         const val EXTRA_PHONE_NUMBER = "extra_phone_number"
     }
 
@@ -37,6 +41,9 @@ class CallActionReceiver : BroadcastReceiver() {
         val phoneNumber = intent.getStringExtra(EXTRA_PHONE_NUMBER) ?: ""
 
         when (intent.action) {
+            ACTION_DISARM_ESCAPE_CALL -> {
+                escapeCallManager.get().cancelCountdown()
+            }
             ACTION_ANSWER -> {
                 callManager.answerCall()
                 callManager.dismissFloatingCall()

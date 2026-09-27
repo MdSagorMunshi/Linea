@@ -422,7 +422,7 @@ fun ContactsScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 106.dp)
+                .padding(end = 48.dp, bottom = 100.dp)
                 .size(56.dp)
                 .neumorphic(
                     shape = CircleShape,

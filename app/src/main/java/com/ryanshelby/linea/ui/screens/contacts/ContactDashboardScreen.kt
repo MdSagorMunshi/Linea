@@ -42,6 +42,7 @@ import com.ryanshelby.linea.ui.theme.LineaTypography
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.ryanshelby.linea.ui.screens.dialpad.CallCountdownDialog
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -55,6 +56,20 @@ fun ContactDashboardScreen(
     }
 
     val state by viewModel.state.collectAsState()
+    val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
+    val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
+    var pendingCallNumber by remember { mutableStateOf<String?>(null) }
+    var showCountdownDialog by remember { mutableStateOf(false) }
+
+    val triggerCall: (String) -> Unit = { number ->
+        if (callConfirmationEnabled && callCountdownSeconds > 0) {
+            pendingCallNumber = number
+            showCountdownDialog = true
+        } else {
+            viewModel.placeCall(number)
+        }
+    }
+
     val context = LocalContext.current
     var noteInput by remember { mutableStateOf("") }
     var isEditingNote by remember { mutableStateOf(false) }
@@ -240,7 +255,7 @@ fun ContactDashboardScreen(
                                     color = LineaColors.Success,
                                     onClick = {
                                         if (primaryNumber.isNotBlank()) {
-                                            viewModel.placeCall(primaryNumber)
+                                            triggerCall(primaryNumber)
                                         }
                                     }
                                 )
@@ -319,7 +334,7 @@ fun ContactDashboardScreen(
                                             .clip(RoundedCornerShape(12.dp))
                                             .combinedClickable(
                                                 onClick = {
-                                                    viewModel.placeCall(numEntity.number)
+                                                    triggerCall(numEntity.number)
                                                 },
                                                 onLongClick = {
                                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -374,7 +389,7 @@ fun ContactDashboardScreen(
                                                 )
                                             }
                                             IconButton(
-                                                onClick = { viewModel.placeCall(numEntity.number) },
+                                                onClick = { triggerCall(numEntity.number) },
                                                 modifier = Modifier.size(38.dp)
                                             ) {
                                                 Icon(
@@ -831,6 +846,24 @@ fun ContactDashboardScreen(
                 name = contact.displayName,
                 numbers = state.numbers.map { it.number },
                 onDismiss = { showQrCodeSheet = false }
+            )
+        }
+
+        // Call Countdown Dialog
+        if (showCountdownDialog && pendingCallNumber != null) {
+            CallCountdownDialog(
+                phoneNumber = pendingCallNumber!!,
+                totalSeconds = callCountdownSeconds,
+                onConfirmCall = {
+                    showCountdownDialog = false
+                    val num = pendingCallNumber!!
+                    pendingCallNumber = null
+                    viewModel.placeCall(num)
+                },
+                onCancel = {
+                    showCountdownDialog = false
+                    pendingCallNumber = null
+                }
             )
         }
     }

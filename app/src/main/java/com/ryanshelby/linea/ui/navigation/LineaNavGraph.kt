@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ryanshelby.linea.data.preferences.LineaPreferences
@@ -82,6 +83,14 @@ fun LineaNavGraph(
     val persistentNavbarMode by lineaPreferences.navbarMode.collectAsState(initial = LineaPreferences.NavbarMode.COLLAPSED)
     var isNavbarTemporarilyExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    // Auto-collapse temporarily expanded navbar after 5 seconds of inactivity
+    LaunchedEffect(isNavbarTemporarilyExpanded) {
+        if (isNavbarTemporarilyExpanded) {
+            delay(5000L)
+            isNavbarTemporarilyExpanded = false
+        }
+    }
 
     // Hoisted scroll states to preserve exact positions across sub-screen visits and tab switches
     // Resets cleanly only when the app process is closed (cold restart)
@@ -167,26 +176,13 @@ fun LineaNavGraph(
             }
         }
 
-        // Dismiss temporarily expanded navbar on outside tap
-        if (isNavbarTemporarilyExpanded && persistentNavbarMode == LineaPreferences.NavbarMode.COLLAPSED && activeContactDashboardId == null && settingsSubScreen == null && !isPrivateSafeOpen) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        isNavbarTemporarilyExpanded = false
-                    }
-            )
-        }
-
         // Floating Neumorphic Bottom Navigation Bar with collapsible circle, spring morphing & gestures
         if (activeContactDashboardId == null && settingsSubScreen == null && !isPrivateSafeOpen) {
             FloatingGlassNavBar(
                 currentDestination = currentDestination,
                 onNavigate = { destination ->
                     currentDestination = destination
+                    isNavbarTemporarilyExpanded = false
                 },
                 unreadMissedCalls = settingsState.unreadMissedCalls,
                 persistentNavbarMode = persistentNavbarMode,

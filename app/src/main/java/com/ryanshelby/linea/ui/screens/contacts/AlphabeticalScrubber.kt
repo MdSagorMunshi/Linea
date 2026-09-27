@@ -1,5 +1,6 @@
 package com.ryanshelby.linea.ui.screens.contacts
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,14 @@ fun AlphabeticalScrubber(
     val alphabet = remember { listOf('#') + ('A'..'Z').toList() }
     var componentHeight by remember { mutableStateOf(1) }
 
+    val selectAtY: (Float) -> Unit = { rawY ->
+        val y = rawY.coerceIn(0f, componentHeight.toFloat())
+        val index = ((y / componentHeight) * alphabet.size).toInt().coerceIn(0, alphabet.size - 1)
+        val selected = alphabet[index]
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        onLetterSelected(selected)
+    }
+
     Column(
         modifier = modifier
             .width(28.dp)
@@ -44,7 +53,15 @@ fun AlphabeticalScrubber(
                 componentHeight = coordinates.size.height
             }
             .pointerInput(alphabet) {
+                detectTapGestures { offset ->
+                    selectAtY(offset.y)
+                }
+            }
+            .pointerInput(alphabet) {
                 detectVerticalDragGestures(
+                    onDragStart = { offset ->
+                        selectAtY(offset.y)
+                    },
                     onVerticalDrag = { change, _ ->
                         val y = change.position.y.coerceIn(0f, componentHeight.toFloat())
                         val index = ((y / componentHeight) * alphabet.size).toInt().coerceIn(0, alphabet.size - 1)

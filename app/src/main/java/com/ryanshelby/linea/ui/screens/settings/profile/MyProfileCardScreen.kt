@@ -94,6 +94,7 @@ import com.ryanshelby.linea.nfc.NfcBeamManager
 import com.ryanshelby.linea.ui.components.NeumorphicCard
 import com.ryanshelby.linea.ui.components.NeumorphicWell
 import com.ryanshelby.linea.ui.screens.contacts.LineaBeamSheet
+import com.ryanshelby.linea.ui.screens.contacts.QrCodeSheet
 import com.ryanshelby.linea.ui.theme.InterFontFamily
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaTypography
@@ -783,27 +784,17 @@ fun MyProfileCardScreen(
         Spacer(modifier = Modifier.height(32.dp))
     }
 
-    // Sheet to show personal card as QR code / manual beam
-    if (showQrShareSheet && nfcBeamManager != null) {
-        val payload = remember(name, number, email, photoBase64, social1Platform, social1Handle, social2Platform, social2Handle) {
-            UserProfile(
-                name = name.ifBlank { "LiNEA Contact" },
-                number = number,
-                email = email,
-                photoBase64 = photoBase64,
-                social1Platform = social1Platform,
-                social1Handle = social1Handle,
-                social2Platform = social2Platform,
-                social2Handle = social2Handle
-            ).toContactPayload()
-        }
+    // Sheet to show personal card as QR code
+    if (showQrShareSheet) {
+        val effectiveName = name.ifBlank { "LiNEA Contact" }
+        val effectiveNumbers = if (number.isNotBlank()) listOf(number) else emptyList()
 
-        if (payload != null) {
-            LineaBeamSheet(
-                name = payload.name,
-                numbers = payload.numbers,
-                nfcBeamManager = nfcBeamManager,
-                onDismiss = { showQrShareSheet = false }
+        if (name.isNotBlank() || number.isNotBlank()) {
+            QrCodeSheet(
+                name = effectiveName,
+                numbers = effectiveNumbers,
+                onDismiss = { showQrShareSheet = false },
+                nfcBeamManager = nfcBeamManager ?: remember { NfcBeamManager() }
             )
         } else {
             Toast.makeText(context, "Please enter your name or number first", Toast.LENGTH_SHORT).show()
