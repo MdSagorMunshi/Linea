@@ -140,7 +140,7 @@ class CallManager @Inject constructor(
     // Timestamp when ringing started; volume-change events within a short window are
     // system-generated (audio stream setup) and must be ignored.
     private var ringerStartedTimestamp = 0L
-    private val RINGER_GRACE_PERIOD_MS = 2000L
+    private val RINGER_GRACE_PERIOD_MS = 600L
 
     val isRinging: Boolean
         get() = (_currentCall.value?.state == LineaCallState.RINGING && _currentCall.value?.isIncoming == true) ||
@@ -163,15 +163,18 @@ class CallManager @Inject constructor(
 
         // Debounce if multiple events (e.g. key event + broadcast) fire for the same physical press
         if (lastPowerPressTimestamp > 0L && delta < 120L) {
+            android.util.Log.d("CallManager", "onPowerButtonPressed: debounced (delta=${delta}ms)")
             return
         }
 
         if (lastPowerPressTimestamp > 0L && delta <= 1000L) {
             // Double press detected within 120ms..1000ms: end current call across all states
+            android.util.Log.d("CallManager", "onPowerButtonPressed: DOUBLE PRESS detected (delta=${delta}ms) → endCurrentCall()")
             lastPowerPressTimestamp = 0L
             endCurrentCall()
         } else {
             // First press of a potential double-press sequence
+            android.util.Log.d("CallManager", "onPowerButtonPressed: FIRST press (isRinging=$isRinging, isSilenced=${_isRingerSilenced.value})")
             lastPowerPressTimestamp = now
             if (isRinging && !_isRingerSilenced.value) {
                 silenceRinger()
@@ -180,6 +183,7 @@ class CallManager @Inject constructor(
     }
 
     fun endCurrentCall() {
+        android.util.Log.d("CallManager", "endCurrentCall() called")
         _isRingerSilenced.value = false
         ringerStartedTimestamp = 0L
         callRingtoneManager.stopRinging()
@@ -188,7 +192,22 @@ class CallManager @Inject constructor(
 
         vibrateFeedback(longArrayOf(0, 100))
 
-        val active = _currentCall.value?.call
+        // Handle simulated/escape calls (no real Telecom Call object)
+        val current = _currentCall.value
+        if (current?.isSimulated == true) {
+            timerJob?.cancel()
+            timerJob = null
+            proximitySensorManager.release()
+            recordPostCallSummary(current)
+            _currentCall.value = current.copy(state = LineaCallState.DISCONNECTED)
+            scope.launch {
+                delay(300)
+                _currentCall.value = null
+            }
+            return
+        }
+
+        val active = current?.call
         if (active != null) {
             try {
                 if (isRinging) {
@@ -246,16 +265,21 @@ class CallManager @Inject constructor(
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 Intent.ACTION_SCREEN_OFF -> {
-                    // Only silence if user intentionally pressed power to turn off an active screen.
-                    // Must NOT silence during initial ringing grace period or when inside a pocket (proximity is near).
-                    val elapsed = SystemClock.elapsedRealtime() - ringerStartedTimestamp
-                    if (isRinging && !_isRingerSilenced.value && ringerStartedTimestamp > 0L && elapsed > RINGER_GRACE_PERIOD_MS) {
-                        if (!callGestureManager.isProximityNear) {
-                            android.util.Log.d("CallManager", "ACTION_SCREEN_OFF triggered silence")
-                            onPowerButtonPressed()
-                        } else {
-                            android.util.Log.d("CallManager", "ACTION_SCREEN_OFF ignored because proximity is near (in pocket)")
-                        }
+                    // Power button pressed (screen turned off).
+                    // Always forward to onPowerButtonPressed() for double-press detection
+                    // and single-press silence. No proximity gate — user intentionally
+                    // pressed a physical button.
+                    android.util.Log.d("CallManager", "ACTION_SCREEN_OFF: hasActiveOrPending=$hasActiveOrPendingCall, isRinging=$isRinging")
+                    if (hasActiveOrPendingCall) {
+                        onPowerButtonPressed()
+                    }
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    // Power button pressed again (screen turned back on).
+                    // This is the second press for double-press detection.
+                    android.util.Log.d("CallManager", "ACTION_SCREEN_ON: hasActiveOrPending=$hasActiveOrPendingCall")
+                    if (hasActiveOrPendingCall) {
+                        onPowerButtonPressed()
                     }
                 }
                 "android.media.VOLUME_CHANGED_ACTION" -> {
@@ -276,6 +300,7 @@ class CallManager @Inject constructor(
             try {
                 val filter = IntentFilter().apply {
                     addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_SCREEN_ON)
                     addAction("android.media.VOLUME_CHANGED_ACTION")
                 }
                 ContextCompat.registerReceiver(

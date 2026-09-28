@@ -284,14 +284,6 @@ class InCallActivity : ComponentActivity() {
                     return true
                 }
             }
-            KeyEvent.KEYCODE_POWER -> {
-                if (callManager.hasActiveOrPendingCall) {
-                    if (event.action == KeyEvent.ACTION_DOWN) {
-                        callManager.onPowerButtonPressed()
-                    }
-                    return true
-                }
-            }
         }
         return super.dispatchKeyEvent(event)
     }
@@ -303,12 +295,6 @@ class InCallActivity : ComponentActivity() {
             KeyEvent.KEYCODE_VOLUME_MUTE -> {
                 if (callManager.isRinging) {
                     callManager.silenceRinger()
-                    return true
-                }
-            }
-            KeyEvent.KEYCODE_POWER -> {
-                if (callManager.hasActiveOrPendingCall) {
-                    callManager.onPowerButtonPressed()
                     return true
                 }
             }
