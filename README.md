@@ -146,6 +146,15 @@ Modern stock dialers frequently upload call logs, contacts, and telemetry to pro
 - **Integrated Gallery Scanner & Camera Controls**: Direct photo album picker (`InputImage.fromFilePath`), tactile tap-to-focus metering, and flashlight torch toggle.
 - **Tactile Contact Action Sheet**: Instant "Call Now" cellular dispatch, "Save Contact" dual-sync persistence, and universal parsing (vCard 3.0, MECARD, LiNEA URI, raw digits).
 
+### 18. LiNEA Beam: 1-Tap Mutual NFC Contact Sharing
+- **Bidirectional NFC Bump Exchange**: In a single physical phone bump, both devices simultaneously send and receive contact cards via custom ISO-DEP APDU protocol.
+- **Host Card Emulation (HCE) & NDEF**: Dual AID registration for high-speed LiNEA-to-LiNEA bumps and universal NFC Forum Type 4 Tag compatibility with any NFC device.
+- **Physical NFC Tag Programming**: Program blank NFC stickers, cards, or key fobs with your contact card for tap-to-share without the app.
+- **Digital Card Profile**: Dedicated profile editor with name, phone, email, compressed photo, and 2 social handles (Instagram, Telegram, GitHub, Reddit) — all transmitted in sub-100ms NFC payloads.
+- **Rich Animated Contact Sheet**: Decoded contact popup with rotating glow ring avatar, quick action rows, clickable social badges, and one-tap "Save Contact".
+
+> **⚠️ NFC Beaming is currently in the testing phase.** If you encounter any bugs or issues with NFC contact sharing, please report them to **[ryn@disr.it](mailto:ryn@disr.it)**.
+
 ---
 
 ## Design System
@@ -173,7 +182,7 @@ LINEA adheres strictly to a **Tactile Neumorphic (Soft UI)** aesthetic, engineer
 1. Download the latest release APK from the [Releases](https://github.com/MdSagorMunshi/Linea/releases) page.
 2. Install the APK to your device or emulator:
    ```bash
-   adb install -r LiNEA-v2.3.0-release.apk
+   adb install -r LiNEA-v2.4.1-release.apk
    ```
 
 ### Designate as System Default Dialer

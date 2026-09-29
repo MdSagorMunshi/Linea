@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.4.1] - 2026-09-28
+## [2.4.1] - 2026-09-30
 
 ### Fixed
 - **QR Code Scanner Physical Device Camera Crash & Blank Screen**:
@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Exception & Error Handling**: Replaced silent error swallowing with structured logging and an interactive error state UI featuring **"Retry Camera"** and **"Scan Photo"** buttons.
   - **Camera Hardware Resource Cleanup**: Implemented `cameraProviderRef` with explicit `cameraProvider.unbindAll()` inside `DisposableEffect.onDispose` to prevent camera device locks when dismissing and reopening the sheet.
   - **Live Streaming Synchronization & Permissions**: Observed `PreviewView.previewStreamState` to render a smooth loading spinner until frames actively stream, and added an automatic camera permission prompt with lifecycle resume refresh.
+
+- **Incoming Call Hardware Button Behavior**:
+  - **Volume Up/Down Silences Ringtone**: Pressing either volume button during an incoming call immediately silences the ringtone. Reduced the internal grace period from 2000ms to 600ms so that volume key presses register almost instantly after ringing begins.
+  - **Power Button Single Press Silences Ringtone**: A single power button press during an incoming call now reliably silences the ringtone. Removed the proximity sensor gate that was previously blocking power button silencing when the phone was near the user's face or in a pocket.
+  - **Power Button Double Press Ends Call**: Two rapid power button presses (within 1 second) terminate the current call — incoming, outgoing, or active. Added `ACTION_SCREEN_ON` broadcast listener to detect the second press (screen off → screen on = double press), since Android does not deliver `KEYCODE_POWER` to applications.
 
 - **Full Application Audit & Multi-Phase Bug Fixes (Phases 1–3)**:
   - **Telecom & In-Call Stability**:
@@ -44,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added closed-app mutual beam processing, tag detection diagnostics, and retry workflows.
   - Added "Always Share" mode and persistent digital card profile fast-cache synchronization in the Settings header.
   - Dynamically displayed the installed application version in the Settings footer.
+
+### Optimized
+- **APK Size Reduced from 73.7 MB to ~30 MB**: Enabled R8 full-mode code shrinking and resource optimization, eliminating unused classes, dead code paths, and redundant bundled assets — cutting the release APK size by over 58%.
 
 ---
 
