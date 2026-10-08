@@ -31,6 +31,13 @@
 
 ---
 
+> [!IMPORTANT]
+> **I use this app in my daily life. I update it or fix any bugs I find, but if you find any bug or issues, or need any features, please contact me:**
+> - **Email:** **[ryn@disr.it](mailto:ryn@disr.it)**
+> - **Telegram:** **[https://leesiwoo_s.t.me/](https://leesiwoo_s.t.me/)**
+
+---
+
 ## About LINEA
 
 **LINEA** (`com.ryanshelby.linea`) is a sovereign, high-performance cellular dialer engineered from scratch for **Android 17 (API 37)**. Built directly on Android's native Telecom framework (`InCallService`, `ConnectionService`, and `CallScreeningService`), LINEA acts as a full replacement for your stock phone app with genuine cellular calling, DTMF tone generation, multi-call conferencing, and carrier MMI management.
@@ -211,8 +218,14 @@ For developers, contributors, and technical deep dives:
 
 ## Developer & Support
 
+> **A Note from the Developer:**  
+> I use LINEA in my daily life and actively update it to fix any bugs or issues I come across. If you discover any bugs or issues, or have feature requests, please contact me directly:
+> - **Email**: [ryn@disr.it](mailto:ryn@disr.it)
+> - **Telegram**: [https://leesiwoo_s.t.me/](https://leesiwoo_s.t.me/)
+
 - **Lead Developer**: Ryan Shelby
 - **Official Support Email**: [ryn@disr.it](mailto:ryn@disr.it)
+- **Telegram**: [https://leesiwoo_s.t.me/](https://leesiwoo_s.t.me/)
 - **FOSS Git Repository**: [https://github.com/MdSagorMunshi/Linea.git](https://github.com/MdSagorMunshi/Linea.git)
 - **Web Project Page**: [https://github.com/MdSagorMunshi/Linea](https://github.com/MdSagorMunshi/Linea)
 
