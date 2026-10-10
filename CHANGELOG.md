@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.0-beta] - 2026-10-11
+
+### Added
+- **Country-Based Call Blocking System**:
+  - **Country Blacklist / Whitelist**: Added a comprehensive country-based call filter with strict "Whitelist Only" and "Blacklist Only" modes.
+  - **High-Precision Country Detection**: Integrated Google's `libphonenumber` to accurately identify caller countries from incoming E.164 and localized numbers. Disambiguates shared calling codes seamlessly (e.g., distinguishing between USA and Canada under `+1`, or Russia and Kazakhstan under `+7`).
+  - **Granular Controls**: Specific countries under a shared dialing code can be whitelisted even if the entire code is blacklisted.
+  - **Contact & Domestic Exemptions**: Saved contacts and calls originating from the user's domestic SIM country bypass blocking automatically to ensure critical calls are never missed.
+  - **Management UI**: New dedicated "Country Call Blocking" settings interface with interactive flag-based selectors, search integration, and a status dashboard on the main Blocking Screen.
+  - **Safe Edge Case Handling**: Private, unknown, and withheld caller IDs bypass country checks to avoid false classifications, delegating to the existing unknown caller filter rules.
+
+---
 ## [2.4.1] - 2026-09-30
 
 ### Fixed

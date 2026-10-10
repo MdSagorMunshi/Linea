@@ -119,6 +119,21 @@ object SettingsSearchEngine {
             )
         )
 
+        list.add(
+            SettingsSearchItem(
+                id = "country_call_blocking",
+                title = "Country Call Blocking",
+                subtitle = "Blacklist or whitelist incoming calls from specific countries & dialing codes",
+                category = SettingsCategory.SECURITY,
+                icon = Icons.Filled.Block,
+                keywords = listOf(
+                    "country", "countries", "nation", "blacklist", "whitelist", "international",
+                    "dialing code", "border", "calling code", "usa", "uk", "canada", "prefix", "foreign"
+                ),
+                action = SettingsSearchAction.Navigate(callbacks.onNavigateToCountryBlocking)
+            )
+        )
+
         // 5. Smart Rules & Schedules
         list.add(
             SettingsSearchItem(

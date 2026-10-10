@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ryanshelby.linea.data.local.dao.BlockedNumberDao
 import com.ryanshelby.linea.data.local.dao.CallRuleDao
+import com.ryanshelby.linea.data.local.dao.CountryRuleDao
 import com.ryanshelby.linea.data.local.entities.BlockAction
 import com.ryanshelby.linea.data.local.entities.BlockMatchType
 import com.ryanshelby.linea.data.local.entities.BlockedCallLogEntity
 import com.ryanshelby.linea.data.local.entities.BlockedNumberEntity
 import com.ryanshelby.linea.data.local.entities.CallRuleEntity
+import com.ryanshelby.linea.data.local.entities.CountryRuleEntity
+import com.ryanshelby.linea.data.local.entities.CountryRuleType
 import com.ryanshelby.linea.data.local.entities.RuleAction
 import com.ryanshelby.linea.data.local.entities.RuleAllowedFilter
 import com.ryanshelby.linea.data.preferences.LineaPreferences
@@ -35,6 +38,9 @@ data class BlockingUiState(
     val blockNonContacts: Boolean = false,
     val blockInternational: Boolean = false,
     val repeatCallOverride: Boolean = true,
+    val countryBlockingEnabled: Boolean = true,
+    val blacklistedCountryCount: Int = 0,
+    val whitelistedCountryCount: Int = 0,
     val selectedTab: Int = 0 // 0 = Rules, 1 = History
 )
 
@@ -43,6 +49,7 @@ class BlockingViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val blockedNumberDao: BlockedNumberDao,
     private val callRuleDao: CallRuleDao,
+    private val countryRuleDao: CountryRuleDao,
     private val preferences: LineaPreferences
 ) : ViewModel() {
 
@@ -52,12 +59,14 @@ class BlockingViewModel @Inject constructor(
         blockedNumberDao.getAllBlockedNumbers(),
         blockedNumberDao.getAllBlockedLogs(),
         callRuleDao.getAllRules(),
+        countryRuleDao.getAllRules(),
         preferences.allowListMode,
         preferences.blockPrivate,
         preferences.blockUnknown,
         preferences.blockNonContacts,
         preferences.blockInternational,
         preferences.repeatCallOverride,
+        preferences.countryBlockingEnabled,
         _selectedTab
     ) { args ->
         @Suppress("UNCHECKED_CAST")
@@ -66,18 +75,24 @@ class BlockingViewModel @Inject constructor(
         val logs = args[1] as List<BlockedCallLogEntity>
         @Suppress("UNCHECKED_CAST")
         val rules = args[2] as List<CallRuleEntity>
-        val allowList = args[3] as Boolean
-        val priv = args[4] as Boolean
-        val unk = args[5] as Boolean
-        val nonContacts = args[6] as Boolean
-        val intl = args[7] as Boolean
-        val repeat = args[8] as Boolean
-        val tab = args[9] as Int
+        @Suppress("UNCHECKED_CAST")
+        val countryRules = args[3] as List<CountryRuleEntity>
+        val allowList = args[4] as Boolean
+        val priv = args[5] as Boolean
+        val unk = args[6] as Boolean
+        val nonContacts = args[7] as Boolean
+        val intl = args[8] as Boolean
+        val repeat = args[9] as Boolean
+        val countryBlocking = args[10] as Boolean
+        val tab = args[11] as Int
 
         var quietHours = rules.firstOrNull { it.name.contains("Quiet Hours", ignoreCase = true) }
         if (quietHours == null && rules.isNotEmpty()) {
             quietHours = rules.first()
         }
+
+        val blacklistCount = countryRules.count { it.ruleType == CountryRuleType.BLACKLIST && it.isEnabled }
+        val whitelistCount = countryRules.count { it.ruleType == CountryRuleType.WHITELIST && it.isEnabled }
 
         BlockingUiState(
             blockedNumbers = numbers,
@@ -89,6 +104,9 @@ class BlockingViewModel @Inject constructor(
             blockNonContacts = nonContacts,
             blockInternational = intl,
             repeatCallOverride = repeat,
+            countryBlockingEnabled = countryBlocking,
+            blacklistedCountryCount = blacklistCount,
+            whitelistedCountryCount = whitelistCount,
             selectedTab = tab
         )
     }.stateIn(
@@ -214,6 +232,12 @@ class BlockingViewModel @Inject constructor(
         viewModelScope.launch {
             val rule = uiState.value.quietHoursRule ?: return@launch
             callRuleDao.updateRule(rule.copy(allowedFilter = filter))
+        }
+    }
+
+    fun toggleCountryBlocking(enabled: Boolean) {
+        viewModelScope.launch {
+            preferences.setCountryBlockingEnabled(enabled)
         }
     }
 }

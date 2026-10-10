@@ -109,6 +109,10 @@ class LineaPreferences @Inject constructor(
         val KEY_PRIVATE_MODE_PIN = stringPreferencesKey("private_mode_pin")
         val KEY_HISTORY_VIEW_MODE = stringPreferencesKey("history_view_mode") // FEED, SESSIONS
         val KEY_CALL_BLOCKING_ENABLED = booleanPreferencesKey("call_blocking_enabled")
+        val KEY_COUNTRY_BLOCKING_ENABLED = booleanPreferencesKey("country_blocking_enabled")
+        val KEY_COUNTRY_FILTER_MODE = stringPreferencesKey("country_filter_mode") // "BLACKLIST_ONLY", "WHITELIST_ONLY"
+        val KEY_COUNTRY_WHITELIST_OVERRIDES = booleanPreferencesKey("country_whitelist_overrides")
+        val KEY_COUNTRY_EXEMPT_CONTACTS = booleanPreferencesKey("country_exempt_contacts")
         val KEY_LAST_CONTACT_ACCOUNT_NAME = stringPreferencesKey("last_contact_account_name")
         val KEY_LAST_CONTACT_ACCOUNT_TYPE = stringPreferencesKey("last_contact_account_type")
         val KEY_OPT_IN_LOCATION_TAG = booleanPreferencesKey("opt_in_location_tag")
@@ -199,6 +203,10 @@ class LineaPreferences @Inject constructor(
     val privateModePin: Flow<String> = dataStore.data.map { it[KEY_PRIVATE_MODE_PIN] ?: "" }
     val historyViewMode: Flow<String> = dataStore.data.map { it[KEY_HISTORY_VIEW_MODE] ?: "FEED" }
     val callBlockingEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CALL_BLOCKING_ENABLED] ?: false }
+    val countryBlockingEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_COUNTRY_BLOCKING_ENABLED] ?: true }
+    val countryFilterMode: Flow<String> = dataStore.data.map { it[KEY_COUNTRY_FILTER_MODE] ?: "BLACKLIST_ONLY" }
+    val countryWhitelistOverrides: Flow<Boolean> = dataStore.data.map { it[KEY_COUNTRY_WHITELIST_OVERRIDES] ?: true }
+    val countryExemptContacts: Flow<Boolean> = dataStore.data.map { it[KEY_COUNTRY_EXEMPT_CONTACTS] ?: true }
     val lastContactAccountName: Flow<String?> = dataStore.data.map { it[KEY_LAST_CONTACT_ACCOUNT_NAME] }
     val lastContactAccountType: Flow<String?> = dataStore.data.map { it[KEY_LAST_CONTACT_ACCOUNT_TYPE] }
     val optInLocationTag: Flow<Boolean> = dataStore.data.map { it[KEY_OPT_IN_LOCATION_TAG] ?: false }
@@ -326,6 +334,22 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setAllowListMode(enabled: Boolean) {
         dataStore.edit { it[KEY_ALLOW_LIST_MODE] = enabled }
+    }
+
+    suspend fun setCountryBlockingEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_COUNTRY_BLOCKING_ENABLED] = enabled }
+    }
+
+    suspend fun setCountryFilterMode(mode: String) {
+        dataStore.edit { it[KEY_COUNTRY_FILTER_MODE] = mode }
+    }
+
+    suspend fun setCountryWhitelistOverrides(overrides: Boolean) {
+        dataStore.edit { it[KEY_COUNTRY_WHITELIST_OVERRIDES] = overrides }
+    }
+
+    suspend fun setCountryExemptContacts(exempt: Boolean) {
+        dataStore.edit { it[KEY_COUNTRY_EXEMPT_CONTACTS] = exempt }
     }
 
     suspend fun setThemePreference(theme: String) {

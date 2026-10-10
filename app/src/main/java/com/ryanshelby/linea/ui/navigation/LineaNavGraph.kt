@@ -33,6 +33,8 @@ import com.ryanshelby.linea.ui.screens.settings.SettingsScreen
 import com.ryanshelby.linea.ui.screens.settings.SettingsViewModel
 import com.ryanshelby.linea.ui.screens.settings.blocking.BlockingScreen
 import com.ryanshelby.linea.ui.screens.settings.blocking.BlockingViewModel
+import com.ryanshelby.linea.ui.screens.settings.blocking.CountryBlockingScreen
+import com.ryanshelby.linea.ui.screens.settings.blocking.CountryBlockingViewModel
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.screens.settings.dualsim.DualSimScreen
 import com.ryanshelby.linea.ui.screens.settings.permissions.PermissionsScreen
@@ -44,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 enum class SettingsSubScreen {
     MY_PROFILE_CARD,
     BLOCKING,
+    COUNTRY_BLOCKING,
     DUAL_SIM,
     PERMISSIONS,
     VOICEMAIL,
@@ -71,6 +74,7 @@ fun LineaNavGraph(
     nfcBeamManager: com.ryanshelby.linea.nfc.NfcBeamManager? = null,
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     blockingViewModel: BlockingViewModel = hiltViewModel(),
+    countryBlockingViewModel: CountryBlockingViewModel = hiltViewModel(),
     contactsViewModel: ContactsViewModel = hiltViewModel()
 ) {
     var currentDestination by remember { mutableStateOf(LineaDestination.DIALPAD) }
@@ -159,6 +163,7 @@ fun LineaNavGraph(
                         onRequestDefaultDialer = onRequestDefaultDialer,
                         scrollState = settingsScrollState,
                         onNavigateToBlocking = { settingsSubScreen = SettingsSubScreen.BLOCKING },
+                        onNavigateToCountryBlocking = { settingsSubScreen = SettingsSubScreen.COUNTRY_BLOCKING },
                         onNavigateToDualSim = { settingsSubScreen = SettingsSubScreen.DUAL_SIM },
                         onNavigateToPermissions = { settingsSubScreen = SettingsSubScreen.PERMISSIONS },
                         onNavigateToProfileCard = { settingsSubScreen = SettingsSubScreen.MY_PROFILE_CARD },
@@ -264,7 +269,14 @@ fun LineaNavGraph(
                     SettingsSubScreen.BLOCKING -> {
                         BlockingScreen(
                             viewModel = blockingViewModel,
-                            onNavigateBack = { settingsSubScreen = null }
+                            onNavigateBack = { settingsSubScreen = null },
+                            onNavigateToCountryBlocking = { settingsSubScreen = SettingsSubScreen.COUNTRY_BLOCKING }
+                        )
+                    }
+                    SettingsSubScreen.COUNTRY_BLOCKING -> {
+                        CountryBlockingScreen(
+                            viewModel = countryBlockingViewModel,
+                            onNavigateBack = { settingsSubScreen = SettingsSubScreen.BLOCKING }
                         )
                     }
                     SettingsSubScreen.DUAL_SIM -> {

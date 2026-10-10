@@ -23,10 +23,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -60,6 +62,7 @@ import com.ryanshelby.linea.ui.theme.LineaTypography
 fun BlockingScreen(
     viewModel: BlockingViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToCountryBlocking: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -243,6 +246,86 @@ fun BlockingScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
+                    // Country-Based Call Blocking Card
+                    FrostedGlassBox(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onNavigateToCountryBlocking)
+                    ) {
+                        Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (uiState.countryBlockingEnabled)
+                                                    LineaColors.TitaniumBlue.copy(alpha = 0.2f)
+                                                else
+                                                    LineaColors.GlassFill
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Public,
+                                            contentDescription = null,
+                                            tint = if (uiState.countryBlockingEnabled) LineaColors.TitaniumBlue else LineaColors.TextTertiary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = "Country Call Blocking",
+                                            style = LineaTypography.titleSmall,
+                                            color = LineaColors.TextPrimary
+                                        )
+                                        val statusText = if (uiState.countryBlockingEnabled) {
+                                            "${uiState.blacklistedCountryCount} Blacklisted • ${uiState.whitelistedCountryCount} Whitelisted"
+                                        } else {
+                                            "System Disabled"
+                                        }
+                                        Text(
+                                            text = statusText,
+                                            style = LineaTypography.bodySmall,
+                                            color = if (uiState.countryBlockingEnabled) LineaColors.MutedSageGreen else LineaColors.TextTertiary
+                                        )
+                                    }
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Switch(
+                                        checked = uiState.countryBlockingEnabled,
+                                        onCheckedChange = { viewModel.toggleCountryBlocking(it) },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = LineaColors.TextPrimary,
+                                            checkedTrackColor = LineaColors.TitaniumBlue,
+                                            uncheckedThumbColor = LineaColors.TextSecondary,
+                                            uncheckedTrackColor = LineaColors.BackgroundTop
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                        contentDescription = "Manage",
+                                        tint = LineaColors.TextTertiary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
                     // Quiet Hours / Scheduled Blocking Card
                     FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
@@ -395,7 +478,7 @@ fun BlockingScreen(
 }
 
 @Composable
-private fun ScreeningSwitchRow(
+internal fun ScreeningSwitchRow(
     title: String,
     subtitle: String,
     isChecked: Boolean,
@@ -510,7 +593,7 @@ private fun BlockedRuleRow(
 }
 
 @Composable
-private fun TabPill(
+internal fun TabPill(
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit

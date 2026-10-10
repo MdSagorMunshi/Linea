@@ -10,6 +10,7 @@ import com.ryanshelby.linea.data.local.dao.CallRecordingDao
 import com.ryanshelby.linea.data.local.dao.CallRuleDao
 import com.ryanshelby.linea.data.local.dao.CallbackReminderDao
 import com.ryanshelby.linea.data.local.dao.ContactDao
+import com.ryanshelby.linea.data.local.dao.CountryRuleDao
 import com.ryanshelby.linea.data.local.dao.DialerProfileDao
 import com.ryanshelby.linea.data.local.dao.VoicemailDao
 import dagger.Module
@@ -44,6 +45,9 @@ object DatabaseModule {
 
     @Provides
     fun provideCallRuleDao(db: LineaDatabase): CallRuleDao = db.callRuleDao()
+
+    @Provides
+    fun provideCountryRuleDao(db: LineaDatabase): CountryRuleDao = db.countryRuleDao()
 
     @Provides
     fun provideCallRecordingDao(db: LineaDatabase): CallRecordingDao = db.callRecordingDao()

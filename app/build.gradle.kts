@@ -25,8 +25,8 @@ android {
         applicationId = "com.ryanshelby.linea"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 7
-        versionName = "2.4.1"
+        versionCode = 8
+        versionName = "2.5.0-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -143,6 +143,9 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+
+    // Libphonenumber for accurate international phone number parsing
+    implementation(libs.libphonenumber)
 
     testImplementation(libs.junit)
 }

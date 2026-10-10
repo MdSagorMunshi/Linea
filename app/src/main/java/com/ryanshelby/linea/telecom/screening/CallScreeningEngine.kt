@@ -7,11 +7,14 @@ import com.ryanshelby.linea.data.local.dao.BlockedNumberDao
 import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.data.local.dao.CallRuleDao
 import com.ryanshelby.linea.data.local.dao.ContactDao
+import com.ryanshelby.linea.data.local.dao.CountryRuleDao
 import com.ryanshelby.linea.data.local.entities.BlockAction
 import com.ryanshelby.linea.data.local.entities.BlockMatchType
 import com.ryanshelby.linea.data.local.entities.BlockedCallLogEntity
 import com.ryanshelby.linea.data.local.entities.BlockedNumberEntity
 import com.ryanshelby.linea.data.local.entities.CallRuleEntity
+import com.ryanshelby.linea.data.local.entities.CountryRuleEntity
+import com.ryanshelby.linea.data.local.entities.CountryRuleType
 import com.ryanshelby.linea.data.local.entities.RuleAction
 import com.ryanshelby.linea.data.local.entities.RuleAllowedFilter
 import com.ryanshelby.linea.data.preferences.LineaPreferences
@@ -38,6 +41,7 @@ class CallScreeningEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val blockedNumberDao: BlockedNumberDao,
     private val callRuleDao: CallRuleDao,
+    private val countryRuleDao: CountryRuleDao,
     private val contactDao: ContactDao,
     private val callRecordDao: CallRecordDao,
     private val preferences: LineaPreferences,
@@ -103,6 +107,8 @@ class CallScreeningEngine @Inject constructor(
         val blockNonContactsPref = preferences.blockNonContacts.first()
         val blockUnknownPref = preferences.blockUnknown.first()
         val blockInternationalPref = preferences.blockInternational.first()
+        val countryBlockingMasterPref = preferences.countryBlockingEnabled.first()
+        val activeCountryRules = countryRuleDao.getActiveRules()
         val activeCallRules = callRuleDao.getActiveRules()
 
         val hasActiveScreeningFeature = callBlockingMasterPref ||
@@ -111,6 +117,7 @@ class CallScreeningEngine @Inject constructor(
                 blockNonContactsPref ||
                 blockUnknownPref ||
                 blockInternationalPref ||
+                (countryBlockingMasterPref && activeCountryRules.isNotEmpty()) ||
                 activeCallRules.isNotEmpty()
 
         if (!hasActiveScreeningFeature) {
@@ -166,16 +173,53 @@ class CallScreeningEngine @Inject constructor(
             )
         }
 
-        // 10. Block International Calls Preference
-        if (blockInternationalPref && isInternationalNumber(rawNumber)) {
-            return ScreeningDecision.Block(
-                action = BlockAction.SILENT_REJECT,
-                reason = "International Numbers Blocked",
-                matchedRuleType = "INTERNATIONAL"
-            )
+        // 10. Country-Based Call Blocking System
+        var isCountryWhitelisted = false
+        if (countryBlockingMasterPref && activeCountryRules.isNotEmpty() && !isHidden) {
+            val exemptContacts = preferences.countryExemptContacts.first()
+            if (!exemptContacts || !isKnownContact) {
+                val simCountry = getSimCountryIso()
+                val detection = CountryDetector.detectCountry(rawNumber, simCountry)
+
+                if (detection is CountryDetectionResult.Identified) {
+                    val country = detection.details
+                    val filterMode = preferences.countryFilterMode.first()
+                    val whitelistOverrides = preferences.countryWhitelistOverrides.first()
+
+                    val countryDecision = ScreeningRuleMatcher.evaluateCountryRules(
+                        country = country,
+                        activeRules = activeCountryRules,
+                        filterMode = filterMode,
+                        whitelistOverrides = whitelistOverrides,
+                        userHomeIso = simCountry
+                    )
+
+                    if (countryDecision is ScreeningDecision.Block) {
+                        return countryDecision
+                    }
+
+                    val activeWhitelist = activeCountryRules.filter { it.ruleType == CountryRuleType.WHITELIST && it.isEnabled }
+                    isCountryWhitelisted = activeWhitelist.any { rule ->
+                        rule.countryIso.equals(country.countryIso, ignoreCase = true) ||
+                        (rule.appliesToAllSharedCode && rule.dialCode == country.dialCode)
+                    }
+                }
+            }
         }
 
-        // 11. Evaluate Scheduled Quiet Hours & Call Rules (Only if rules are active)
+        // 11. Block International Calls Preference (Permits whitelisted countries if whitelist overrides is true)
+        val whitelistOverrides = preferences.countryWhitelistOverrides.first()
+        if (blockInternationalPref && isInternationalNumber(rawNumber)) {
+            if (!(isCountryWhitelisted && whitelistOverrides)) {
+                return ScreeningDecision.Block(
+                    action = BlockAction.SILENT_REJECT,
+                    reason = "International Numbers Blocked",
+                    matchedRuleType = "INTERNATIONAL"
+                )
+            }
+        }
+
+        // 12. Evaluate Scheduled Quiet Hours & Call Rules (Only if rules are active)
         for (rule in activeCallRules) {
             if (matchesScheduleRule(rule, currentTimeMillis, simSlot)) {
                 val isAllowed = when (rule.allowedFilter) {
@@ -365,6 +409,57 @@ object ScreeningRuleMatcher {
             "BR" -> "+55"
             "RU" -> "+7"
             else -> "+1"
+        }
+    }
+
+    fun evaluateCountryRules(
+        country: CountryDetails,
+        activeRules: List<CountryRuleEntity>,
+        filterMode: String = "BLACKLIST_ONLY",
+        whitelistOverrides: Boolean = true,
+        userHomeIso: String = "BD"
+    ): ScreeningDecision {
+        val whitelist = activeRules.filter { it.ruleType == CountryRuleType.WHITELIST && it.isEnabled }
+        val blacklist = activeRules.filter { it.ruleType == CountryRuleType.BLACKLIST && it.isEnabled }
+
+        val isWhitelisted = whitelist.any { rule ->
+            rule.countryIso.equals(country.countryIso, ignoreCase = true) ||
+            (rule.appliesToAllSharedCode && rule.dialCode == country.dialCode)
+        }
+
+        val matchedBlacklistRule = blacklist.firstOrNull { rule ->
+            rule.countryIso.equals(country.countryIso, ignoreCase = true) ||
+            (rule.appliesToAllSharedCode && rule.dialCode == country.dialCode)
+        }
+
+        val isHomeCountry = country.countryIso.equals(userHomeIso, ignoreCase = true)
+
+        return when (filterMode) {
+            "WHITELIST_ONLY" -> {
+                if (isWhitelisted || isHomeCountry) {
+                    ScreeningDecision.Allow
+                } else {
+                    ScreeningDecision.Block(
+                        action = BlockAction.SILENT_REJECT,
+                        reason = "Country Not Whitelisted: ${country.countryName} (${country.dialCode})",
+                        matchedRuleType = "COUNTRY_WHITELIST_STRICT"
+                    )
+                }
+            }
+            else -> { // "BLACKLIST_ONLY" or other
+                if (isWhitelisted && whitelistOverrides) {
+                    ScreeningDecision.Allow
+                } else if (matchedBlacklistRule != null) {
+                    ScreeningDecision.Block(
+                        action = BlockAction.SILENT_REJECT,
+                        reason = "Country Blacklist: ${country.countryName} (${country.dialCode})",
+                        matchedRuleId = matchedBlacklistRule.id,
+                        matchedRuleType = "COUNTRY_BLACKLIST"
+                    )
+                } else {
+                    ScreeningDecision.Allow
+                }
+            }
         }
     }
 }

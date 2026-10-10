@@ -119,6 +119,7 @@ fun SettingsScreen(
     isDefaultDialer: Boolean,
     onRequestDefaultDialer: () -> Unit,
     onNavigateToBlocking: () -> Unit,
+    onNavigateToCountryBlocking: () -> Unit = {},
     onNavigateToDualSim: () -> Unit,
     onNavigateToPermissions: () -> Unit,
     onNavigateToProfileCard: () -> Unit = {},
@@ -160,7 +161,7 @@ fun SettingsScreen(
     }
 
     val searchCallbacks = remember(
-        onRequestDefaultDialer, onNavigateToBlocking, onNavigateToDualSim,
+        onRequestDefaultDialer, onNavigateToBlocking, onNavigateToCountryBlocking, onNavigateToDualSim,
         onNavigateToPermissions, onNavigateToVoicemail, onNavigateToCallForwarding,
         onNavigateToCallBarring, onNavigateToCallRules, onNavigateToDiagnostics,
         onNavigateToStats, onNavigateToBackup, onNavigateToAbout, onNavigateToRingtone,
@@ -169,6 +170,7 @@ fun SettingsScreen(
         SettingsSearchCallbacks(
             onRequestDefaultDialer = onRequestDefaultDialer,
             onNavigateToBlocking = onNavigateToBlocking,
+            onNavigateToCountryBlocking = onNavigateToCountryBlocking,
             onNavigateToDualSim = onNavigateToDualSim,
             onNavigateToPermissions = onNavigateToPermissions,
             onNavigateToVoicemail = onNavigateToVoicemail,
@@ -1214,9 +1216,9 @@ fun SettingsScreen(
                 )
                 val appVersionName = remember {
                     try {
-                        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.4.0"
+                        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.5.0-beta"
                     } catch (_: Exception) {
-                        "2.4.0"
+                        "2.5.0-beta"
                     }
                 }
                 Text(

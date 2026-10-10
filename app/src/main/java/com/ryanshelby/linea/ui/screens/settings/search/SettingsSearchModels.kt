@@ -74,6 +74,7 @@ data class SettingsSearchItem(
 data class SettingsSearchCallbacks(
     val onRequestDefaultDialer: () -> Unit = {},
     val onNavigateToBlocking: () -> Unit = {},
+    val onNavigateToCountryBlocking: () -> Unit = {},
     val onNavigateToDualSim: () -> Unit = {},
     val onNavigateToPermissions: () -> Unit = {},
     val onNavigateToVoicemail: () -> Unit = {},

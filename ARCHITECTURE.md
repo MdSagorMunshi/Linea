@@ -49,9 +49,10 @@ LINEA is structured according to **Clean Architecture** and **Unidirectional Dat
 - **`CallScreeningEngine`**: Handles incoming call events via `CallScreeningService`. Performs instantaneous, zero-latency rule matching against:
   - Exact phone numbers (E.164 normalized)
   - Prefix wildcards (e.g. `+1800*`)
-  - International caller filters
+  - International caller filters and Country Blacklist / Whitelist
   - Quiet hours schedules with day-of-week recurrence
 - **Emergency Repeated-Call Tracker**: If an unknown or blocked caller attempts 3 calls within a 5-minute window, the engine automatically triggers an emergency bypass to ensure critical calls are never missed.
+- **Country-Based Call Blocking**: Automated interception of incoming international calls matching blacklisted or non-whitelisted countries. Evaluates callers using `CountryDetector` and `ScreeningRuleMatcher.evaluateCountryRules` with support for shared-calling-code disambiguation (e.g., US vs CA vs Caribbean under `+1`), strict whitelist-only mode with domestic SIM bypass, and contacts exemption.
 
 ### 2.3. T9 Smart Dialpad Search
 - Built on a precomputed on-device reverse prefix index.
@@ -64,6 +65,7 @@ LINEA is structured according to **Clean Architecture** and **Unidirectional Dat
 
 ### 2.4. International Country & Time Zone Engine
 - **`InternationalCountryHelper`**: Deterministic country code resolver supporting 40+ global dial prefixes.
+- **`CountryDetector`**: High-precision phone number parser powered by Google's `libphonenumber`. Disambiguates complex shared calling codes (+1 NANP area codes, +7 Russia/Kazakhstan) down to ISO country codes, flags, and names. Safely handles private, unknown, or withheld caller IDs without false classification.
 - Computes destination local time via `java.time.ZonedDateTime` and detects late-night calling conditions (10:00 PM – 6:00 AM) to prevent accidental disruptive calls across time zones.
 
 ### 2.5. Data Storage & Schema Architecture
@@ -78,6 +80,7 @@ The persistence layer is powered by **Room 2.6.1** over SQLite (`linea_database.
 | `ContactGroupMemberEntity` | `contact_group_members` | Many-to-many junction table linking contacts and groups |
 | `CallRecordEntity` | `call_records` | Coalesced call logs, durations, SIM slot ID, and call type |
 | `CallRuleEntity` | `call_rules` | Screening rules, quiet hour intervals, and allow/block lists |
+| `CountryRuleEntity` | `country_rules` | Granular country blacklist and whitelist rules with shared-code flags |
 | `CallRecordingEntity` | `call_recordings` | Metadata, audio file path, duration (Legacy schema retained for migration integrity; recording removed in v2.1.0) |
 | `CallNoteEntity` | `call_notes` | Contextual post-call and pre-call pop notes |
 | `BlockedNumberEntity` | `blocked_numbers` | Dedicated fast-lookup blacklist for instant rejection |

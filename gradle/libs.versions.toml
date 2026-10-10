@@ -20,6 +20,7 @@ room = "2.7.0"
 ksp = "2.3.6"
 hilt = "2.60"
 junit = "4.13.2"
+libphonenumber = "8.13.55"
 
 work-runtime = "2.10.1"
 datastore = "1.1.7"
@@ -75,6 +76,7 @@ hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hil
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version = "1.2.0" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
+libphonenumber = { module = "com.googlecode.libphonenumber:libphonenumber", version.ref = "libphonenumber" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
