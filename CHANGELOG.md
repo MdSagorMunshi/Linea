@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.5.0-beta] - 2026-10-11
+## [2.5.0] - 2026-10-16
 
 ### Added
 - **Country-Based Call Blocking System**:
@@ -17,6 +17,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Contact & Domestic Exemptions**: Saved contacts and calls originating from the user's domestic SIM country bypass blocking automatically to ensure critical calls are never missed.
   - **Management UI**: New dedicated "Country Call Blocking" settings interface with interactive flag-based selectors, search integration, and a status dashboard on the main Blocking Screen.
   - **Safe Edge Case Handling**: Private, unknown, and withheld caller IDs bypass country checks to avoid false classifications, delegating to the existing unknown caller filter rules.
+
+### Fixed & Optimized
+- **Incoming Call Audio Pipeline & Ringer**:
+  - **Audio Attributes & Stream**: Configured ringtone playback strictly with `USAGE_NOTIFICATION_RINGTONE` and `STREAM_RING`, properly requesting transient audio focus with ducking.
+  - **Auto-Silencing Elimination**: Resolved internal volume key silencing race conditions and state desynchronization that previously caused incoming calls to ring silently.
+  - **Vibration Synchronization**: Ensured haptic vibration patterns synchronize cleanly with ringtone playback and immediately halt upon call answer, reject, or disconnect.
+- **Telecom Logging & Call History**:
+  - **Accurate Duration Tracking**: Computed call duration using elapsed monotonic connect time rather than wall-clock differences, preventing duration errors during screen-off sleep.
+  - **Direction Classification**: Fixed direction assignment on call removal to ensure missed, incoming, and outgoing calls are categorized and persisted to Room without dropped records.
+- **Default Dialer Role Power Exemption**:
+  - **Native Role Exemption Integration**: Recognized Android's built-in `ROLE_DIALER` unrestricted battery usage exemption (`PowerExemptionManager.REASON_ROLE_DIALER`). Removed the redundant "Background Execution ATTENTION" warning when LINEA is the active default dialer.
+  - **Settings Health Card**: Status banner now reflects full readiness with a green `ACTIVE` state ("Unrestricted: granted automatically by Default Dialer role") and cleanly collapses into the optimal checkmark header.
+- **System Battery Drain Optimizations**:
+  - **NFC Radio Transmitter Scoping**: Removed continuous background reader mode polling from `MainActivity.onResume()`. Scoped NFC hardware polling strictly to the `DisposableEffect` of `LineaBeamSheet`, preventing constant 2–3Hz radio transmitter pulsing.
+  - **Sensor Hardware Leak Prevention**: Fixed a race condition in `CallGestureManager` by cancelling asynchronous startup jobs upon `stopListening()`, ensuring accelerometer and proximity sensors never remain active after quick call termination.
+  - **Proximity Sensor Power Rail Release**: Changed proximity wake lock release to drop immediately upon call disconnect (`release(0)`), preventing the physical proximity sensor rail from holding power for up to 2 hours when placed face-down or pocketed.
+  - **Cleanup Worker Constraints**: Added `setRequiresDeviceIdle(true)` and `setRequiresBatteryNotLow(true)` to periodic call history maintenance work.
+- **Missed Call Notification Deduplication**:
+  - **Phone Number Digit Normalization**: Normalized digits to ensure raw telecom handles (`15551234567`) and system-formatted numbers (`1 555-123-4567`) produce identical notification IDs.
+  - **Suppression Window**: Added a 15-second deduplication suppression window in `CallNotificationManager` to prevent duplicate alerts.
+  - **Broadcast Coordination**: Updated `MissedCallReceiver` to suppress redundant platform `ACTION_SHOW_MISSED_CALLS_NOTIFICATION` broadcasts when `InCallService` has already posted, while maintaining asynchronous contact lookup fallback.
 
 ---
 ## [2.4.1] - 2026-09-30

@@ -94,12 +94,12 @@ fun AboutScreen(
         }
     }
 
-    val versionName = packageInfo?.versionName ?: "2.5.0-beta"
+    val versionName = packageInfo?.versionName ?: "2.5.0"
     val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        packageInfo?.longVersionCode?.toString() ?: "8"
+        packageInfo?.longVersionCode?.toString() ?: "9"
     } else {
         @Suppress("DEPRECATION")
-        packageInfo?.versionCode?.toString() ?: "8"
+        packageInfo?.versionCode?.toString() ?: "9"
     }
 
     val copyToClipboard = { text: String, message: String ->
