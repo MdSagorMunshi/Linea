@@ -61,7 +61,13 @@ class CallHistoryCleanupManager @Inject constructor(
     }
 
     fun schedulePeriodicCleanup() {
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiresBatteryNotLow(true)
+            .setRequiresDeviceIdle(true)
+            .build()
+
         val request = PeriodicWorkRequestBuilder<CallHistoryCleanupWorker>(24, TimeUnit.HOURS)
+            .setConstraints(constraints)
             .build()
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             "linea_history_cleanup",

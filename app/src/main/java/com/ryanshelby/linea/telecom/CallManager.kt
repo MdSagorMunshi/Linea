@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
+import android.telecom.DisconnectCause
 import android.os.Bundle
 import android.os.SystemClock
 import android.telecom.Call
@@ -153,6 +154,7 @@ class CallManager @Inject constructor(
                 (inCallService?.calls?.isNotEmpty() == true)
 
     private var lastPowerPressTimestamp = 0L
+    private val userRejectedCalls = java.util.Collections.synchronizedSet(java.util.HashSet<Call>())
 
     @Synchronized
     fun onPowerButtonPressed() {
@@ -265,30 +267,29 @@ class CallManager @Inject constructor(
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 Intent.ACTION_SCREEN_OFF -> {
-                    // Power button pressed (screen turned off).
-                    // Always forward to onPowerButtonPressed() for double-press detection
-                    // and single-press silence. No proximity gate — user intentionally
-                    // pressed a physical button.
-                    android.util.Log.d("CallManager", "ACTION_SCREEN_OFF: hasActiveOrPending=$hasActiveOrPendingCall, isRinging=$isRinging")
-                    if (hasActiveOrPendingCall) {
-                        onPowerButtonPressed()
+                    // Power button pressed while screen is on during incoming ring
+                    val elapsed = SystemClock.elapsedRealtime() - ringerStartedTimestamp
+                    if (isRinging && !_isRingerSilenced.value && ringerStartedTimestamp > 0L && elapsed > 1200L) {
+                        android.util.Log.d("CallManager", "ACTION_SCREEN_OFF: user pressed power during ring -> silence")
+                        silenceRinger()
                     }
                 }
                 Intent.ACTION_SCREEN_ON -> {
-                    // Power button pressed again (screen turned back on).
-                    // This is the second press for double-press detection.
-                    android.util.Log.d("CallManager", "ACTION_SCREEN_ON: hasActiveOrPending=$hasActiveOrPendingCall")
-                    if (hasActiveOrPendingCall) {
-                        onPowerButtonPressed()
-                    }
+                    // Do NOT treat screen turning on as power button press.
+                    // The incoming call itself turns on the screen; silencing here was causing silent rings.
+                    android.util.Log.d("CallManager", "ACTION_SCREEN_ON: screen turned on (incoming call active)")
                 }
                 "android.media.VOLUME_CHANGED_ACTION" -> {
-                    // Ignore volume changes during the grace period right after ringing
-                    // starts — these are system audio-setup events, not user key presses.
+                    // Only silence if user explicitly turned DOWN the ringer volume after the call has started ringing
+                    val streamType = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_TYPE", -1)
+                    val newVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
+                    val oldVol = intent.getIntExtra("android.media.EXTRA_PREV_VOLUME_STREAM_VALUE", -1)
                     val elapsed = SystemClock.elapsedRealtime() - ringerStartedTimestamp
-                    if (isRinging && !_isRingerSilenced.value && ringerStartedTimestamp > 0L && elapsed > RINGER_GRACE_PERIOD_MS) {
-                        android.util.Log.d("CallManager", "VOLUME_CHANGED_ACTION triggered silence")
-                        silenceRinger()
+                    if (streamType == AudioManager.STREAM_RING && newVol >= 0 && oldVol >= 0 && newVol < oldVol) {
+                        if (isRinging && !_isRingerSilenced.value && ringerStartedTimestamp > 0L && elapsed > 1000L) {
+                            android.util.Log.d("CallManager", "VOLUME_CHANGED_ACTION: user decreased ring volume -> silence")
+                            silenceRinger()
+                        }
                     }
                 }
             }
@@ -384,34 +385,43 @@ class CallManager @Inject constructor(
 
         call.registerCallback(object : Call.Callback() {
             override fun onStateChanged(c: Call, state: Int) {
-                if (_currentCall.value?.call == c) {
-                    updateCallState(c)
-                } else if (_secondaryCall.value?.call == c) {
-                    if (state == Call.STATE_DISCONNECTED) {
-                        _secondaryCall.value = null
-                        refreshOngoingCallNotification()
-                    } else {
-                        val sec = _secondaryCall.value
-                        if (sec != null) {
-                            val newSecState = when (state) {
-                                Call.STATE_DIALING, Call.STATE_CONNECTING -> LineaCallState.DIALING
-                                Call.STATE_RINGING -> LineaCallState.RINGING
-                                Call.STATE_ACTIVE -> LineaCallState.ACTIVE
-                                Call.STATE_HOLDING -> LineaCallState.HOLDING
-                                Call.STATE_DISCONNECTED -> LineaCallState.DISCONNECTED
-                                else -> LineaCallState.IDLE
-                            }
-                            _secondaryCall.value = sec.copy(state = newSecState)
+                android.util.Log.d("CallManager", "onStateChanged: state=$state, call=${c.details?.handle?.schemeSpecificPart}")
+                try {
+                    if (_currentCall.value?.call == c) {
+                        updateCallState(c)
+                    } else if (_secondaryCall.value?.call == c) {
+                        if (state == Call.STATE_DISCONNECTED) {
+                            _secondaryCall.value = null
                             refreshOngoingCallNotification()
+                        } else {
+                            val sec = _secondaryCall.value
+                            if (sec != null) {
+                                val newSecState = when (state) {
+                                    Call.STATE_DIALING, Call.STATE_CONNECTING -> LineaCallState.DIALING
+                                    Call.STATE_RINGING -> LineaCallState.RINGING
+                                    Call.STATE_ACTIVE -> LineaCallState.ACTIVE
+                                    Call.STATE_HOLDING -> LineaCallState.HOLDING
+                                    Call.STATE_DISCONNECTED -> LineaCallState.DISCONNECTED
+                                    else -> LineaCallState.IDLE
+                                }
+                                _secondaryCall.value = sec.copy(state = newSecState)
+                                refreshOngoingCallNotification()
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    android.util.Log.e("CallManager", "onStateChanged exception", e)
                 }
             }
 
             override fun onDetailsChanged(c: Call, details: Call.Details) {
-                verifySelectedPhoneAccount(c)
-                if (_currentCall.value?.call == c) {
-                    updateCallState(c)
+                try {
+                    verifySelectedPhoneAccount(c)
+                    if (_currentCall.value?.call == c) {
+                        updateCallState(c)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("CallManager", "onDetailsChanged exception", e)
                 }
             }
         })
@@ -480,83 +490,130 @@ class CallManager @Inject constructor(
                     refreshOngoingCallNotification()
                 }
             } else {
-                scope.launch {
-                    val contactLookup = contactLookupHelper.lookupContact(number)
-                    val resolvedName = contactLookup.displayName ?: call.details?.callerDisplayName ?: initialName
-                    val resolvedPhoto = contactLookup.photoUri
+                // === INCOMING CALL: Start ring & UI IMMEDIATELY, before async work ===
+                // Detect SIM slot from the call's phone account
+                val simSlot = try {
+                    val handle = call.details?.accountHandle
+                    val idStr = handle?.id ?: ""
+                    // Phone account IDs typically contain the SIM slot or sub ID
+                    val parsed = idStr.filter { it.isDigit() }.toIntOrNull()
+                    if (parsed != null && parsed in 0..1) parsed else 0
+                } catch (_: Exception) { 0 }
 
-                    val decision = screeningEngine.screenCall(
-                        phoneNumber = number,
-                        isPrivate = number.isBlank(),
-                        simSlot = 0
-                    )
+                // 1. Start ringing IMMEDIATELY with system default (before contact lookup)
+                _isRingerSilenced.value = false
+                ringerStartedTimestamp = SystemClock.elapsedRealtime()
+                registerHardwareKeyReceiver()
+                callRingtoneManager.startRinging(number, null) // system default first
+                callGestureManager.startListening {
+                    silenceRinger()
+                }
 
-                    if (decision is ScreeningDecision.Block) {
-                        screeningEngine.recordBlockedCall(decision, number)
-                        try {
-                            call.reject(Call.REJECT_REASON_DECLINED)
-                        } catch (_: Exception) {
-                            call.disconnect()
-                        }
-                        callLogRepository.logCall(
-                            phoneNumber = number,
-                            formattedNumber = number,
-                            callerName = resolvedName,
-                            photoUri = resolvedPhoto,
-                            direction = CallDirectionType.BLOCKED,
-                            timestamp = System.currentTimeMillis(),
-                            durationSeconds = 0,
-                            simSlot = 0
-                        )
-                        _currentCall.value = null
-                        return@launch
+                // 2. Show notification and UI IMMEDIATELY
+                notificationManager.showIncomingCallHeadsUpNotification(
+                    callerName = initialName,
+                    phoneNumber = number,
+                    photoUri = null
+                )
+                val uiMode = callUiModeDecider.decideUiMode()
+                if (uiMode == CallUiMode.FULL_SCREEN) {
+                    val intent = Intent(context, InCallActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                     }
-
-                    // Call allowed -> update state with resolved contact details
-                    updateCallState(call, initialName = resolvedName, initialPhoto = resolvedPhoto)
-
-                    // Play ringtone and vibrate (respects ringerMode normal/vibrate/silent)
-                    _isRingerSilenced.value = false
-                    ringerStartedTimestamp = SystemClock.elapsedRealtime()
-                    registerHardwareKeyReceiver()
-                    callRingtoneManager.startRinging(number, contactLookup.customRingtoneUri)
-                    callGestureManager.startListening {
-                        silenceRinger()
-                    }
-
-                    // Decide between Full Screen vs Heads-Up / Mini Call Float
-                    val isDimEnabled = preferences.dontInterruptMe.first()
-                    val canDrawOverlay = floatingOverlayManager.canDrawOverlay()
-                    val useFloatingOverlay = isDimEnabled && canDrawOverlay
-
-                    val uiMode = callUiModeDecider.decideUiMode()
-                    if (uiMode == CallUiMode.MINI_FLOAT && useFloatingOverlay) {
-                        val callInfo = _currentCall.value
-                        if (callInfo != null) {
-                            _incomingFloatingCall.value = callInfo
-                            floatingOverlayManager.show(callInfo)
-                        }
-                        notificationManager.dismissIncomingCallHeadsUpNotification()
-                    } else if (uiMode == CallUiMode.MINI_FLOAT) {
-                        floatingOverlayManager.dismiss()
-                        _incomingFloatingCall.value = null
-                        notificationManager.showIncomingCallHeadsUpNotification(
-                            callerName = resolvedName,
-                            phoneNumber = number,
-                            photoUri = resolvedPhoto
-                        )
-                    } else {
-                        floatingOverlayManager.dismiss()
-                        _incomingFloatingCall.value = null
-                        notificationManager.showIncomingCallHeadsUpNotification(
-                            callerName = resolvedName,
-                            phoneNumber = number,
-                            photoUri = resolvedPhoto
-                        )
-                        val intent = Intent(context, InCallActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                        }
+                    try {
                         context.startActivity(intent)
+                    } catch (e: Exception) {
+                        android.util.Log.e("CallManager", "Failed to start InCallActivity", e)
+                    }
+                }
+
+                // 3. Async: resolve contact, screen, update ringtone/UI if needed
+                scope.launch {
+                    try {
+                        val contactLookup = contactLookupHelper.lookupContact(number)
+                        val resolvedName = contactLookup.displayName ?: call.details?.callerDisplayName ?: initialName
+                        val resolvedPhoto = contactLookup.photoUri
+
+                        val decision = screeningEngine.screenCall(
+                            phoneNumber = number,
+                            isPrivate = number.isBlank(),
+                            simSlot = simSlot
+                        )
+
+                        if (decision is ScreeningDecision.Block) {
+                            android.util.Log.d("CallManager", "Screening blocked call from $number: ${decision.reason}")
+                            // Stop ringing before rejecting
+                            callRingtoneManager.stopRinging()
+                            callGestureManager.stopListening()
+                            dismissFloatingCall()
+                            notificationManager.dismissIncomingCallHeadsUpNotification()
+
+                            screeningEngine.recordBlockedCall(decision, number)
+                            try {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                    call.reject(Call.REJECT_REASON_DECLINED)
+                                } else {
+                                    call.reject(false, null)
+                                }
+                            } catch (_: Exception) {
+                                try { call.disconnect() } catch (_: Exception) {}
+                            }
+                            callLogRepository.logCall(
+                                phoneNumber = number,
+                                formattedNumber = number,
+                                callerName = resolvedName,
+                                photoUri = resolvedPhoto,
+                                direction = CallDirectionType.BLOCKED,
+                                timestamp = System.currentTimeMillis(),
+                                durationSeconds = 0,
+                                simSlot = simSlot
+                            )
+                            _currentCall.value = null
+                            return@launch
+                        }
+
+                        // Call allowed -> update state with resolved contact details
+                        updateCallState(call, initialName = resolvedName, initialPhoto = resolvedPhoto)
+
+                        // Switch to custom ringtone seamlessly if contact has one
+                        if (!contactLookup.customRingtoneUri.isNullOrBlank()) {
+                            callRingtoneManager.updateCustomRingtone(contactLookup.customRingtoneUri)
+                        }
+
+                        // Update notification with resolved contact info
+                        notificationManager.showIncomingCallHeadsUpNotification(
+                            callerName = resolvedName,
+                            phoneNumber = number,
+                            photoUri = resolvedPhoto
+                        )
+
+                        // Decide between Full Screen vs Heads-Up / Mini Call Float
+                        val isDimEnabled = preferences.dontInterruptMe.first()
+                        val canDrawOverlay = floatingOverlayManager.canDrawOverlay()
+                        val useFloatingOverlay = isDimEnabled && canDrawOverlay
+
+                        val updatedUiMode = callUiModeDecider.decideUiMode()
+                        if (updatedUiMode == CallUiMode.MINI_FLOAT && useFloatingOverlay) {
+                            val callInfo = _currentCall.value
+                            if (callInfo != null) {
+                                _incomingFloatingCall.value = callInfo
+                                floatingOverlayManager.show(callInfo)
+                            }
+                            notificationManager.dismissIncomingCallHeadsUpNotification()
+                        } else if (updatedUiMode == CallUiMode.MINI_FLOAT) {
+                            floatingOverlayManager.dismiss()
+                            _incomingFloatingCall.value = null
+                            // Heads-up notification already shown above
+                        } else {
+                            floatingOverlayManager.dismiss()
+                            _incomingFloatingCall.value = null
+                            // Full-screen activity already launched above
+                        }
+                    } catch (e: Exception) {
+                        // CRITICAL: Never silently swallow exceptions during incoming call setup.
+                        // The call is already ringing and UI is shown from the immediate path above.
+                        // Just log the error — the call remains functional.
+                        android.util.Log.e("CallManager", "Exception during incoming call async setup", e)
                     }
                 }
             }
@@ -600,6 +657,7 @@ class CallManager @Inject constructor(
     }
 
     fun onCallRemoved(call: Call) {
+        android.util.Log.d("CallManager", "onCallRemoved: number=${call.details?.handle?.schemeSpecificPart}, disconnectCause=${call.details?.disconnectCause}")
         val active = _currentCall.value
         val secondary = _secondaryCall.value
 
@@ -618,32 +676,70 @@ class CallManager @Inject constructor(
             timerJob = null
             proximitySensorManager.release()
 
+            // Determine call direction with proper rejection detection.
+            // Use the disconnect cause and user action to distinguish rejected-by-user from missed calls.
+            val wasUserRejected = userRejectedCalls.remove(call)
+            val disconnectCause = call.details?.disconnectCause
+            val disconnectCode = disconnectCause?.code ?: DisconnectCause.UNKNOWN
+            val detailsConnectTime = call.details?.connectTimeMillis ?: 0L
+            val wasConnected = detailsConnectTime > 0L || active.connectTimeMillis > 0L
+
+            android.util.Log.d("CallManager", "onCallRemoved: isIncoming=${active.isIncoming}, wasConnected=$wasConnected, wasUserRejected=$wasUserRejected, disconnectCode=$disconnectCode")
+
             val direction = if (active.isIncoming) {
-                if (active.connectTimeMillis > 0) CallDirectionType.INCOMING else CallDirectionType.MISSED
+                if (wasConnected) {
+                    // Call was answered and connected
+                    CallDirectionType.INCOMING
+                } else if (wasUserRejected ||
+                           disconnectCode == DisconnectCause.REJECTED ||
+                           disconnectCode == DisconnectCause.LOCAL) {
+                    // User explicitly declined/rejected the call, or local end terminated before connect
+                    CallDirectionType.REJECTED
+                } else {
+                    // Caller hung up before answer, or call timed out — this is a missed call
+                    CallDirectionType.MISSED
+                }
             } else {
                 CallDirectionType.OUTGOING
             }
+            android.util.Log.d("CallManager", "onCallRemoved: logged direction=$direction")
+
+            // Detect SIM slot from phone account
+            val simSlot = try {
+                val handle = call.details?.accountHandle
+                val idStr = handle?.id ?: ""
+                val parsed = idStr.filter { it.isDigit() }.toIntOrNull()
+                if (parsed != null && parsed in 0..1) parsed else 0
+            } catch (_: Exception) { 0 }
 
             val callStartTime = call.details?.creationTimeMillis.takeIf { it != null && it > 0L }
                 ?: (if (active.connectTimeMillis > 0L) active.connectTimeMillis else (System.currentTimeMillis() - active.durationSeconds * 1000L))
 
             scope.launch {
-                callLogRepository.logCall(
-                    phoneNumber = active.phoneNumber,
-                    formattedNumber = active.phoneNumber,
-                    callerName = active.displayName,
-                    photoUri = active.photoUri,
-                    direction = direction,
-                    timestamp = callStartTime,
-                    durationSeconds = active.durationSeconds
-                )
+                try {
+                    callLogRepository.logCall(
+                        phoneNumber = active.phoneNumber,
+                        formattedNumber = active.phoneNumber,
+                        callerName = active.displayName,
+                        photoUri = active.photoUri,
+                        direction = direction,
+                        timestamp = callStartTime,
+                        durationSeconds = active.durationSeconds,
+                        simSlot = simSlot
+                    )
 
-                if (direction == CallDirectionType.MISSED) {
-                    notificationManager.showMissedCallNotification(active.displayName, active.phoneNumber)
+                    if (direction == CallDirectionType.MISSED) {
+                        notificationManager.showMissedCallNotification(
+                            callerName = active.displayName,
+                            phoneNumber = active.phoneNumber,
+                            simSlot = simSlot,
+                            timestamp = callStartTime
+                        )
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("CallManager", "Error logging call or showing missed notification", e)
                 }
             }
-
-
 
             // If secondary call is waiting or active, promote it
             if (secondary != null) {
@@ -715,7 +811,11 @@ class CallManager @Inject constructor(
         val number = call.details?.handle?.schemeSpecificPart ?: ""
         val callerName = initialName ?: _currentCall.value?.displayName ?: call.details?.callerDisplayName
         val photoUri = initialPhoto ?: _currentCall.value?.photoUri
-        val isIncoming = call.state == Call.STATE_RINGING
+        // BUG FIX: Preserve the original isIncoming flag from onCallAdded().
+        // Previously this was recalculated as `call.state == Call.STATE_RINGING`,
+        // which becomes false when the call transitions to ACTIVE or DISCONNECTED,
+        // causing rejected/missed incoming calls to be logged as OUTGOING.
+        val isIncoming = _currentCall.value?.isIncoming ?: (call.state == Call.STATE_RINGING)
 
         val state = when (call.state) {
             Call.STATE_DIALING, Call.STATE_CONNECTING -> LineaCallState.DIALING
@@ -948,6 +1048,7 @@ class CallManager @Inject constructor(
 
     fun rejectCall(rejectWithMessage: Boolean = false, textMessage: String? = null) {
         val current = _currentCall.value
+        current?.call?.let { userRejectedCalls.add(it) }
         _isRingerSilenced.value = false
         ringerStartedTimestamp = 0L
         callRingtoneManager.stopRinging()
@@ -967,7 +1068,18 @@ class CallManager @Inject constructor(
             return
         }
 
-        current?.call?.reject(rejectWithMessage, textMessage)
+        try {
+            if (rejectWithMessage) {
+                current?.call?.reject(true, textMessage)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                current?.call?.reject(Call.REJECT_REASON_DECLINED)
+            } else {
+                current?.call?.reject(false, null)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CallManager", "Failed to reject call", e)
+            try { current?.call?.disconnect() } catch (_: Exception) {}
+        }
     }
 
     fun recordPostCallSummary(active: ActiveCallInfo) {

@@ -18,28 +18,43 @@ class LineaInCallService : InCallService() {
 
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
-        callManager.registerInCallService(this)
-        callManager.onCallAdded(call)
+        android.util.Log.i("LineaInCallService", "onCallAdded: state=${call.state}, handle=${call.details?.handle}")
+        try {
+            callManager.registerInCallService(this)
+            callManager.onCallAdded(call)
+        } catch (e: Exception) {
+            android.util.Log.e("LineaInCallService", "Error in onCallAdded", e)
+        }
     }
 
     override fun onCallRemoved(call: Call) {
         super.onCallRemoved(call)
-        callManager.onCallRemoved(call)
+        android.util.Log.i("LineaInCallService", "onCallRemoved: state=${call.state}, disconnectCause=${call.details?.disconnectCause}")
+        try {
+            callManager.onCallRemoved(call)
+        } catch (e: Exception) {
+            android.util.Log.e("LineaInCallService", "Error in onCallRemoved", e)
+        }
     }
 
     override fun onSilenceRinger() {
         super.onSilenceRinger()
-        // Do NOT forward to callManager.silenceRinger() here.
-        // Linea manages its own ringtone via CallRingtoneManager. The system
-        // calls onSilenceRinger() during call setup which would prematurely
-        // silence the ringer before it even starts playing. User-initiated
-        // silencing (volume keys, power button, gesture) is handled separately
-        // by the hardware key receiver and gesture manager.
+        android.util.Log.d("LineaInCallService", "onSilenceRinger received from Telecom")
+        // Only forward to silenceRinger if the call has already been ringing for > 1000ms
+        // (Telecom can fire onSilenceRinger during initial connection/handoff).
+        if (callManager.isRinging) {
+            callManager.silenceRinger()
+        }
     }
 
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         super.onCallAudioStateChanged(audioState)
-        callManager.onAudioStateChanged(audioState)
+        android.util.Log.d("LineaInCallService", "onCallAudioStateChanged: route=${audioState.route}, isMuted=${audioState.isMuted}")
+        try {
+            callManager.onAudioStateChanged(audioState)
+        } catch (e: Exception) {
+            android.util.Log.e("LineaInCallService", "Error in onCallAudioStateChanged", e)
+        }
     }
 
     override fun onDestroy() {

@@ -22,12 +22,25 @@ class CallNotificationManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
+    private val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? android.telecom.TelecomManager
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+    private val activeMissedCalls = java.util.concurrent.ConcurrentHashMap<Int, MissedCallData>()
+
+    data class MissedCallData(
+        val id: Int,
+        val displayName: String,
+        val phoneNumber: String,
+        val simSlot: Int,
+        val timestamp: Long
+    )
 
     companion object {
         const val NOTIFICATION_ID_ONGOING_CALL = 1001
-        const val NOTIFICATION_ID_MISSED_CALL = 1002
+        const val NOTIFICATION_ID_MISSED_CALL_BASE = 2000
+        const val NOTIFICATION_ID_MISSED_SUMMARY = 1002
         const val NOTIFICATION_ID_INCOMING_HEADS_UP = 1003
+        const val GROUP_MISSED_CALLS = "com.ryanshelby.linea.MISSED_CALLS"
     }
 
     @SuppressLint("MissingPermission")
@@ -230,41 +243,184 @@ class CallNotificationManager @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    fun showMissedCallNotification(callerName: String?, phoneNumber: String) {
-        val dialIntent = Intent(Intent.ACTION_DIAL).apply {
-            data = Uri.parse("tel:$phoneNumber")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    fun showMissedCallNotification(
+        callerName: String?,
+        phoneNumber: String,
+        simSlot: Int = 0,
+        timestamp: Long = System.currentTimeMillis()
+    ) {
+        val displayName = when {
+            !callerName.isNullOrBlank() -> callerName
+            phoneNumber.isNotBlank() -> phoneNumber
+            else -> "Unknown Caller"
         }
-        val dialPendingIntent = PendingIntent.getActivity(
+
+        // Cancel stock Telecom missed-call notification so only LINEA's notification is shown
+        try {
+            telecomManager?.cancelMissedCallsNotification()
+        } catch (_: Exception) {}
+
+        val notifId = if (phoneNumber.isNotBlank()) {
+            val hash = phoneNumber.hashCode()
+            NOTIFICATION_ID_MISSED_CALL_BASE + (if (hash == Int.MIN_VALUE) 0 else kotlin.math.abs(hash) % 5000)
+        } else {
+            NOTIFICATION_ID_MISSED_CALL_BASE + (timestamp % 5000).toInt()
+        }
+
+        activeMissedCalls[notifId] = MissedCallData(
+            id = notifId,
+            displayName = displayName,
+            phoneNumber = phoneNumber,
+            simSlot = simSlot,
+            timestamp = timestamp
+        )
+
+        // 1. Dedicated Call Back Action (prominent button using LINEA dialer)
+        val callBackIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = CallActionReceiver.ACTION_CALLBACK
+            putExtra(CallActionReceiver.EXTRA_PHONE_NUMBER, phoneNumber)
+            putExtra(CallActionReceiver.EXTRA_NOTIFICATION_ID, notifId)
+        }
+        val callBackPendingIntent = PendingIntent.getBroadcast(
             context,
-            1,
-            dialIntent,
+            notifId,
+            callBackIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // 2. Direct SMS Action
         val smsIntent = Intent(Intent.ACTION_SENDTO).apply {
             data = Uri.parse("smsto:$phoneNumber")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         val smsPendingIntent = PendingIntent.getActivity(
             context,
-            2,
+            notifId + 10000,
             smsIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, LineaApp.CHANNEL_MISSED_CALLS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+        // 3. Tapping opens History screen directly on the Missed filter
+        val historyIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("NAV_DESTINATION", "HISTORY")
+            putExtra("HISTORY_FILTER", "MISSED")
+        }
+        val contentPendingIntent = PendingIntent.getActivity(
+            context,
+            notifId + 20000,
+            historyIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // 4. Delete intent when user swipes notification away
+        val deleteIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = CallActionReceiver.ACTION_DISMISS_MISSED
+            putExtra(CallActionReceiver.EXTRA_NOTIFICATION_ID, notifId)
+        }
+        val deletePendingIntent = PendingIntent.getBroadcast(
+            context,
+            notifId + 30000,
+            deleteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val simLabel = "SIM ${simSlot + 1}"
+        val subText = if (phoneNumber.isNotBlank() && displayName != phoneNumber) "$phoneNumber • $simLabel" else simLabel
+
+        // Generic public version for lock screen privacy protection
+        val publicNotification = NotificationCompat.Builder(context, LineaApp.CHANNEL_MISSED_CALLS)
+            .setSmallIcon(R.drawable.ic_stat_call)
             .setContentTitle("Missed Call")
-            .setContentText(callerName ?: phoneNumber)
+            .setContentText("1 new missed call")
+            .setColor(0xFFD4834E.toInt())
+            .build()
+
+        val notification = NotificationCompat.Builder(context, LineaApp.CHANNEL_MISSED_CALLS)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setColor(0xFFD4834E.toInt()) // Muted Rust design accent for missed calls
+            .setContentTitle(displayName)
+            .setContentText("Missed call • $simLabel")
+            .setSubText(subText)
+            .setWhen(timestamp)
+            .setShowWhen(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicNotification)
+            .setContentIntent(contentPendingIntent)
+            .setDeleteIntent(deletePendingIntent)
             .setAutoCancel(true)
-            .addAction(0, "Call Back", dialPendingIntent)
+            .setGroup(GROUP_MISSED_CALLS)
+            .addAction(0, "Call Back", callBackPendingIntent)
             .addAction(0, "Message", smsPendingIntent)
             .build()
 
-        notificationManager.notify(NOTIFICATION_ID_MISSED_CALL, notification)
+        notificationManager.notify(notifId, notification)
+
+        // If multiple missed calls exist, post/update group summary notification
+        if (activeMissedCalls.size > 1) {
+            val inboxStyle = NotificationCompat.InboxStyle()
+                .setBigContentTitle("${activeMissedCalls.size} Missed Calls")
+                .setSummaryText("Missed calls")
+
+            activeMissedCalls.values.sortedByDescending { it.timestamp }.take(5).forEach { item ->
+                inboxStyle.addLine("${item.displayName} • SIM ${item.simSlot + 1}")
+            }
+
+            val summaryNotification = NotificationCompat.Builder(context, LineaApp.CHANNEL_MISSED_CALLS)
+                .setSmallIcon(R.drawable.ic_stat_call)
+                .setColor(0xFFD4834E.toInt())
+                .setContentTitle("Missed Calls")
+                .setContentText("${activeMissedCalls.size} missed calls")
+                .setStyle(inboxStyle)
+                .setGroup(GROUP_MISSED_CALLS)
+                .setGroupSummary(true)
+                .setContentIntent(contentPendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
+                .build()
+
+            notificationManager.notify(NOTIFICATION_ID_MISSED_SUMMARY, summaryNotification)
+        }
+
+        // Suppress and clear stock Telecom system "Phone Calls" notification
+        try {
+            telecomManager?.cancelMissedCallsNotification()
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                try {
+                    telecomManager?.cancelMissedCallsNotification()
+                } catch (_: Exception) {}
+            }, 500)
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                try {
+                    telecomManager?.cancelMissedCallsNotification()
+                } catch (_: Exception) {}
+            }, 1200)
+        } catch (_: Exception) {}
+    }
+
+    fun dismissMissedCallNotification(id: Int) {
+        activeMissedCalls.remove(id)
+        notificationManager.cancel(id)
+        if (activeMissedCalls.size <= 1) {
+            notificationManager.cancel(NOTIFICATION_ID_MISSED_SUMMARY)
+        }
+        try {
+            telecomManager?.cancelMissedCallsNotification()
+        } catch (_: Exception) {}
+    }
+
+    fun dismissAllMissedCallNotifications() {
+        for (id in activeMissedCalls.keys) {
+            notificationManager.cancel(id)
+        }
+        activeMissedCalls.clear()
+        notificationManager.cancel(NOTIFICATION_ID_MISSED_SUMMARY)
+        try {
+            telecomManager?.cancelMissedCallsNotification()
+        } catch (_: Exception) {}
     }
 
     @SuppressLint("MissingPermission")

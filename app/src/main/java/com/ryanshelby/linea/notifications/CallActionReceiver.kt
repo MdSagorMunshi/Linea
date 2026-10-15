@@ -34,7 +34,10 @@ class CallActionReceiver : BroadcastReceiver() {
         const val ACTION_IGNORE = "com.ryanshelby.linea.ACTION_IGNORE"
         const val ACTION_MESSAGE = "com.ryanshelby.linea.ACTION_MESSAGE"
         const val ACTION_DISARM_ESCAPE_CALL = "com.ryanshelby.linea.ACTION_DISARM_ESCAPE_CALL"
+        const val ACTION_CALLBACK = "com.ryanshelby.linea.ACTION_CALLBACK"
+        const val ACTION_DISMISS_MISSED = "com.ryanshelby.linea.ACTION_DISMISS_MISSED"
         const val EXTRA_PHONE_NUMBER = "extra_phone_number"
+        const val EXTRA_NOTIFICATION_ID = "extra_notification_id"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -100,6 +103,21 @@ class CallActionReceiver : BroadcastReceiver() {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     }
                     context.startActivity(smsIntent)
+                }
+            }
+            ACTION_CALLBACK -> {
+                val notifId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1)
+                if (notifId > 0) {
+                    notificationManager.dismissMissedCallNotification(notifId)
+                }
+                if (phoneNumber.isNotBlank()) {
+                    callManager.placeCall(phoneNumber)
+                }
+            }
+            ACTION_DISMISS_MISSED -> {
+                val notifId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1)
+                if (notifId > 0) {
+                    notificationManager.dismissMissedCallNotification(notifId)
                 }
             }
         }

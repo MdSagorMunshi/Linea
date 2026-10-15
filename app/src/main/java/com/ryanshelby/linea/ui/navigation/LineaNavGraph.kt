@@ -42,6 +42,11 @@ import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
 import com.ryanshelby.linea.ui.screens.contacts.BeamedContactSheet
 import com.ryanshelby.linea.qr_code.QrCodeEngine
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import com.ryanshelby.linea.telecom.CallHandlingHealth
+import com.ryanshelby.linea.telecom.CallSetupHealthCoordinator
+import com.ryanshelby.linea.ui.screens.history.HistoryFilter
+import com.ryanshelby.linea.ui.screens.history.HistoryViewModel
 
 enum class SettingsSubScreen {
     MY_PROFILE_CARD,
@@ -72,16 +77,33 @@ fun LineaNavGraph(
     modifier: Modifier = Modifier,
     callManager: com.ryanshelby.linea.telecom.CallManager? = null,
     nfcBeamManager: com.ryanshelby.linea.nfc.NfcBeamManager? = null,
+    callSetupHealthCoordinator: CallSetupHealthCoordinator? = null,
+    health: CallHandlingHealth? = null,
+    targetDestination: LineaDestination? = null,
+    targetHistoryFilter: HistoryFilter? = null,
+    onDestinationConsumed: () -> Unit = {},
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     blockingViewModel: BlockingViewModel = hiltViewModel(),
     countryBlockingViewModel: CountryBlockingViewModel = hiltViewModel(),
-    contactsViewModel: ContactsViewModel = hiltViewModel()
+    contactsViewModel: ContactsViewModel = hiltViewModel(),
+    historyViewModel: HistoryViewModel = hiltViewModel()
 ) {
-    var currentDestination by remember { mutableStateOf(LineaDestination.DIALPAD) }
+    val context = LocalContext.current
+    var currentDestination by remember { mutableStateOf(targetDestination ?: LineaDestination.DIALPAD) }
     var settingsSubScreen by remember { mutableStateOf<SettingsSubScreen?>(null) }
     var activeContactDashboardId by remember { mutableStateOf<Long?>(null) }
     var isPrivateSafeOpen by remember { mutableStateOf(false) }
     val reduceAnim = LocalReduceAnimations.current
+
+    LaunchedEffect(targetDestination, targetHistoryFilter) {
+        if (targetDestination != null) {
+            currentDestination = targetDestination
+            if (targetHistoryFilter != null) {
+                historyViewModel.onFilterSelect(targetHistoryFilter)
+            }
+            onDestinationConsumed()
+        }
+    }
 
     val settingsState by settingsViewModel.uiState.collectAsState()
     val persistentNavbarMode by lineaPreferences.navbarMode.collectAsState(initial = LineaPreferences.NavbarMode.COLLAPSED)
@@ -136,11 +158,28 @@ fun LineaNavGraph(
                     DialpadScreen(
                         isDefaultDialer = isDefaultDialer,
                         simAccounts = simAccounts,
-                        onRequestDefaultDialer = onRequestDefaultDialer
+                        onRequestDefaultDialer = onRequestDefaultDialer,
+                        health = health,
+                        onRequestFullScreenIntent = {
+                            callSetupHealthCoordinator?.let {
+                                try { context.startActivity(it.createFullScreenIntentSettings()) } catch (_: Exception) {}
+                            }
+                        },
+                        onRequestNotifications = {
+                            callSetupHealthCoordinator?.let {
+                                try { context.startActivity(it.createNotificationSettingsIntent()) } catch (_: Exception) {}
+                            }
+                        },
+                        onRequestBatteryOptimization = {
+                            callSetupHealthCoordinator?.let {
+                                try { context.startActivity(it.createBatteryOptimizationIntent()) } catch (_: Exception) {}
+                            }
+                        }
                     )
                 }
                 LineaDestination.HISTORY -> {
                     HistoryScreen(
+                        viewModel = historyViewModel,
                         sessionsListState = historySessionsListState,
                         feedListState = historyFeedListState
                     )

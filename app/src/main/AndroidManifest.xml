@@ -172,6 +172,15 @@
             android:name=".notifications.CallActionReceiver"
             android:exported="false" />
 
+        <!-- Telecom Show Missed Calls Receiver (Default Dialer Exclusive) -->
+        <receiver
+            android:name=".telecom.MissedCallReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.action.SHOW_MISSED_CALLS_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
+
         <!-- File Provider for Voicemails, Export Files, and Media -->
         <provider
             android:name="androidx.core.content.FileProvider"

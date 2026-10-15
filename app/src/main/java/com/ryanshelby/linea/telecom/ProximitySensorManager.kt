@@ -67,10 +67,14 @@ class ProximitySensorManager @Inject constructor(
         }
     }
 
-    fun release() {
+    fun release(waitForNoProximity: Boolean = false) {
         try {
             if (wakeLock?.isHeld == true) {
-                wakeLock?.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY)
+                if (waitForNoProximity) {
+                    wakeLock?.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY)
+                } else {
+                    wakeLock?.release()
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()

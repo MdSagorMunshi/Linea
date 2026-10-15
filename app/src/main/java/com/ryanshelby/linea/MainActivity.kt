@@ -23,7 +23,11 @@ import com.ryanshelby.linea.permissions.PermissionCoordinator
 import com.ryanshelby.linea.telecom.PhoneAccountManager
 import com.ryanshelby.linea.telecom.RoleHelper
 import com.ryanshelby.linea.telecom.SimAccountInfo
+import com.ryanshelby.linea.telecom.CallHandlingHealth
+import com.ryanshelby.linea.telecom.CallSetupHealthCoordinator
+import com.ryanshelby.linea.ui.navigation.LineaDestination
 import com.ryanshelby.linea.ui.navigation.LineaNavGraph
+import com.ryanshelby.linea.ui.screens.history.HistoryFilter
 import androidx.compose.material.icons.Icons
 import com.ryanshelby.linea.ui.components.LiquidGlassPermissionDialog
 import com.ryanshelby.linea.ui.theme.LineaTheme
@@ -53,8 +57,14 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var nfcBeamManager: com.ryanshelby.linea.nfc.NfcBeamManager
 
+    @Inject
+    lateinit var callSetupHealthCoordinator: CallSetupHealthCoordinator
+
     private var isDefaultDialerState by mutableStateOf(false)
     private var simAccountsState by mutableStateOf<List<SimAccountInfo>>(emptyList())
+    private var healthState by mutableStateOf<CallHandlingHealth?>(null)
+    private var targetDestination by mutableStateOf<LineaDestination?>(null)
+    private var targetHistoryFilter by mutableStateOf<HistoryFilter?>(null)
     private var permissionMessage by mutableStateOf<String?>(null)
     private var showOpenSettings by mutableStateOf(false)
     private var lastRequestedPermissions: List<String> = emptyList()
@@ -82,6 +92,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         handleCallIntent(intent)
+        handleNavIntent(intent)
         nfcBeamManager.handleIntent(intent)
         nfcBeamManager.checkPendingBeamedContact(this)
 
@@ -99,6 +110,14 @@ class MainActivity : ComponentActivity() {
                     lineaPreferences = lineaPreferences,
                     callManager = callManager,
                     nfcBeamManager = nfcBeamManager,
+                    callSetupHealthCoordinator = callSetupHealthCoordinator,
+                    health = healthState,
+                    targetDestination = targetDestination,
+                    targetHistoryFilter = targetHistoryFilter,
+                    onDestinationConsumed = {
+                        targetDestination = null
+                        targetHistoryFilter = null
+                    },
                     onRequestDefaultDialer = { requestDefaultDialerRole() },
                     onRequestPermissions = { requestAllPermissionsUpfront() }
                 )
@@ -143,35 +162,30 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         checkRoleAndAccounts()
         permissionCoordinator.resumePendingOutgoingCallIfPermitted()
-        val nfcAdapter = NfcAdapter.getDefaultAdapter(this)
-        if (nfcAdapter != null) {
-            try {
-                val cardEmulation = CardEmulation.getInstance(nfcAdapter)
-                cardEmulation.setPreferredService(this, ComponentName(this, LineaBeamApduService::class.java))
-            } catch (_: Exception) {}
-        }
-        nfcBeamManager.enableReaderMode(this)
         nfcBeamManager.checkPendingBeamedContact(this)
     }
 
     override fun onPause() {
         super.onPause()
-        val nfcAdapter = NfcAdapter.getDefaultAdapter(this)
-        if (nfcAdapter != null) {
-            try {
-                val cardEmulation = CardEmulation.getInstance(nfcAdapter)
-                cardEmulation.unsetPreferredService(this)
-            } catch (_: Exception) {}
-        }
-        nfcBeamManager.disableReaderMode(this)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleCallIntent(intent)
+        handleNavIntent(intent)
         nfcBeamManager.handleIntent(intent)
         nfcBeamManager.checkPendingBeamedContact(this)
+    }
+
+    private fun handleNavIntent(intent: Intent?) {
+        if (intent == null) return
+        val nav = intent.getStringExtra("NAV_DESTINATION")
+        val filter = intent.getStringExtra("HISTORY_FILTER")
+        if (nav == "HISTORY") {
+            targetDestination = LineaDestination.HISTORY
+            targetHistoryFilter = if (filter == "MISSED") HistoryFilter.MISSED else null
+        }
     }
 
     private fun handleCallIntent(intent: Intent?) {
@@ -188,6 +202,7 @@ class MainActivity : ComponentActivity() {
     private fun checkRoleAndAccounts() {
         isDefaultDialerState = roleHelper.isDefaultDialer()
         simAccountsState = phoneAccountManager.registerPhoneAccounts()
+        healthState = callSetupHealthCoordinator.checkHealth()
     }
 
     private fun requestDefaultDialerRole() {
@@ -255,6 +270,11 @@ class MainActivity : ComponentActivity() {
         if (denied.isNotEmpty()) {
             val openSettings = denied.any { !shouldShowRequestPermissionRationale(it) }
             showPermissionExplanation(denied, openSettings)
+        } else {
+            // First run / upfront onboarding: guide user directly to set default dialer
+            if (!roleHelper.isDefaultDialer()) {
+                requestDefaultDialerRole()
+            }
         }
     }
 

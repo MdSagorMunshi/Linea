@@ -121,7 +121,23 @@ fun CallDetailSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val isLatestMissed = item.primaryRecord.callType == CallDirectionType.MISSED
+            val isMissed = item.primaryRecord.callType == CallDirectionType.MISSED
+            val isRejectedOrBlocked = item.primaryRecord.callType == CallDirectionType.REJECTED || item.primaryRecord.callType == CallDirectionType.BLOCKED
+            val headerStatusColor = when {
+                isMissed -> LineaColors.MutedRust
+                isRejectedOrBlocked -> LineaColors.MutedBrickRed
+                else -> LineaColors.TextPrimary
+            }
+            val headerAvatarBorder = when {
+                isMissed -> LineaColors.MutedRust.copy(alpha = 0.45f)
+                isRejectedOrBlocked -> LineaColors.MutedBrickRed.copy(alpha = 0.45f)
+                else -> LineaColors.GlassBorder
+            }
+            val headerAvatarBg = when {
+                isMissed -> LineaColors.MutedRust.copy(alpha = 0.12f)
+                isRejectedOrBlocked -> LineaColors.MutedBrickRed.copy(alpha = 0.12f)
+                else -> LineaColors.GlassFill
+            }
 
             // Contact Card Header
             Row(
@@ -132,10 +148,10 @@ fun CallDetailSheet(
                     modifier = Modifier
                         .size(60.dp)
                         .clip(CircleShape)
-                        .background(if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.12f) else LineaColors.GlassFill)
+                        .background(headerAvatarBg)
                         .border(
                             LineaDimensions.HairlineBorder,
-                            if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.45f) else LineaColors.GlassBorder,
+                            headerAvatarBorder,
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -143,7 +159,7 @@ fun CallDetailSheet(
                     Icon(
                         imageVector = Icons.Filled.Person,
                         contentDescription = null,
-                        tint = if (isLatestMissed) LineaColors.Danger else LineaColors.TextSecondary,
+                        tint = if (isMissed || isRejectedOrBlocked) headerStatusColor else LineaColors.TextSecondary,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -155,7 +171,7 @@ fun CallDetailSheet(
                         Text(
                             text = item.primaryRecord.callerName ?: item.primaryRecord.phoneNumber,
                             style = LineaTypography.headlineMedium,
-                            color = if (isLatestMissed) LineaColors.Danger else LineaColors.TextPrimary,
+                            color = headerStatusColor,
                             fontSize = 20.sp
                         )
                         if (isBlocked) {

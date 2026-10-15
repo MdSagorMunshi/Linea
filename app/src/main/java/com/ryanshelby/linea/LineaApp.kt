@@ -52,6 +52,10 @@ class LineaApp : Application() {
         purgeLegacyRules()
         cleanupManager.schedulePeriodicCleanup()
         com.ryanshelby.linea.telecom.screening.SimCountryDetector.detectSimCountryIso(this)
+        try {
+            val tm = getSystemService(android.telecom.TelecomManager::class.java)
+            tm?.cancelMissedCallsNotification()
+        } catch (_: Exception) {}
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 preferences.setPrivateModeUnlocked(false)

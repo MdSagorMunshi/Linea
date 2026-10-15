@@ -455,17 +455,33 @@ fun HistoryRow(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    val isLatestMissed = item.primaryRecord.callType == CallDirectionType.MISSED
+                    val isMissed = item.primaryRecord.callType == CallDirectionType.MISSED
+                    val isRejectedOrBlocked = item.primaryRecord.callType == CallDirectionType.REJECTED || item.primaryRecord.callType == CallDirectionType.BLOCKED
+                    val avatarBg = when {
+                        isMissed -> LineaColors.MutedRust.copy(alpha = 0.12f)
+                        isRejectedOrBlocked -> LineaColors.MutedBrickRed.copy(alpha = 0.12f)
+                        else -> LineaColors.BackgroundBottom
+                    }
+                    val avatarBorder = when {
+                        isMissed -> LineaColors.MutedRust.copy(alpha = 0.45f)
+                        isRejectedOrBlocked -> LineaColors.MutedBrickRed.copy(alpha = 0.45f)
+                        else -> LineaColors.GlassBorder
+                    }
+                    val statusColor = when {
+                        isMissed -> LineaColors.MutedRust
+                        isRejectedOrBlocked -> LineaColors.MutedBrickRed
+                        else -> LineaColors.TextPrimary
+                    }
 
                     // Contact Avatar or Initials
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.12f) else LineaColors.BackgroundBottom)
+                            .background(avatarBg)
                             .border(
                                 LineaDimensions.HairlineBorder,
-                                if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.45f) else LineaColors.GlassBorder,
+                                avatarBorder,
                                 CircleShape
                             ),
                         contentAlignment = Alignment.Center
@@ -475,13 +491,13 @@ fun HistoryRow(
                             Text(
                                 text = initials,
                                 style = LineaTypography.titleSmall,
-                                color = if (isLatestMissed) LineaColors.Danger else LineaColors.TextPrimary
+                                color = statusColor
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Filled.Person,
                                 contentDescription = null,
-                                tint = if (isLatestMissed) LineaColors.Danger else LineaColors.TextSecondary,
+                                tint = if (isMissed || isRejectedOrBlocked) statusColor else LineaColors.TextSecondary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -496,7 +512,7 @@ fun HistoryRow(
                                 style = LineaTypography.bodyLarge.copy(
                                     fontWeight = FontWeight.SemiBold
                                 ),
-                                color = if (isLatestMissed) LineaColors.Danger else LineaColors.TextPrimary,
+                                color = statusColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -657,7 +673,7 @@ fun HistoryRow(
                                 } else {
                                     when (singleCall.callType) {
                                         CallDirectionType.MISSED -> "Missed"
-                                        CallDirectionType.REJECTED -> "Declined"
+                                        CallDirectionType.REJECTED -> "Rejected"
                                         CallDirectionType.BLOCKED -> "Blocked"
                                         else -> "No answer"
                                     }
@@ -680,9 +696,9 @@ fun CallTypeIcon(type: CallDirectionType, size: androidx.compose.ui.unit.Dp = 16
     val (icon, tint) = when (type) {
         CallDirectionType.INCOMING -> Icons.AutoMirrored.Filled.CallReceived to LineaColors.MutedSageGreen
         CallDirectionType.OUTGOING -> Icons.AutoMirrored.Filled.CallMade to LineaColors.TitaniumBlue
-        CallDirectionType.MISSED -> Icons.AutoMirrored.Filled.CallMissed to LineaColors.Danger
-        CallDirectionType.REJECTED -> Icons.Filled.CallEnd to LineaColors.Danger
-        CallDirectionType.BLOCKED -> Icons.Filled.Block to LineaColors.Danger
+        CallDirectionType.MISSED -> Icons.AutoMirrored.Filled.CallMissed to LineaColors.MutedRust
+        CallDirectionType.REJECTED -> Icons.Filled.CallEnd to LineaColors.MutedBrickRed
+        CallDirectionType.BLOCKED -> Icons.Filled.Block to LineaColors.MutedBrickRed
     }
 
     Icon(
@@ -778,16 +794,32 @@ fun CallSessionRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Avatar / Initials
-                val isLatestMissed = session.latestCallType == CallDirectionType.MISSED
+                val isMissed = session.latestCallType == CallDirectionType.MISSED
+                val isRejectedOrBlocked = session.latestCallType == CallDirectionType.REJECTED || session.latestCallType == CallDirectionType.BLOCKED
+                val avatarBg = when {
+                    isMissed -> LineaColors.MutedRust.copy(alpha = 0.12f)
+                    isRejectedOrBlocked -> LineaColors.MutedBrickRed.copy(alpha = 0.12f)
+                    else -> LineaColors.GlassFill
+                }
+                val avatarBorder = when {
+                    isMissed -> LineaColors.MutedRust.copy(alpha = 0.45f)
+                    isRejectedOrBlocked -> LineaColors.MutedBrickRed.copy(alpha = 0.45f)
+                    else -> LineaColors.GlassBorder
+                }
+                val statusColor = when {
+                    isMissed -> LineaColors.MutedRust
+                    isRejectedOrBlocked -> LineaColors.MutedBrickRed
+                    else -> LineaColors.TextPrimary
+                }
                 val initials = getInitials(session.callerName)
                 Box(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.12f) else LineaColors.GlassFill)
+                        .background(avatarBg)
                         .border(
                             LineaDimensions.HairlineBorder,
-                            if (isLatestMissed) LineaColors.Danger.copy(alpha = 0.45f) else LineaColors.GlassBorder,
+                            avatarBorder,
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -796,13 +828,13 @@ fun CallSessionRow(
                         Text(
                             text = initials,
                             style = LineaTypography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (isLatestMissed) LineaColors.Danger else LineaColors.TitaniumBlue
+                            color = if (isMissed || isRejectedOrBlocked) statusColor else LineaColors.TitaniumBlue
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Filled.Person,
                             contentDescription = null,
-                            tint = if (isLatestMissed) LineaColors.Danger else LineaColors.TextSecondary,
+                            tint = if (isMissed || isRejectedOrBlocked) statusColor else LineaColors.TextSecondary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -819,7 +851,7 @@ fun CallSessionRow(
                                 fontWeight = FontWeight.SemiBold,
                                 fontFeatureSettings = "tnum"
                             ),
-                            color = if (isLatestMissed) LineaColors.Danger else LineaColors.TextPrimary,
+                            color = statusColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false)
@@ -977,7 +1009,7 @@ fun CallSessionRow(
                                 } else {
                                     when (call.callType) {
                                         CallDirectionType.MISSED -> "Missed"
-                                        CallDirectionType.REJECTED -> "Declined"
+                                        CallDirectionType.REJECTED -> "Rejected"
                                         CallDirectionType.BLOCKED -> "Blocked"
                                         else -> "No answer"
                                     }

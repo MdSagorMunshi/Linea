@@ -412,10 +412,33 @@ fun SettingsScreen(
                 onSelectSuggestedQuery = { viewModel.setSearchQuery(it) }
             )
         } else {
-            // Default Dialer Role Status
+            // Call Handling & Telecom Readiness Status
+            val health = remember(isDefaultDialer) { viewModel.getHealth() }
             RoleBanner(
                 isDefaultDialer = isDefaultDialer,
-                onRequestRole = onRequestDefaultDialer
+                onRequestRole = onRequestDefaultDialer,
+                health = health,
+                onRequestFullScreenIntent = {
+                    try {
+                        context.startActivity(viewModel.healthCoordinator.createFullScreenIntentSettings())
+                    } catch (e: Exception) {
+                        android.util.Log.e("SettingsScreen", "Failed to launch full screen intent settings", e)
+                    }
+                },
+                onRequestNotifications = {
+                    try {
+                        context.startActivity(viewModel.healthCoordinator.createNotificationSettingsIntent())
+                    } catch (e: Exception) {
+                        android.util.Log.e("SettingsScreen", "Failed to launch notification settings", e)
+                    }
+                },
+                onRequestBatteryOptimization = {
+                    try {
+                        context.startActivity(viewModel.healthCoordinator.createBatteryOptimizationIntent())
+                    } catch (e: Exception) {
+                        android.util.Log.e("SettingsScreen", "Failed to launch battery optimization settings", e)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(14.dp))

@@ -99,7 +99,8 @@ import com.ryanshelby.linea.ui.theme.LineaTypography
 import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
-import com.ryanshelby.linea.ui.screens.dialpad.OrbitalSpeedDialOverlay
+import com.ryanshelby.linea.telecom.CallHandlingHealth
+import com.ryanshelby.linea.ui.components.NeumorphicWell
 
 @Composable
 fun DialpadScreen(
@@ -107,6 +108,10 @@ fun DialpadScreen(
     simAccounts: List<SimAccountInfo>,
     onRequestDefaultDialer: () -> Unit,
     modifier: Modifier = Modifier,
+    health: CallHandlingHealth? = null,
+    onRequestFullScreenIntent: (() -> Unit)? = null,
+    onRequestNotifications: (() -> Unit)? = null,
+    onRequestBatteryOptimization: (() -> Unit)? = null,
     viewModel: DialpadViewModel = hiltViewModel(),
     contactsViewModel: ContactsViewModel = hiltViewModel()
 ) {
@@ -361,12 +366,17 @@ fun DialpadScreen(
             }
         }
 
-        // Show Default Dialer Banner if not set
-        if (!isDefaultDialer) {
+        // Show Health / Role Banner if not fully setup or not default dialer
+        val allPassed = health?.allPassed ?: isDefaultDialer
+        if (!allPassed) {
             Spacer(modifier = Modifier.height(10.dp))
             RoleBanner(
-                isDefaultDialer = false,
-                onRequestRole = onRequestDefaultDialer
+                isDefaultDialer = isDefaultDialer,
+                onRequestRole = onRequestDefaultDialer,
+                health = health,
+                onRequestFullScreenIntent = onRequestFullScreenIntent,
+                onRequestNotifications = onRequestNotifications,
+                onRequestBatteryOptimization = onRequestBatteryOptimization
             )
         }
 

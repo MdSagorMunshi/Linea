@@ -117,10 +117,17 @@ fun LineaBeamSheet(
     val isNfcSupported = remember { nfcBeamManager.isNfcSupported(context) }
     var isNfcEnabled by remember { mutableStateOf(nfcBeamManager.isNfcEnabled(context)) }
 
-    // Register active beam payload on enter and clear on dismiss
+    // Register active beam payload and activate NFC reader mode on enter; clean up on dismiss
     DisposableEffect(payload) {
+        val activity = context as? android.app.Activity
+        if (activity != null) {
+            nfcBeamManager.enableReaderMode(activity)
+        }
         nfcBeamManager.setActiveBeamContact(payload)
         onDispose {
+            if (activity != null) {
+                nfcBeamManager.disableReaderMode(activity)
+            }
             nfcBeamManager.setActiveBeamContact(null)
             nfcBeamManager.pendingTagWritePayload = null
             nfcBeamManager.clearTagWriteStatus()

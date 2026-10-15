@@ -66,9 +66,11 @@ class CallGestureManager @Inject constructor(
         proximitySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_PROXIMITY)
     }
 
+    private var startListeningJob: Job? = null
+
     @Synchronized
     fun startListening(onSilence: () -> Unit) {
-        if (isListening) return
+        if (isListening || startListeningJob?.isActive == true) return
 
         onSilenceCallback = onSilence
         hasSilenced = false
@@ -80,7 +82,7 @@ class CallGestureManager @Inject constructor(
         faceUpStartTime = 0L
         listeningStartTime = android.os.SystemClock.elapsedRealtime()
 
-        scope.launch {
+        startListeningJob = scope.launch {
             flipEnabled = preferences.flipToSilenceEnabled.first()
             proximityEnabled = preferences.proximityWaveToSilenceEnabled.first()
 
@@ -113,8 +115,8 @@ class CallGestureManager @Inject constructor(
 
     @Synchronized
     fun stopListening() {
-        if (!isListening) return
-        android.util.Log.d("CallGestureManager", "stopListening")
+        startListeningJob?.cancel()
+        startListeningJob = null
         isListening = false
         hasSilenced = false
         isProximityNear = false

@@ -88,6 +88,21 @@ class CallRingtoneManager @Inject constructor(
         }
     }
 
+    @Synchronized
+    fun updateCustomRingtone(customUriStr: String) {
+        if (!isRinging || isSilenced || customUriStr.isBlank()) return
+        Log.d("CallRingtoneManager", "updateCustomRingtone: switching to $customUriStr")
+        scope.launch {
+            if (!isRinging || isSilenced) return@launch
+            stopRingtoneSound()
+            val played = playUriRingtone(Uri.parse(customUriStr))
+            if (!played) {
+                // If custom ringtone failed to play, fall back to default sound
+                playRingtoneSound(null)
+            }
+        }
+    }
+
     private suspend fun playRingtoneSound(customUriStr: String?) {
         Log.d("CallRingtoneManager", "playRingtoneSound: isSilenced=$isSilenced, isRinging=$isRinging")
         if (isSilenced || !isRinging) return
@@ -96,28 +111,50 @@ class CallRingtoneManager @Inject constructor(
             val ringtoneType = preferences.ringtoneType.first()
             if (isSilenced || !isRinging) return
 
+            var played = false
             if (!customUriStr.isNullOrBlank()) {
                 // Contact assigned a specific custom ringtone
-                playUriRingtone(Uri.parse(customUriStr))
-            } else if (ringtoneType == LineaPreferences.RingtoneType.APP_DEFAULT) {
-                // App Default: Linea Signature Ringtone
-                playAppDefaultRingtone()
-            } else {
-                // System Default Ringtone
-                val systemUri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
-                    ?: Settings.System.DEFAULT_RINGTONE_URI
-                playUriRingtone(systemUri)
+                try {
+                    played = playUriRingtone(Uri.parse(customUriStr))
+                } catch (e: Exception) {
+                    Log.w("CallRingtoneManager", "Failed custom ringtone $customUriStr, falling back", e)
+                }
+            }
+
+            if (!played) {
+                if (ringtoneType == LineaPreferences.RingtoneType.APP_DEFAULT) {
+                    // App Default: Linea Signature Ringtone
+                    playAppDefaultRingtone()
+                } else {
+                    // System Default Ringtone
+                    val systemUri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
+                        ?: Settings.System.DEFAULT_RINGTONE_URI
+                    val sysPlayed = if (systemUri != null) {
+                        try {
+                            playUriRingtone(systemUri)
+                        } catch (e: Exception) {
+                            Log.w("CallRingtoneManager", "Failed system default ringtone, falling back to app signature", e)
+                            false
+                        }
+                    } else false
+
+                    if (!sysPlayed) {
+                        // Fall back to built-in signature ringtone
+                        playAppDefaultRingtone()
+                    }
+                }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("CallRingtoneManager", "Error playing ringtone sound, falling back to app signature", e)
+            playAppDefaultRingtone()
         }
     }
 
-    private fun playAppDefaultRingtone() {
+    private fun playAppDefaultRingtone(): Boolean {
         Log.d("CallRingtoneManager", "playAppDefaultRingtone: isSilenced=$isSilenced, isRinging=$isRinging")
-        if (isSilenced || !isRinging) return
+        if (isSilenced || !isRinging) return false
         try {
-            val afd = context.resources.openRawResourceFd(R.raw.linea_ringtone) ?: return
+            val afd = context.resources.openRawResourceFd(R.raw.linea_ringtone) ?: return false
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -137,18 +174,20 @@ class CallRingtoneManager @Inject constructor(
             if (isSilenced || !isRinging) {
                 Log.d("CallRingtoneManager", "playAppDefaultRingtone: silenced/stopped before start, releasing player")
                 player.release()
-                return
+                return false
             }
             player.start()
             activeMediaPlayer = player
             Log.d("CallRingtoneManager", "playAppDefaultRingtone: MediaPlayer started successfully")
+            return true
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("CallRingtoneManager", "Error in playAppDefaultRingtone", e)
+            return false
         }
     }
 
-    private fun playUriRingtone(uri: Uri) {
-        if (isSilenced || !isRinging) return
+    private fun playUriRingtone(uri: Uri): Boolean {
+        if (isSilenced || !isRinging) return false
         try {
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
@@ -157,7 +196,6 @@ class CallRingtoneManager @Inject constructor(
                 .build()
 
             val ringtone = RingtoneManager.getRingtone(context, uri)
-            if (isSilenced || !isRinging) return
             if (ringtone != null) {
                 ringtone.audioAttributes = audioAttributes
                 @Suppress("DEPRECATION")
@@ -166,7 +204,7 @@ class CallRingtoneManager @Inject constructor(
                     ringtone.isLooping = true
                     ringtone.volume = 1.0f
                 }
-                if (isSilenced || !isRinging) return
+                if (isSilenced || !isRinging) return false
                 ringtone.play()
                 activeRingtone = ringtone
 
@@ -181,6 +219,7 @@ class CallRingtoneManager @Inject constructor(
                         }
                     }
                 }
+                return true
             } else {
                 val player = MediaPlayer().apply {
                     setAudioAttributes(audioAttributes)
@@ -193,13 +232,15 @@ class CallRingtoneManager @Inject constructor(
                 }
                 if (isSilenced || !isRinging) {
                     player.release()
-                    return
+                    return false
                 }
                 player.start()
                 activeMediaPlayer = player
+                return true
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("CallRingtoneManager", "Failed to play URI ringtone: $uri", e)
+            return false
         }
     }
 

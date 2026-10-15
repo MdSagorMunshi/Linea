@@ -59,8 +59,11 @@ class SettingsViewModel @Inject constructor(
     private val callRecordDao: CallRecordDao,
     private val cleanupManager: CallHistoryCleanupManager,
     val escapeCallManager: EscapeCallManager,
-    val simCountryDetector: com.ryanshelby.linea.telecom.screening.SimCountryDetector
+    val simCountryDetector: com.ryanshelby.linea.telecom.screening.SimCountryDetector,
+    val healthCoordinator: com.ryanshelby.linea.telecom.CallSetupHealthCoordinator
 ) : ViewModel() {
+
+    fun getHealth(): com.ryanshelby.linea.telecom.CallHandlingHealth = healthCoordinator.checkHealth()
 
     val simCountryInfo: com.ryanshelby.linea.telecom.screening.SimCountryInfo
         get() = simCountryDetector.getSimCountryInfo()

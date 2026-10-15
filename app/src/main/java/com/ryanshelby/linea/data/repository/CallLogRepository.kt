@@ -282,8 +282,26 @@ class CallLogRepository @Inject constructor(
                                 seenSystemCalls.add(Triple(sysId, norm, timestamp))
                             }
 
-                            // Prevent inserting duplicates into LINEA Room DB during system sync
-                            if (!hasRecordNearTimestamp(number, timestamp, duration)) {
+                            // Check existing records in LINEA Room DB to repair wrongly labelled entries or insert new ones
+                            val window = kotlin.math.max(45_000L, duration * 1000L + 20_000L)
+                            val existingRecords = callRecordDao.getRecordsInTimeWindow(timestamp - window, timestamp + window)
+                            val existing = existingRecords.find { rec ->
+                                val normRec = normalizeNumber(rec.phoneNumber)
+                                (norm.isNotEmpty() && normRec.isNotEmpty() && (norm == normRec || norm.endsWith(normRec) || normRec.endsWith(norm)))
+                                    || rec.phoneNumber == number
+                            }
+
+                            if (existing != null) {
+                                // Repair wrongly labelled records:
+                                // If a call was previously mislabelled as OUTGOING with duration 0, but system log shows MISSED, REJECTED, or INCOMING
+                                if (existing.callType == CallDirectionType.OUTGOING &&
+                                    (direction == CallDirectionType.MISSED || direction == CallDirectionType.REJECTED || direction == CallDirectionType.INCOMING) &&
+                                    existing.durationSeconds == 0L) {
+                                    callRecordDao.updateCallRecord(existing.copy(callType = direction))
+                                } else if (existing.callType == CallDirectionType.MISSED && direction == CallDirectionType.REJECTED) {
+                                    callRecordDao.updateCallRecord(existing.copy(callType = direction))
+                                }
+                            } else {
                                 val lookup = contactLookupHelper.lookupContact(number)
                                 val isPrivate = lookup.isPrivate
 

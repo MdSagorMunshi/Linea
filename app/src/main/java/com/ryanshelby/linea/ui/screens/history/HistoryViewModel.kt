@@ -51,7 +51,8 @@ class HistoryViewModel @Inject constructor(
     private val blockedNumberDao: BlockedNumberDao,
     private val reminderScheduler: CallbackReminderScheduler,
     private val contactDao: ContactDao,
-    private val preferences: LineaPreferences
+    private val preferences: LineaPreferences,
+    private val callNotificationManager: com.ryanshelby.linea.notifications.CallNotificationManager
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -149,7 +150,7 @@ class HistoryViewModel @Inject constructor(
         // 1. Filter by category
         val filteredByCategory = when (filter) {
             HistoryFilter.ALL -> safeRecords
-            HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
+            HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED || it.callType == CallDirectionType.REJECTED }
             HistoryFilter.INCOMING -> safeRecords.filter { it.callType == CallDirectionType.INCOMING }
             HistoryFilter.OUTGOING -> safeRecords.filter { it.callType == CallDirectionType.OUTGOING }
             HistoryFilter.BLOCKED -> safeRecords.filter { rec ->
@@ -203,7 +204,7 @@ class HistoryViewModel @Inject constructor(
         val safeRecords = if (privateUnlocked) records else records.filter { !it.isPrivateContact }
         val filteredByCategory = when (filter) {
             HistoryFilter.ALL -> safeRecords
-            HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED }
+            HistoryFilter.MISSED -> safeRecords.filter { it.callType == CallDirectionType.MISSED || it.callType == CallDirectionType.REJECTED }
             HistoryFilter.INCOMING -> safeRecords.filter { it.callType == CallDirectionType.INCOMING }
             HistoryFilter.OUTGOING -> safeRecords.filter { it.callType == CallDirectionType.OUTGOING }
             HistoryFilter.BLOCKED -> safeRecords.filter { rec ->
@@ -254,6 +255,9 @@ class HistoryViewModel @Inject constructor(
 
     fun onFilterSelect(filter: HistoryFilter) {
         _selectedFilter.value = filter
+        if (filter == HistoryFilter.MISSED) {
+            callNotificationManager.dismissAllMissedCallNotifications()
+        }
     }
 
     fun toggleItemExpanded(itemId: String) {
