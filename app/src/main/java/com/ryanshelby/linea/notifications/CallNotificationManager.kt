@@ -242,6 +242,20 @@ class CallNotificationManager @Inject constructor(
         notificationManager.cancel(NOTIFICATION_ID_ONGOING_CALL)
     }
 
+    fun normalizeNumberForNotif(number: String): String {
+        val digits = number.filter { it.isDigit() }
+        return if (digits.length >= 7) digits.takeLast(10) else number.trim()
+    }
+
+    fun hasRecentMissedCallNotification(phoneNumber: String, windowMillis: Long = 15_000L): Boolean {
+        val normalized = normalizeNumberForNotif(phoneNumber)
+        if (normalized.isBlank()) return false
+        val hash = normalized.hashCode()
+        val notifId = NOTIFICATION_ID_MISSED_CALL_BASE + (if (hash == Int.MIN_VALUE) 0 else kotlin.math.abs(hash) % 5000)
+        val existing = activeMissedCalls[notifId] ?: return false
+        return (System.currentTimeMillis() - existing.timestamp) < windowMillis
+    }
+
     @SuppressLint("MissingPermission")
     fun showMissedCallNotification(
         callerName: String?,
@@ -249,6 +263,27 @@ class CallNotificationManager @Inject constructor(
         simSlot: Int = 0,
         timestamp: Long = System.currentTimeMillis()
     ) {
+        val normalized = normalizeNumberForNotif(phoneNumber)
+        val notifId = if (normalized.isNotBlank()) {
+            val hash = normalized.hashCode()
+            NOTIFICATION_ID_MISSED_CALL_BASE + (if (hash == Int.MIN_VALUE) 0 else kotlin.math.abs(hash) % 5000)
+        } else {
+            NOTIFICATION_ID_MISSED_CALL_BASE + (timestamp % 5000).toInt()
+        }
+
+        val existing = activeMissedCalls[notifId]
+        val now = System.currentTimeMillis()
+        if (existing != null && (now - existing.timestamp < 15_000L)) {
+            // If already notified for this call recently and this request provides no better name, suppress duplicate
+            if (callerName.isNullOrBlank() || existing.displayName == callerName) {
+                android.util.Log.d("CallNotificationManager", "Duplicate missed call notification for '$phoneNumber' suppressed (existing ID=$notifId)")
+                try {
+                    telecomManager?.cancelMissedCallsNotification()
+                } catch (_: Exception) {}
+                return
+            }
+        }
+
         val displayName = when {
             !callerName.isNullOrBlank() -> callerName
             phoneNumber.isNotBlank() -> phoneNumber
@@ -259,13 +294,6 @@ class CallNotificationManager @Inject constructor(
         try {
             telecomManager?.cancelMissedCallsNotification()
         } catch (_: Exception) {}
-
-        val notifId = if (phoneNumber.isNotBlank()) {
-            val hash = phoneNumber.hashCode()
-            NOTIFICATION_ID_MISSED_CALL_BASE + (if (hash == Int.MIN_VALUE) 0 else kotlin.math.abs(hash) % 5000)
-        } else {
-            NOTIFICATION_ID_MISSED_CALL_BASE + (timestamp % 5000).toInt()
-        }
 
         activeMissedCalls[notifId] = MissedCallData(
             id = notifId,
