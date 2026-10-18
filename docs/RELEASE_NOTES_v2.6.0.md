@@ -41,3 +41,11 @@
 - **versionName**: `2.6.0`
 - **Min SDK**: `Android 11 (API 30)`
 - **Target SDK**: `Android 17 (API 37)`
+
+---
+
+### Assets
+| Asset Name | SHA-256 Digest | Size |
+|---|---|---|
+| `LiNEA-v2.6.0-release.apk` | `314acccb4f82ef64ee2378d80c9efdb776454c86ae2d0e39f6c818e79c3c1958` | 30.08 MiB |
+
