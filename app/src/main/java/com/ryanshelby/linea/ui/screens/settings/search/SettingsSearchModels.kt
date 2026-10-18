@@ -86,6 +86,7 @@ data class SettingsSearchCallbacks(
     val onNavigateToBackup: () -> Unit = {},
     val onNavigateToAbout: () -> Unit = {},
     val onNavigateToRingtone: () -> Unit = {},
+    val onNavigateToNavbar: () -> Unit = {},
     val onExportCsv: () -> Unit = {},
     val onCleanHistoryNow: () -> Unit = {},
     val onShowClearHistoryDialog: () -> Unit = {},

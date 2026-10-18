@@ -62,7 +62,8 @@ enum class SettingsSubScreen {
     STATS,
     BACKUP,
     ABOUT,
-    RINGTONE
+    RINGTONE,
+    NAVBAR
 }
 
 @Composable
@@ -107,6 +108,8 @@ fun LineaNavGraph(
 
     val settingsState by settingsViewModel.uiState.collectAsState()
     val persistentNavbarMode by lineaPreferences.navbarMode.collectAsState(initial = LineaPreferences.NavbarMode.COLLAPSED)
+    val navbarCircleSize by lineaPreferences.navbarCircleSize.collectAsState(initial = LineaPreferences.NavbarCircleSize.STANDARD)
+    val navbarAnimationStyle by lineaPreferences.navbarAnimationStyle.collectAsState(initial = LineaPreferences.NavbarAnimationStyle.BOUNCY)
     var isNavbarTemporarilyExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -214,7 +217,8 @@ fun LineaNavGraph(
                         onNavigateToStats = { settingsSubScreen = SettingsSubScreen.STATS },
                         onNavigateToBackup = { settingsSubScreen = SettingsSubScreen.BACKUP },
                         onNavigateToAbout = { settingsSubScreen = SettingsSubScreen.ABOUT },
-                        onNavigateToRingtone = { settingsSubScreen = SettingsSubScreen.RINGTONE }
+                        onNavigateToRingtone = { settingsSubScreen = SettingsSubScreen.RINGTONE },
+                        onNavigateToNavbar = { settingsSubScreen = SettingsSubScreen.NAVBAR }
                     )
                 }
             }
@@ -230,6 +234,8 @@ fun LineaNavGraph(
                 },
                 unreadMissedCalls = settingsState.unreadMissedCalls,
                 persistentNavbarMode = persistentNavbarMode,
+                circleSizeDp = navbarCircleSize,
+                animationStyle = navbarAnimationStyle,
                 onTogglePersistentNavbarMode = {
                     coroutineScope.launch {
                         val newMode = if (persistentNavbarMode == LineaPreferences.NavbarMode.EXPANDED) {
@@ -376,6 +382,12 @@ fun LineaNavGraph(
                     }
                     SettingsSubScreen.RINGTONE -> {
                         com.ryanshelby.linea.ui.screens.settings.ringtone.RingtoneSettingsScreen(
+                            preferences = lineaPreferences,
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.NAVBAR -> {
+                        com.ryanshelby.linea.ui.screens.settings.navbar.NavbarSettingsScreen(
                             preferences = lineaPreferences,
                             onNavigateBack = { settingsSubScreen = null }
                         )

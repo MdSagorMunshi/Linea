@@ -82,6 +82,8 @@ fun FloatingGlassNavBar(
     onNavigate: (LineaDestination) -> Unit,
     unreadMissedCalls: Int = 0,
     persistentNavbarMode: String = LineaPreferences.NavbarMode.COLLAPSED,
+    circleSizeDp: Int = LineaPreferences.NavbarCircleSize.STANDARD,
+    animationStyle: String = LineaPreferences.NavbarAnimationStyle.BOUNCY,
     onTogglePersistentNavbarMode: () -> Unit = {},
     isTemporarilyExpanded: Boolean = false,
     onSetTemporarilyExpanded: (Boolean) -> Unit = {},
@@ -95,26 +97,36 @@ fun FloatingGlassNavBar(
 
     val isExpanded = (persistentNavbarMode == LineaPreferences.NavbarMode.EXPANDED) || isTemporarilyExpanded
 
-    // Dimensions: Collapsed = 56.dp circle; Expanded = full pill width (~340.dp) and 66.dp height
+    // Dimensions: Collapsed = circle with configurable size (48dp, 56dp, 64dp, 72dp); Expanded = full pill width (~340dp) and 66dp height
     val screenWidth = configuration.screenWidthDp.dp
     val expandedTargetWidth = (screenWidth - 40.dp).coerceAtLeast(300.dp).coerceAtMost(430.dp)
-    val collapsedTargetSize = 56.dp
+    val collapsedTargetSize = circleSizeDp.dp
+
+    val morphAnimationSpec = when {
+        reduceAnimations -> tween<androidx.compose.ui.unit.Dp>(durationMillis = 150)
+        animationStyle == LineaPreferences.NavbarAnimationStyle.SMOOTH -> spring(dampingRatio = 0.88f, stiffness = 220f)
+        animationStyle == LineaPreferences.NavbarAnimationStyle.SNAPPY -> spring(dampingRatio = 0.58f, stiffness = 550f)
+        animationStyle == LineaPreferences.NavbarAnimationStyle.FADE -> tween(durationMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+        else -> spring(dampingRatio = 0.68f, stiffness = 320f) // BOUNCY default
+    }
+
+    val stretchAnimationSpec = when {
+        reduceAnimations -> tween<Float>(durationMillis = 100)
+        animationStyle == LineaPreferences.NavbarAnimationStyle.SMOOTH -> spring(dampingRatio = 0.88f, stiffness = 260f)
+        animationStyle == LineaPreferences.NavbarAnimationStyle.SNAPPY -> spring(dampingRatio = 0.52f, stiffness = 600f)
+        animationStyle == LineaPreferences.NavbarAnimationStyle.FADE -> tween(durationMillis = 180)
+        else -> spring(dampingRatio = 0.62f, stiffness = 380f)
+    }
 
     val navWidth by animateDpAsState(
         targetValue = if (isExpanded) expandedTargetWidth else collapsedTargetSize,
-        animationSpec = LineaMotion.springOrFade(
-            reduceAnimations,
-            spring(dampingRatio = 0.68f, stiffness = 320f)
-        ),
+        animationSpec = morphAnimationSpec,
         label = "navbar_morph_width"
     )
 
     val navHeight by animateDpAsState(
         targetValue = if (isExpanded) 66.dp else collapsedTargetSize,
-        animationSpec = LineaMotion.springOrFade(
-            reduceAnimations,
-            spring(dampingRatio = 0.68f, stiffness = 320f)
-        ),
+        animationSpec = morphAnimationSpec,
         label = "navbar_morph_height"
     )
 
@@ -152,7 +164,7 @@ fun FloatingGlassNavBar(
     var pillTapCount by remember { mutableIntStateOf(0) }
     var pillLastTapTime by remember { mutableLongStateOf(0L) }
 
-    val dragThresholdPx = with(density) { 36.dp.toPx() }
+    val dragThresholdPx = with(density) { (collapsedTargetSize * 0.64f).toPx() }
 
     Box(
         modifier = modifier
@@ -276,25 +288,25 @@ fun FloatingGlassNavBar(
                                                 launch {
                                                     stretchOffsetX.animateTo(
                                                         0f,
-                                                        spring(dampingRatio = 0.62f, stiffness = 380f)
+                                                        stretchAnimationSpec
                                                     )
                                                 }
                                                 launch {
                                                     stretchOffsetY.animateTo(
                                                         0f,
-                                                        spring(dampingRatio = 0.62f, stiffness = 380f)
+                                                        stretchAnimationSpec
                                                     )
                                                 }
                                                 launch {
                                                     stretchScaleX.animateTo(
                                                         1f,
-                                                        spring(dampingRatio = 0.62f, stiffness = 380f)
+                                                        stretchAnimationSpec
                                                     )
                                                 }
                                                 launch {
                                                     stretchScaleY.animateTo(
                                                         1f,
-                                                        spring(dampingRatio = 0.62f, stiffness = 380f)
+                                                        stretchAnimationSpec
                                                     )
                                                 }
                                             }
@@ -360,7 +372,7 @@ fun FloatingGlassNavBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(navHeight),
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(if (isExpanded) 28.dp else (collapsedTargetSize / 2)),
                 borderWidth = if (isHolding) 1.5.dp else LineaDimensions.HairlineBorder,
                 borderColor = if (isHolding) {
                     LineaColors.TitaniumBlue.copy(alpha = 0.85f)
@@ -386,12 +398,14 @@ fun FloatingGlassNavBar(
                             LineaDestination.SETTINGS -> LineaDestination.SETTINGS.filledIcon
                         }
 
+                        val iconSize = (collapsedTargetSize * 0.46f).coerceIn(22.dp, 32.dp)
+
                         Icon(
                             painter = painterResource(id = activeIcon),
                             contentDescription = currentDestination.title,
                             tint = LineaColors.TitaniumBlue,
                             modifier = Modifier
-                                .size(26.dp)
+                                .size(iconSize)
                                 .scale(if (isHolding) 1.08f else 1.0f)
                         )
 

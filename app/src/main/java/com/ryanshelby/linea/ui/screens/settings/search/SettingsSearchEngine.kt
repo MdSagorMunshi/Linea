@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SimCard
+import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Voicemail
 import com.ryanshelby.linea.data.preferences.LineaPreferences
@@ -594,7 +595,20 @@ object SettingsSearchEngine {
             )
         )
 
-        // 27. Auto-Cleanup Retention
+        // 27. Navigation Bar (Style, Size & Animation)
+        list.add(
+            SettingsSearchItem(
+                id = "navbar_settings",
+                title = "Navigation Bar",
+                subtitle = "Choose Floating Circle or Expanded Pill Bar, configure circle size and animation spring dynamics",
+                category = SettingsCategory.APPEARANCE,
+                icon = Icons.Filled.RadioButtonChecked,
+                keywords = listOf("navbar", "navigation", "circle", "pill", "bottom bar", "floating", "navbar size", "navbar animation", "spring", "gestures"),
+                action = SettingsSearchAction.Navigate(callbacks.onNavigateToNavbar)
+            )
+        )
+
+        // 28. Auto-Cleanup Retention
         list.add(
             SettingsSearchItem(
                 id = "history_retention",

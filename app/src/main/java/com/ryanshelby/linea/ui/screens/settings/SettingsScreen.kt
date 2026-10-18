@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.RadioButtonChecked
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.material.icons.filled.Nfc
@@ -132,6 +133,7 @@ fun SettingsScreen(
     onNavigateToBackup: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
     onNavigateToRingtone: () -> Unit = {},
+    onNavigateToNavbar: () -> Unit = {},
     scrollState: ScrollState = rememberScrollState(),
     modifier: Modifier = Modifier
 ) {
@@ -165,7 +167,7 @@ fun SettingsScreen(
         onNavigateToPermissions, onNavigateToVoicemail, onNavigateToCallForwarding,
         onNavigateToCallBarring, onNavigateToCallRules, onNavigateToDiagnostics,
         onNavigateToStats, onNavigateToBackup, onNavigateToAbout, onNavigateToRingtone,
-        onNavigateToProfileCard
+        onNavigateToNavbar, onNavigateToProfileCard
     ) {
         SettingsSearchCallbacks(
             onRequestDefaultDialer = onRequestDefaultDialer,
@@ -182,6 +184,7 @@ fun SettingsScreen(
             onNavigateToBackup = onNavigateToBackup,
             onNavigateToAbout = onNavigateToAbout,
             onNavigateToRingtone = onNavigateToRingtone,
+            onNavigateToNavbar = onNavigateToNavbar,
             onNavigateToProfileCard = onNavigateToProfileCard,
             onExportCsv = {
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -1061,6 +1064,20 @@ fun SettingsScreen(
                     subtitle = "Swaps spring physics for fast cross-fades",
                     checked = uiState.reduceAnimations,
                     onCheckedChange = { viewModel.setReduceAnimations(it) }
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                SettingsNavCard(
+                    icon = Icons.Filled.RadioButtonChecked,
+                    title = "Navigation Bar",
+                    subtitle = if (uiState.navbarMode == LineaPreferences.NavbarMode.COLLAPSED) {
+                        "Floating Circle (${uiState.navbarCircleSize}dp • ${uiState.navbarAnimationStyle.lowercase().replaceFirstChar { it.uppercase() }})"
+                    } else {
+                        "Expanded Pill Bar (${uiState.navbarAnimationStyle.lowercase().replaceFirstChar { it.uppercase() }})"
+                    },
+                    badge = if (uiState.navbarMode == LineaPreferences.NavbarMode.COLLAPSED) "CIRCLE" else "EXPANDED",
+                    onClick = onNavigateToNavbar
                 )
             }
         }

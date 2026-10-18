@@ -68,6 +68,20 @@ class LineaPreferences @Inject constructor(
         const val EXPANDED = "EXPANDED"
     }
 
+    object NavbarCircleSize {
+        const val COMPACT = 48
+        const val STANDARD = 56
+        const val COMFORTABLE = 64
+        const val LARGE = 72
+    }
+
+    object NavbarAnimationStyle {
+        const val BOUNCY = "BOUNCY"
+        const val SMOOTH = "SMOOTH"
+        const val SNAPPY = "SNAPPY"
+        const val FADE = "FADE"
+    }
+
     object SimPopupPosition {
         const val MIDDLE = "MIDDLE"
         const val BOTTOM = "BOTTOM"
@@ -82,6 +96,8 @@ class LineaPreferences @Inject constructor(
 
     companion object {
         val KEY_NAVBAR_MODE = stringPreferencesKey("navbar_mode")
+        val KEY_NAVBAR_CIRCLE_SIZE = intPreferencesKey("navbar_circle_size")
+        val KEY_NAVBAR_ANIMATION_STYLE = stringPreferencesKey("navbar_animation_style")
         val KEY_DEFAULT_SIM = intPreferencesKey("default_sim") // 0 = SIM 1, 1 = SIM 2, -1 = Ask Every Time
         val KEY_ASK_SIM_BEFORE_DIAL = booleanPreferencesKey("ask_sim_before_dial")
         val KEY_REDUCE_ANIMATIONS = booleanPreferencesKey("reduce_animations")
@@ -212,6 +228,8 @@ class LineaPreferences @Inject constructor(
     val optInLocationTag: Flow<Boolean> = dataStore.data.map { it[KEY_OPT_IN_LOCATION_TAG] ?: false }
     val ringtoneType: Flow<String> = dataStore.data.map { it[KEY_RINGTONE_TYPE] ?: RingtoneType.APP_DEFAULT }
     val navbarMode: Flow<String> = dataStore.data.map { it[KEY_NAVBAR_MODE] ?: NavbarMode.COLLAPSED }
+    val navbarCircleSize: Flow<Int> = dataStore.data.map { it[KEY_NAVBAR_CIRCLE_SIZE] ?: NavbarCircleSize.STANDARD }
+    val navbarAnimationStyle: Flow<String> = dataStore.data.map { it[KEY_NAVBAR_ANIMATION_STYLE] ?: NavbarAnimationStyle.BOUNCY }
     val flipToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_FLIP_TO_SILENCE] ?: false }
     val proximityWaveToSilenceEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_PROXIMITY_WAVE_TO_SILENCE] ?: false }
     val dialpadHapticProfile: Flow<String> = dataStore.data.map { it[KEY_DIALPAD_HAPTIC_PROFILE] ?: DialpadHapticProfile.TITANIUM_GLASS }
@@ -438,6 +456,14 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setNavbarMode(mode: String) {
         dataStore.edit { it[KEY_NAVBAR_MODE] = mode }
+    }
+
+    suspend fun setNavbarCircleSize(size: Int) {
+        dataStore.edit { it[KEY_NAVBAR_CIRCLE_SIZE] = size }
+    }
+
+    suspend fun setNavbarAnimationStyle(style: String) {
+        dataStore.edit { it[KEY_NAVBAR_ANIMATION_STYLE] = style }
     }
 
     suspend fun setNfcAlwaysShare(enabled: Boolean) {

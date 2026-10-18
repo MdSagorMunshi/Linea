@@ -47,7 +47,10 @@ data class SettingsUiState(
     val proximityWaveToSilence: Boolean = false,
     val dialpadHapticProfile: String = com.ryanshelby.linea.data.preferences.LineaPreferences.DialpadHapticProfile.TITANIUM_GLASS,
     val postCallHudEnabled: Boolean = false,
-    val postCallHudDurationSeconds: Int = 8
+    val postCallHudDurationSeconds: Int = 8,
+    val navbarMode: String = com.ryanshelby.linea.data.preferences.LineaPreferences.NavbarMode.COLLAPSED,
+    val navbarCircleSize: Int = com.ryanshelby.linea.data.preferences.LineaPreferences.NavbarCircleSize.STANDARD,
+    val navbarAnimationStyle: String = com.ryanshelby.linea.data.preferences.LineaPreferences.NavbarAnimationStyle.BOUNCY
 )
 
 @HiltViewModel
@@ -92,7 +95,10 @@ class SettingsViewModel @Inject constructor(
         preferences.proximityWaveToSilenceEnabled,
         preferences.dialpadHapticProfile,
         preferences.postCallHudEnabled,
-        preferences.postCallHudDurationSeconds
+        preferences.postCallHudDurationSeconds,
+        preferences.navbarMode,
+        preferences.navbarCircleSize,
+        preferences.navbarAnimationStyle
     ) { args ->
         val defaultSim = args[0] as Int
         val askSim = args[1] as Boolean
@@ -118,6 +124,9 @@ class SettingsViewModel @Inject constructor(
         val hapticProfile = args[21] as String
         val hudEnabled = args[22] as Boolean
         val hudDuration = args[23] as Int
+        val navMode = args[24] as String
+        val navCircleSize = args[25] as Int
+        val navAnimStyle = args[26] as String
 
         val quietRule = rulesList.filterIsInstance<com.ryanshelby.linea.data.local.entities.CallRuleEntity>()
             .firstOrNull { it.name.contains("Quiet", ignoreCase = true) || it.name.contains("Night", ignoreCase = true) }
@@ -147,7 +156,10 @@ class SettingsViewModel @Inject constructor(
             proximityWaveToSilence = proxWave,
             dialpadHapticProfile = hapticProfile,
             postCallHudEnabled = hudEnabled,
-            postCallHudDurationSeconds = if (hudDuration < 0) 8 else hudDuration
+            postCallHudDurationSeconds = if (hudDuration < 0) 8 else hudDuration,
+            navbarMode = navMode,
+            navbarCircleSize = navCircleSize,
+            navbarAnimationStyle = navAnimStyle
         )
     }.stateIn(
         scope = viewModelScope,
@@ -316,6 +328,24 @@ class SettingsViewModel @Inject constructor(
                     onResult(false, "Export failed: ${e.localizedMessage}")
                 }
             }
+        }
+    }
+
+    fun setNavbarMode(mode: String) {
+        viewModelScope.launch {
+            preferences.setNavbarMode(mode)
+        }
+    }
+
+    fun setNavbarCircleSize(size: Int) {
+        viewModelScope.launch {
+            preferences.setNavbarCircleSize(size)
+        }
+    }
+
+    fun setNavbarAnimationStyle(style: String) {
+        viewModelScope.launch {
+            preferences.setNavbarAnimationStyle(style)
         }
     }
 }
