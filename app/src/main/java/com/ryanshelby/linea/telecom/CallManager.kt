@@ -1113,6 +1113,18 @@ class CallManager @Inject constructor(
         }
     }
 
+    fun silenceRingerFromTelecom() {
+        val elapsed = if (ringerStartedTimestamp > 0L) SystemClock.elapsedRealtime() - ringerStartedTimestamp else 0L
+        android.util.Log.d("CallManager", "silenceRingerFromTelecom() called, elapsed=${elapsed}ms, isRinging=$isRinging, isSilenced=${_isRingerSilenced.value}")
+        // Telecom can fire onSilenceRinger during initial connection/handoff setup.
+        // Only silence if the call has already been actively ringing for at least 1000ms.
+        if (isRinging && !_isRingerSilenced.value && elapsed >= 1000L) {
+            silenceRinger()
+        } else {
+            android.util.Log.w("CallManager", "Ignored premature onSilenceRinger from Telecom (elapsed=${elapsed}ms < 1000ms)")
+        }
+    }
+
     fun disconnectCall() {
         val current = _currentCall.value
         if (current?.isSimulated == true) {

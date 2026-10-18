@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -142,25 +143,41 @@ fun RingtoneSettingsScreen(
                         .build()
 
                     val player = if (mode == LineaPreferences.RingtoneType.APP_DEFAULT) {
-                        val afd = context.resources.openRawResourceFd(R.raw.linea_ringtone)
-                        if (afd != null) {
-                            MediaPlayer().apply {
-                                setAudioAttributes(audioAttributes)
-                                @Suppress("DEPRECATION")
-                                setAudioStreamType(AudioManager.STREAM_RING)
-                                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                                afd.close()
-                                setVolume(1.0f, 1.0f)
-                                prepare()
+                        var p: MediaPlayer? = null
+                        try {
+                            val afd = context.resources.openRawResourceFd(R.raw.linea_ringtone)
+                            if (afd != null) {
+                                afd.use {
+                                    val mp = MediaPlayer().apply {
+                                        setAudioAttributes(audioAttributes)
+                                        if (it.declaredLength < 0) {
+                                            setDataSource(it.fileDescriptor)
+                                        } else {
+                                            setDataSource(it.fileDescriptor, it.startOffset, it.declaredLength)
+                                        }
+                                        setVolume(1.0f, 1.0f)
+                                        prepare()
+                                    }
+                                    p = mp
+                                }
                             }
-                        } else null
+                        } catch (e: Exception) {
+                            try {
+                                val resUri = Uri.parse("android.resource://${context.packageName}/${R.raw.linea_ringtone}")
+                                p = MediaPlayer().apply {
+                                    setAudioAttributes(audioAttributes)
+                                    setDataSource(context, resUri)
+                                    setVolume(1.0f, 1.0f)
+                                    prepare()
+                                }
+                            } catch (_: Exception) {}
+                        }
+                        p
                     } else {
                         val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE)
                             ?: Settings.System.DEFAULT_RINGTONE_URI
                         MediaPlayer().apply {
                             setAudioAttributes(audioAttributes)
-                            @Suppress("DEPRECATION")
-                            setAudioStreamType(AudioManager.STREAM_RING)
                             setDataSource(context, uri)
                             setVolume(1.0f, 1.0f)
                             prepare()

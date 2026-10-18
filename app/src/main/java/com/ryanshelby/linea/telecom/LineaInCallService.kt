@@ -42,9 +42,7 @@ class LineaInCallService : InCallService() {
         android.util.Log.d("LineaInCallService", "onSilenceRinger received from Telecom")
         // Only forward to silenceRinger if the call has already been ringing for > 1000ms
         // (Telecom can fire onSilenceRinger during initial connection/handoff).
-        if (callManager.isRinging) {
-            callManager.silenceRinger()
-        }
+        callManager.silenceRingerFromTelecom()
     }
 
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
