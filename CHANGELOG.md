@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.0] - 2026-10-19
+
+### Added
+- **Navbar Customization System**:
+  - **Navbar Style Selector**: Choose between the compact **Floating Circle** (default) with tap-expansion, 5-second auto-collapse, and 4-way gesture flick; or the **Expanded Pill Bar** with permanent full-width frosted glass and instant one-tap tab switches.
+  - **Dynamic Circle Sizing**: Customize the physical diameter and thumb touch footprint of the collapsed floating button across 4 distinct sizes: Compact (48dp), Standard (56dp - Default), Comfortable (64dp), and Large (72dp).
+  - **Animation & Motion Physics**: Tailor morphing and stretch spring dynamics with selectable physics models: Bouncy Spring (Default), Smooth Fluid, Snappy Quick, and Minimal Fade.
+  - **Interactive Live Sandbox**: In-settings real-time sandbox preview allowing users to immediately test navbar morphing, selection physics, and gesture mechanics before navigating out.
+  - **Gesture Quick-Reference Guide**: Visual instructional cards explaining Tap expansion, 4-Way Gesture Flick (direct tab jumps without expanding), and Triple-Tap persistence toggle.
+  - **Settings Integration & Search Engine**: Added a dedicated Navigation Bar entry under Appearance & Motion with live subtitle indicators, mode badges, and full indexing in the Settings search engine.
+
+### Fixed & Optimized
+- **Incoming Call Ringtone Resilience & Asset Transcoding**:
+  - **Standard AAC-LC Audio Transcoding**: Re-encoded embedded ringtone assets (`ring_glass.m4a`, `ring_minimal.m4a`) to standard AAC-LC / 44.1kHz stereo audio format, resolving intermittent playback failures and decoder stalls on strict hardware media decoders.
+  - **3-Tier Ringer Fallback Chain**: Built resilient audio fallback in `IncomingCallActivity` attempting raw resource player &rarr; system ringtone URI stream &rarr; default notification alert sound, ensuring an incoming call is never silent even if a custom sound resource fails to load.
+  - **Telecom Silence Grace Period Extension**: Extended startup silence grace period from 600ms to 2000ms upon initial Telecom connection to eliminate ringer startup race conditions and prevent spurious volume key events from silencing the incoming call ringtone.
+
+---
+
 ## [2.5.0] - 2026-10-16
 
 ### Added
