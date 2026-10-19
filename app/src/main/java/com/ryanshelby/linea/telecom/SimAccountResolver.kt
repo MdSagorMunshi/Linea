@@ -171,37 +171,6 @@ class SimAccountResolver @Inject constructor(
             }
         }
 
-        // 2. Discover remaining SIM-capable PhoneAccounts not covered by active subscriptions
-        // (handles OEM telephony implementations, DSDS simulated accounts, or missing subscription entries)
-        val processedHandles = result.map { it.phoneAccountHandle }.toSet()
-        val remainingSimHandles = callCapableHandles.filter { h ->
-            h !in processedHandles && (
-                try { telecomManager.getPhoneAccount(h)?.hasCapabilities(PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION) == true } catch (_: Exception) { false } ||
-                h.componentName.className.contains("TelephonyConnectionService", ignoreCase = true)
-            )
-        }
-        for (h in remainingSimHandles) {
-            val pa = try { telecomManager.getPhoneAccount(h) } catch (_: Exception) { null }
-            val existingSlots = result.map { it.slotIndex }.toSet()
-            val slotHint = when {
-                !existingSlots.contains(1) && (h.id == "2" || h.id?.contains("1") == true || h.id?.contains("slot_1") == true || pa?.label?.contains("2") == true) -> 1
-                !existingSlots.contains(0) -> 0
-                !existingSlots.contains(1) -> 1
-                else -> result.size
-            }
-            if (slotHint in 0..1) {
-                val name = pa?.label?.toString()?.ifBlank { null } ?: "SIM ${slotHint + 1}"
-                result.add(
-                    SimAccountInfo(
-                        slotIndex = slotHint,
-                        subscriptionId = h.id?.toIntOrNull() ?: (slotHint + 1),
-                        displayName = name,
-                        carrierName = pa?.shortDescription?.toString() ?: name,
-                        phoneAccountHandle = h
-                    )
-                )
-            }
-        }
 
         _simAccounts.value = result
         val activeCount = result.map { it.slotIndex }.distinct().count { it in 0..1 }
