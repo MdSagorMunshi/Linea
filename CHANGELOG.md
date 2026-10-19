@@ -5,6 +5,19 @@ All notable changes to the **LINEA** cellular dialer project will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-10-19
+
+### Fixed & Optimized
+- **Dual-SIM Identification & Telephony Resolution Chain**:
+  - **Deterministic SIM Slot Resolution**: Implemented a robust 5-tier resolution chain in `SimAccountResolver` mapping `Call` / `CallLog` &rarr; `PhoneAccountHandle` &rarr; `SubscriptionInfo` &rarr; physical/logical 0-based SIM slot index (`0` for SIM 1, `1` for SIM 2) &rarr; display label. Replaced fragile default-SIM assumptions, arbitrary ID sorting, and last-dialed guesswork with verified subscription mappings.
+  - **Elimination of Speculative Fallbacks & Phantom SIM 2**: Completely eradicated speculative `callCapablePhoneAccounts` fallback loops that erroneously synthesized phantom "SIM 2" indicators on single-SIM devices and emulators. Active multi-SIM detection is now strictly bound to hardware-verified `SubscriptionManager.activeSubscriptionInfoList`.
+  - **Clean Single-SIM Interface Degradation**: Enforced a zero-clutter rule for single-SIM devices across the entire UI. SIM selector pills, badges, and labels are fully hidden across the dialpad, recent calls history, call detail sheets, incoming call overlay, active call screen, and missed call notifications when only one SIM is present.
+  - **Persistent In-Call SIM Indicators**: Added spring-animated glassmorphic SIM indicator pills ("SIM 1" / "SIM 2") under caller identity during incoming calls, outgoing dialing, and connected calls. The indicator cleanly persists across in-call state changes including Hold, Mute, Speakerphone, and Bluetooth routing without shifting action controls.
+  - **System Call Log & Historical Record Attribution**: Enhanced `CallLogRepository` to query system `PHONE_ACCOUNT_ID` and `PHONE_ACCOUNT_COMPONENT_NAME`. Integrated multi-tier fallback parsing to resolve historical calls and OEM-specific call log account handles (matching ICCID substrings and numeric subscription IDs).
+  - **Dynamic Subscription & Hot-Swap Monitoring**: Integrated `SubscriptionManager.OnSubscriptionsChangedListener` and `ACTION_SIM_STATE_CHANGED` broadcast receivers to instantly update multi-SIM state, active slots, and UI visibility when physical SIMs or eSIM profiles are added, removed, or toggled at runtime.
+  - **Missed Call Notification Attribution**: Formatted missed call notifications with `" • SIM X"` attribution badges exclusively on dual-SIM devices, preventing notification clutter on single-SIM setups.
+  - **Unit Test Coverage**: Added comprehensive test suite in `SimAccountResolverTest` verifying slot index resolution, single-SIM hiding, dual-SIM attribution, eSIM + physical SIM setups, call log ICCID/subId parsing, emergency calls, and hot swaps.
+
 ---
 
 ## [2.6.0] - 2026-10-19
