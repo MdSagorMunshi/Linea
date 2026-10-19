@@ -278,10 +278,15 @@ class DialpadViewModel @Inject constructor(
         }
 
         val accounts = _simAccounts.value
-        val targetSlot = if (_selectedSimIndex.value in 0..1) _selectedSimIndex.value else 0
-        val selectedAccount = accounts.find { it.slotIndex == targetSlot }
-            ?: accounts.getOrNull(targetSlot)
-            ?: accounts.firstOrNull()
+        val targetSlot = if (_selectedSimIndex.value in 0..1) _selectedSimIndex.value else null
+        val selectedAccount = if (targetSlot != null) {
+            accounts.find { it.slotIndex == targetSlot }
+                ?: accounts.getOrNull(targetSlot)
+        } else {
+            phoneAccountManager.getDefaultOutgoingPhoneAccount()?.let { defHandle ->
+                accounts.find { it.phoneAccountHandle == defHandle }
+            } ?: accounts.firstOrNull()
+        }
         callManager.placeCall(numberToCall, selectedAccount?.phoneAccountHandle)
     }
 

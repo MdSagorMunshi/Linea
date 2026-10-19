@@ -30,6 +30,9 @@ class MissedCallReceiver : BroadcastReceiver() {
     @Inject
     lateinit var contactLookupHelper: ContactLookupHelper
 
+    @Inject
+    lateinit var simAccountResolver: SimAccountResolver
+
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action
         if (action == "android.telecom.action.SHOW_MISSED_CALLS_NOTIFICATION" ||
@@ -60,15 +63,50 @@ class MissedCallReceiver : BroadcastReceiver() {
                 return
             }
 
+            // Extract PhoneAccountHandle if present in intent extras
+            val phoneAccountHandle: android.telecom.PhoneAccountHandle? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, android.telecom.PhoneAccountHandle::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE)
+            }
+
             // Fallback for missed calls where LineaInCallService was not running
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
+                    var resolvedSlot: Int? = simAccountResolver.resolveSimSlot(phoneAccountHandle)
+
+                    // If slot not resolved from intent extra, query system call log defensively
+                    if (resolvedSlot == null) {
+                        try {
+                            val cursor = context.contentResolver.query(
+                                android.provider.CallLog.Calls.CONTENT_URI,
+                                arrayOf(
+                                    android.provider.CallLog.Calls.PHONE_ACCOUNT_ID,
+                                    android.provider.CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME
+                                ),
+                                "${android.provider.CallLog.Calls.TYPE} = ? AND ${android.provider.CallLog.Calls.NUMBER} = ?",
+                                arrayOf(android.provider.CallLog.Calls.MISSED_TYPE.toString(), phoneNumber),
+                                "${android.provider.CallLog.Calls.DATE} DESC LIMIT 1"
+                            )
+                            cursor?.use {
+                                if (it.moveToFirst()) {
+                                    val accId = it.getString(0)
+                                    val compName = it.getString(1)
+                                    resolvedSlot = simAccountResolver.resolveSimSlotFromCallLog(accId, compName)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("MissedCallReceiver", "Failed to query system call log for missed call account info", e)
+                        }
+                    }
+
                     val lookup = contactLookupHelper.lookupContact(phoneNumber)
                     notificationManager.showMissedCallNotification(
                         callerName = lookup.displayName,
                         phoneNumber = phoneNumber,
-                        simSlot = 0,
+                        simSlot = resolvedSlot ?: -1,
                         timestamp = System.currentTimeMillis()
                     )
                 } catch (e: Exception) {

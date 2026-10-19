@@ -90,6 +90,7 @@ fun HistoryScreen(
     val savedNumbers by viewModel.savedNumbers.collectAsState()
     val callConfirmationEnabled by viewModel.callConfirmationEnabled.collectAsState()
     val callCountdownSeconds by viewModel.callCountdownSeconds.collectAsState()
+    val hasMultipleSims by viewModel.hasMultipleSims.collectAsState()
     var pendingConfirmationRecord by remember { mutableStateOf<CallRecordEntity?>(null) }
     var showCountdownDialog by remember { mutableStateOf(false) }
 
@@ -393,6 +394,7 @@ fun HistoryScreen(
                         CallSessionRow(
                             session = session,
                             isBlocked = isNumberBlocked(session.phoneNumber),
+                            showSimIndicator = hasMultipleSims,
                             onClick = {
                                 val primary = session.calls.firstOrNull()
                                 if (primary != null) {
@@ -483,6 +485,7 @@ fun HistoryScreen(
                                 isBlocked = isItemBlocked,
                                 isContactSaved = isItemSaved,
                                 isSwipedOpen = swipedOpenItemId == item.id,
+                                showSimIndicator = hasMultipleSims,
                                 onSwipeOpenChanged = { open ->
                                     swipedOpenItemId = if (open) item.id else if (swipedOpenItemId == item.id) null else swipedOpenItemId
                                 },
@@ -528,6 +531,7 @@ fun HistoryScreen(
             item = detailItem,
             isBlocked = isDetailBlocked,
             notes = notesForSelectedCall,
+            showSimIndicator = hasMultipleSims,
             onDismiss = { viewModel.selectItemForDetail(null) },
             onCall = { record ->
                 viewModel.selectItemForDetail(null)

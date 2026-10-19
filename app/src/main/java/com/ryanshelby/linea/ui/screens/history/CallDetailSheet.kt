@@ -74,6 +74,7 @@ fun CallDetailSheet(
     onScheduleReminderMs: ((String, String?, Long) -> Unit)? = null,
     isBlocked: Boolean = false,
     onUnblockNumber: (String) -> Unit = {},
+    showSimIndicator: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -202,6 +203,27 @@ fun CallDetailSheet(
                             ),
                             color = LineaColors.TextSecondary
                         )
+                    }
+
+                    if (showSimIndicator && item.primaryRecord.simSlot in 0..1) {
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(LineaColors.GlassFill)
+                                .border(LineaDimensions.HairlineBorder, LineaColors.TitaniumBlue.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "SIM ${item.primaryRecord.simSlot + 1}",
+                                style = LineaTypography.labelSmall.copy(
+                                    fontFeatureSettings = "tnum",
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                fontSize = 9.sp,
+                                color = LineaColors.TitaniumBlue
+                            )
+                        }
                     }
 
                     val callerIdResult = remember(item.primaryRecord.phoneNumber) {
@@ -565,6 +587,26 @@ fun CallDetailSheet(
                                 style = LineaTypography.bodySmall,
                                 color = LineaColors.TextSecondary
                             )
+                            if (showSimIndicator && call.simSlot in 0..1) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(LineaColors.GlassFill)
+                                        .border(LineaDimensions.HairlineBorder, LineaColors.TitaniumBlue.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "SIM ${call.simSlot + 1}",
+                                        style = LineaTypography.labelSmall.copy(
+                                            fontFeatureSettings = "tnum",
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        fontSize = 9.sp,
+                                        color = LineaColors.TitaniumBlue
+                                    )
+                                }
+                            }
                         }
 
                         Text(

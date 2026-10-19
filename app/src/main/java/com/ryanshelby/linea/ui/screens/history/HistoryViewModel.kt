@@ -15,6 +15,7 @@ import com.ryanshelby.linea.data.local.entities.CallbackReminderEntity
 import com.ryanshelby.linea.data.repository.CallLogRepository
 import com.ryanshelby.linea.telecom.CallManager
 import com.ryanshelby.linea.telecom.PhoneAccountManager
+import com.ryanshelby.linea.telecom.SimAccountResolver
 import com.ryanshelby.linea.telecom.screening.ScreeningRuleMatcher
 import com.ryanshelby.linea.telecom.screening.SystemBlockedNumberHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -52,8 +53,11 @@ class HistoryViewModel @Inject constructor(
     private val reminderScheduler: CallbackReminderScheduler,
     private val contactDao: ContactDao,
     private val preferences: LineaPreferences,
-    private val callNotificationManager: com.ryanshelby.linea.notifications.CallNotificationManager
+    private val callNotificationManager: com.ryanshelby.linea.notifications.CallNotificationManager,
+    private val simAccountResolver: SimAccountResolver
 ) : ViewModel() {
+
+    val hasMultipleSims: StateFlow<Boolean> = simAccountResolver.hasMultipleSims
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()

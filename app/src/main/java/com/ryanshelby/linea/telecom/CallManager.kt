@@ -70,7 +70,10 @@ data class ActiveCallInfo(
     val isMuted: Boolean = false,
     val isHeld: Boolean = false,
     val audioRoute: LineaAudioRoute = LineaAudioRoute.EARPIECE,
-    val isSimulated: Boolean = false
+    val isSimulated: Boolean = false,
+    val simSlot: Int? = null,
+    val simLabel: String? = null,
+    val phoneAccountHandle: android.telecom.PhoneAccountHandle? = null
 )
 
 @Singleton
@@ -88,7 +91,8 @@ class CallManager @Inject constructor(
     private val callUiModeDecider: CallUiModeDecider,
     private val floatingOverlayManager: FloatingCallOverlayManager,
     private val callGestureManager: CallGestureManager,
-    private val permissionCoordinator: PermissionCoordinator
+    private val permissionCoordinator: PermissionCoordinator,
+    private val simAccountResolver: SimAccountResolver
 ) {
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -345,10 +349,13 @@ class CallManager @Inject constructor(
     private fun verifySelectedPhoneAccount(call: Call) {
         val expected = requestedOutgoingAccount ?: return
         val actual = call.details?.accountHandle ?: return
+        val expectedSlot = simAccountResolver.resolveSimSlot(expected)
+        val actualSlot = simAccountResolver.resolveSimSlot(actual)
         val matches = (actual == expected) || (
             actual.componentName == expected.componentName &&
             actual.id == expected.id
-        )
+        ) || (expectedSlot != null && actualSlot != null && expectedSlot == actualSlot)
+
         if (!matches) {
             // Never continue a call that Telecom assigned to the device default rather than the
             // explicit SIM selected in Linea.
@@ -456,6 +463,16 @@ class CallManager @Inject constructor(
                 else -> LineaCallState.DIALING
             }
 
+            // Resolve SIM slot & label via SimAccountResolver
+            val activeAccountHandle = if (isIncoming) {
+                call.details?.accountHandle
+            } else {
+                call.details?.accountHandle ?: requestedOutgoingAccount
+            }
+            val isEmergency = simAccountResolver.isEmergencyCall(call, number)
+            val resolvedSlot = if (isEmergency) null else simAccountResolver.resolveSimSlot(activeAccountHandle)
+            val simLabel = if (isEmergency) null else simAccountResolver.getSimLabel(resolvedSlot)
+
             // Immediately and synchronously register currentCall so UI and state never drop
             _currentCall.value = ActiveCallInfo(
                 call = call,
@@ -468,7 +485,10 @@ class CallManager @Inject constructor(
                 durationSeconds = 0L,
                 isHeld = call.state == Call.STATE_HOLDING,
                 isMuted = _isMuted.value,
-                audioRoute = _audioRoute.value
+                audioRoute = _audioRoute.value,
+                simSlot = resolvedSlot,
+                simLabel = simLabel,
+                phoneAccountHandle = activeAccountHandle
             )
 
             if (!isIncoming) {
@@ -491,14 +511,7 @@ class CallManager @Inject constructor(
                 }
             } else {
                 // === INCOMING CALL: Start ring & UI IMMEDIATELY, before async work ===
-                // Detect SIM slot from the call's phone account
-                val simSlot = try {
-                    val handle = call.details?.accountHandle
-                    val idStr = handle?.id ?: ""
-                    // Phone account IDs typically contain the SIM slot or sub ID
-                    val parsed = idStr.filter { it.isDigit() }.toIntOrNull()
-                    if (parsed != null && parsed in 0..1) parsed else 0
-                } catch (_: Exception) { 0 }
+                val simSlot = resolvedSlot ?: 0
 
                 // 1. Start ringing IMMEDIATELY with system default (before contact lookup)
                 _isRingerSilenced.value = false
@@ -627,13 +640,21 @@ class CallManager @Inject constructor(
                 else -> LineaCallState.IDLE
             }
             val initialSecName = call.details?.callerDisplayName?.ifBlank { number } ?: number
+            val secHandle = call.details?.accountHandle ?: requestedOutgoingAccount
+            val isSecEmergency = simAccountResolver.isEmergencyCall(call, number)
+            val secSlot = if (isSecEmergency) null else simAccountResolver.resolveSimSlot(secHandle)
+            val secLabel = if (isSecEmergency) null else simAccountResolver.getSimLabel(secSlot)
+
             _secondaryCall.value = ActiveCallInfo(
                 call = call,
                 phoneNumber = number,
                 displayName = initialSecName,
                 photoUri = null,
                 state = secState,
-                isIncoming = isIncoming
+                isIncoming = isIncoming,
+                simSlot = secSlot,
+                simLabel = secLabel,
+                phoneAccountHandle = secHandle
             )
             refreshOngoingCallNotification()
 
@@ -704,13 +725,12 @@ class CallManager @Inject constructor(
             }
             android.util.Log.d("CallManager", "onCallRemoved: logged direction=$direction")
 
-            // Detect SIM slot from phone account
-            val simSlot = try {
-                val handle = call.details?.accountHandle
-                val idStr = handle?.id ?: ""
-                val parsed = idStr.filter { it.isDigit() }.toIntOrNull()
-                if (parsed != null && parsed in 0..1) parsed else 0
-            } catch (_: Exception) { 0 }
+            // Resolve SIM slot & handle accurately via SimAccountResolver
+            val callHandle = call.details?.accountHandle ?: active.phoneAccountHandle ?: requestedOutgoingAccount
+            val isEmergency = simAccountResolver.isEmergencyCall(call, active.phoneNumber)
+            val resolvedSlot = if (isEmergency) null else (active.simSlot ?: simAccountResolver.resolveSimSlot(callHandle))
+            val finalSimSlot = resolvedSlot ?: 0
+            val finalSimDisplayName = if (resolvedSlot != null) (active.simLabel ?: simAccountResolver.getSimLabel(resolvedSlot)) else null
 
             val callStartTime = call.details?.creationTimeMillis.takeIf { it != null && it > 0L }
                 ?: (if (active.connectTimeMillis > 0L) active.connectTimeMillis else (System.currentTimeMillis() - active.durationSeconds * 1000L))
@@ -725,14 +745,16 @@ class CallManager @Inject constructor(
                         direction = direction,
                         timestamp = callStartTime,
                         durationSeconds = active.durationSeconds,
-                        simSlot = simSlot
+                        simSlot = finalSimSlot,
+                        simDisplayName = finalSimDisplayName,
+                        phoneAccountHandle = callHandle
                     )
 
                     if (direction == CallDirectionType.MISSED) {
                         notificationManager.showMissedCallNotification(
                             callerName = active.displayName,
                             phoneNumber = active.phoneNumber,
-                            simSlot = simSlot,
+                            simSlot = resolvedSlot ?: -1,
                             timestamp = callStartTime
                         )
                     }
@@ -826,8 +848,14 @@ class CallManager @Inject constructor(
             else -> LineaCallState.IDLE
         }
 
+        val previousInfo = _currentCall.value
         val connectTime = call.details?.connectTimeMillis ?: 0L
         val duration = if (connectTime > 0) (System.currentTimeMillis() - connectTime) / 1000 else 0L
+
+        val handle = call.details?.accountHandle ?: previousInfo?.phoneAccountHandle ?: requestedOutgoingAccount
+        val isEmergency = simAccountResolver.isEmergencyCall(call, number)
+        val resolvedSlot = if (isEmergency) null else (previousInfo?.simSlot ?: simAccountResolver.resolveSimSlot(handle))
+        val resolvedLabel = if (isEmergency) null else (previousInfo?.simLabel ?: simAccountResolver.getSimLabel(resolvedSlot))
 
         val updatedInfo = ActiveCallInfo(
             call = call,
@@ -840,7 +868,10 @@ class CallManager @Inject constructor(
             durationSeconds = duration,
             isHeld = call.state == Call.STATE_HOLDING,
             isMuted = _isMuted.value,
-            audioRoute = _audioRoute.value
+            audioRoute = _audioRoute.value,
+            simSlot = resolvedSlot,
+            simLabel = resolvedLabel,
+            phoneAccountHandle = handle
         )
         _currentCall.value = updatedInfo
         if (state == LineaCallState.RINGING && _incomingFloatingCall.value != null) {
@@ -978,10 +1009,13 @@ class CallManager @Inject constructor(
         ).ifBlank { trimmed }
 
         val uri = Uri.fromParts("tel", sanitizedNumber, null)
-        requestedOutgoingAccount = simAccountHandle
+        val effectiveHandle = simAccountHandle ?: try {
+            telecomManager.getDefaultOutgoingPhoneAccount(uri.scheme)
+        } catch (_: Exception) { null }
+        requestedOutgoingAccount = effectiveHandle
         val extras = Bundle().apply {
-            if (simAccountHandle != null) {
-                putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, simAccountHandle)
+            if (effectiveHandle != null) {
+                putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, effectiveHandle)
             }
         }
         telecomManager.placeCall(uri, extras)

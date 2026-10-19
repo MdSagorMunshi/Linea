@@ -9,6 +9,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -266,6 +269,51 @@ fun IncomingCallScreen(
                                 style = LineaTypography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = LineaColors.TitaniumBlue
                             )
+                        }
+                    }
+
+                    // Glassmorphic SIM indicator pill (visible on dual-SIM devices with subtle spring fade-in)
+                    val simLabel = callInfo.simLabel
+                    if (!simLabel.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
+                                    scaleIn(initialScale = 0.9f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(LineaColors.GlassFill)
+                                    .border(
+                                        LineaDimensions.HairlineBorder,
+                                        LineaColors.TitaniumBlue.copy(alpha = 0.4f),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.SimCard,
+                                        contentDescription = null,
+                                        tint = LineaColors.TitaniumBlue,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = simLabel,
+                                        style = LineaTypography.labelMedium.copy(
+                                            fontFeatureSettings = "tnum",
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = LineaColors.TitaniumBlue
+                                    )
+                                }
+                            }
                         }
                     }
                 }

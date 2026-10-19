@@ -8,6 +8,7 @@ import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.data.local.entities.CallDirectionType
 import com.ryanshelby.linea.data.local.entities.CallRecordEntity
 import com.ryanshelby.linea.telecom.ContactLookupHelper
+import com.ryanshelby.linea.telecom.SimAccountResolver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -18,7 +19,8 @@ import javax.inject.Singleton
 class CallLogRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val callRecordDao: CallRecordDao,
-    private val contactLookupHelper: ContactLookupHelper
+    private val contactLookupHelper: ContactLookupHelper,
+    private val simAccountResolver: SimAccountResolver
 ) {
 
     private fun normalizeNumber(phoneNumber: String): String {
@@ -89,7 +91,8 @@ class CallLogRepository @Inject constructor(
         durationSeconds: Long,
         simSlot: Int = 0,
         simDisplayName: String? = null,
-        networkType: String = "VoLTE"
+        networkType: String = "VoLTE",
+        phoneAccountHandle: android.telecom.PhoneAccountHandle? = null
     ) = withContext(Dispatchers.IO) {
         if (phoneNumber.isBlank()) return@withContext
 
@@ -149,6 +152,10 @@ class CallLogRepository @Inject constructor(
                         put(CallLog.Calls.NEW, if (direction == CallDirectionType.MISSED) 1 else 0)
                         if (resolvedName != null) {
                             put(CallLog.Calls.CACHED_NAME, resolvedName)
+                        }
+                        if (phoneAccountHandle != null) {
+                            put(CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME, phoneAccountHandle.componentName.flattenToString())
+                            put(CallLog.Calls.PHONE_ACCOUNT_ID, phoneAccountHandle.id)
                         }
                     }
                     context.contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
@@ -222,7 +229,9 @@ class CallLogRepository @Inject constructor(
             CallLog.Calls.DATE,
             CallLog.Calls.DURATION,
             CallLog.Calls.TYPE,
-            CallLog.Calls.CACHED_NAME
+            CallLog.Calls.CACHED_NAME,
+            CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME,
+            CallLog.Calls.PHONE_ACCOUNT_ID
         )
 
         try {
@@ -231,7 +240,7 @@ class CallLogRepository @Inject constructor(
                 projection,
                 null,
                 null,
-                "${CallLog.Calls.DATE} DESC LIMIT 150"
+                "${CallLog.Calls.DATE} DESC LIMIT 200"
             )
 
             val seenSystemCalls = mutableListOf<Triple<Long, String, Long>>() // id, normalizedNumber, date
@@ -243,6 +252,8 @@ class CallLogRepository @Inject constructor(
                 val durIdx = it.getColumnIndex(CallLog.Calls.DURATION)
                 val typeIdx = it.getColumnIndex(CallLog.Calls.TYPE)
                 val nameIdx = it.getColumnIndex(CallLog.Calls.CACHED_NAME)
+                val compIdx = it.getColumnIndex(CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME)
+                val accIdIdx = it.getColumnIndex(CallLog.Calls.PHONE_ACCOUNT_ID)
 
                 while (it.moveToNext()) {
                     val sysId = if (idIdx >= 0) it.getLong(idIdx) else -1L
@@ -251,6 +262,12 @@ class CallLogRepository @Inject constructor(
                     val duration = if (durIdx >= 0) it.getLong(durIdx) else 0L
                     val sysType = if (typeIdx >= 0) it.getInt(typeIdx) else CallLog.Calls.INCOMING_TYPE
                     val name = if (nameIdx >= 0) it.getString(nameIdx) else null
+                    val compName = if (compIdx >= 0) it.getString(compIdx) else null
+                    val phoneAccountId = if (accIdIdx >= 0) it.getString(accIdIdx) else null
+
+                    val resolvedSlot = simAccountResolver.resolveSimSlotFromCallLog(phoneAccountId, compName)
+                    val simSlot = resolvedSlot ?: 0
+                    val simDisplayName = if (resolvedSlot != null) simAccountResolver.getSimLabel(resolvedSlot) else null
 
                     val direction = when (sysType) {
                         CallLog.Calls.INCOMING_TYPE -> CallDirectionType.INCOMING
@@ -292,14 +309,20 @@ class CallLogRepository @Inject constructor(
                             }
 
                             if (existing != null) {
-                                // Repair wrongly labelled records:
-                                // If a call was previously mislabelled as OUTGOING with duration 0, but system log shows MISSED, REJECTED, or INCOMING
-                                if (existing.callType == CallDirectionType.OUTGOING &&
+                                // Repair wrongly labelled records or stale SIM slots
+                                var updated = existing
+                                if (resolvedSlot != null && (existing.simSlot != resolvedSlot || existing.simDisplayName != simDisplayName)) {
+                                    updated = updated.copy(simSlot = resolvedSlot, simDisplayName = simDisplayName)
+                                }
+                                if (updated.callType == CallDirectionType.OUTGOING &&
                                     (direction == CallDirectionType.MISSED || direction == CallDirectionType.REJECTED || direction == CallDirectionType.INCOMING) &&
-                                    existing.durationSeconds == 0L) {
-                                    callRecordDao.updateCallRecord(existing.copy(callType = direction))
-                                } else if (existing.callType == CallDirectionType.MISSED && direction == CallDirectionType.REJECTED) {
-                                    callRecordDao.updateCallRecord(existing.copy(callType = direction))
+                                    updated.durationSeconds == 0L) {
+                                    updated = updated.copy(callType = direction)
+                                } else if (updated.callType == CallDirectionType.MISSED && direction == CallDirectionType.REJECTED) {
+                                    updated = updated.copy(callType = direction)
+                                }
+                                if (updated != existing) {
+                                    callRecordDao.updateCallRecord(updated)
                                 }
                             } else {
                                 val lookup = contactLookupHelper.lookupContact(number)
@@ -318,8 +341,8 @@ class CallLogRepository @Inject constructor(
                                     callType = direction,
                                     timestamp = timestamp,
                                     durationSeconds = duration,
-                                    simSlot = 0,
-                                    simDisplayName = "SIM 1",
+                                    simSlot = simSlot,
+                                    simDisplayName = simDisplayName,
                                     sessionGroupId = "session_${number.filter { c -> c.isDigit() }}",
                                     isPrivateContact = isPrivate
                                 )

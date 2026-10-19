@@ -25,7 +25,8 @@ data class SimAccountInfo(
 class PhoneAccountManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val telecomManager: TelecomManager,
-    private val telephonyManager: TelephonyManager
+    private val telephonyManager: TelephonyManager,
+    private val simAccountResolver: SimAccountResolver
 ) {
 
     init {
@@ -49,92 +50,16 @@ class PhoneAccountManager @Inject constructor(
 
     @SuppressLint("MissingPermission")
     fun getSimAccounts(): List<SimAccountInfo> {
-        val registeredAccounts = mutableListOf<SimAccountInfo>()
-        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+        return simAccountResolver.refresh()
+    }
 
-        val subscriptions: List<SubscriptionInfo>? = try {
-            subscriptionManager?.activeSubscriptionInfoList
-        } catch (_: SecurityException) {
+    @SuppressLint("MissingPermission")
+    fun getDefaultOutgoingPhoneAccount(uriScheme: String = "tel"): PhoneAccountHandle? {
+        return try {
+            telecomManager.getDefaultOutgoingPhoneAccount(uriScheme)
+        } catch (_: Exception) {
             null
         }
-
-        try {
-            val callCapableHandles = telecomManager.callCapablePhoneAccounts.orEmpty()
-
-            // Do not infer a subscription from the position of a phone account. The list can
-            // contain non-SIM accounts and its order is OEM-dependent. TelephonyManager is the
-            // public API that maps a PhoneAccountHandle to its actual subscription ID.
-            val handlesBySubscriptionId = callCapableHandles.mapNotNull { handle ->
-                val subscriptionId = try {
-                    telephonyManager.getSubscriptionId(handle)
-                } catch (_: SecurityException) {
-                    SubscriptionManager.INVALID_SUBSCRIPTION_ID
-                }
-                if (SubscriptionManager.isValidSubscriptionId(subscriptionId)) {
-                    subscriptionId to handle
-                } else {
-                    null
-                }
-            }.toMap()
-
-            subscriptions.orEmpty()
-                .sortedBy { it.simSlotIndex }
-                .forEach { subInfo ->
-                    // An explicit SIM must have its own enabled phone-account handle. Never
-                    // reuse the system-default handle for another subscription.
-                    val handle = handlesBySubscriptionId[subInfo.subscriptionId] ?: return@forEach
-                    val phoneAccount = try {
-                        telecomManager.getPhoneAccount(handle)
-                    } catch (e: Exception) {
-                        null
-                    }
-                    val displayName = subInfo.displayName?.toString()
-                        ?: phoneAccount?.label?.toString()
-                        ?: "SIM ${subInfo.simSlotIndex + 1}"
-                    val carrierName = subInfo.carrierName?.toString()
-                        ?: phoneAccount?.shortDescription?.toString()
-                        ?: displayName
-                    registeredAccounts.add(
-                        SimAccountInfo(
-                            slotIndex = subInfo.simSlotIndex,
-                            subscriptionId = subInfo.subscriptionId,
-                            displayName = displayName,
-                            carrierName = carrierName,
-                            phoneAccountHandle = handle
-                        )
-                    )
-                }
-
-            val existingHandles = registeredAccounts.map { it.phoneAccountHandle }.toSet()
-            callCapableHandles.forEachIndexed { index, handle ->
-                if (!existingHandles.contains(handle)) {
-                    val phoneAccount = try {
-                        telecomManager.getPhoneAccount(handle)
-                    } catch (e: Exception) {
-                        null
-                    }
-                    val isSim = phoneAccount?.hasCapabilities(PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION) == true ||
-                            handle.componentName.className.contains("TelephonyConnectionService", ignoreCase = true)
-                    if (isSim) {
-                        val slot = registeredAccounts.size
-                        val displayName = phoneAccount?.label?.toString() ?: "SIM ${slot + 1}"
-                        val carrierName = phoneAccount?.shortDescription?.toString() ?: displayName
-                        registeredAccounts.add(
-                            SimAccountInfo(
-                                slotIndex = slot,
-                                subscriptionId = slot + 1,
-                                displayName = displayName,
-                                carrierName = carrierName,
-                                phoneAccountHandle = handle
-                            )
-                        )
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        return registeredAccounts
     }
 }
+

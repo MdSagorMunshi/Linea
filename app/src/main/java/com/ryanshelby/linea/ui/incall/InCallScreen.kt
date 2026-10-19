@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -46,6 +47,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.SwapCalls
 import androidx.compose.material.icons.filled.WarningAmber
 import com.ryanshelby.linea.ui.components.ContactAvatar
@@ -139,8 +141,15 @@ fun InCallScreen(
     )
 
     val stateLabel = when (callInfo.state) {
-        LineaCallState.DIALING -> "Dialing..."
-        LineaCallState.RINGING -> "Ringing..."
+        LineaCallState.DIALING, LineaCallState.RINGING -> {
+            if (!callInfo.isIncoming && !callInfo.simLabel.isNullOrBlank()) {
+                "Calling via ${callInfo.simLabel}"
+            } else if (callInfo.state == LineaCallState.DIALING) {
+                "Dialing..."
+            } else {
+                "Ringing..."
+            }
+        }
         LineaCallState.HOLDING -> "On Hold"
         LineaCallState.ACTIVE -> formatDuration(callInfo.durationSeconds)
         LineaCallState.DISCONNECTED -> "Call Ended"
@@ -503,6 +512,53 @@ fun InCallScreen(
                                 style = LineaTypography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
                                 color = LineaColors.TextSecondary
                             )
+                        }
+                    }
+
+                    // Glassmorphic SIM indicator pill (persistent through hold, mute, speaker, bluetooth)
+                    val simLabel = callInfo.simLabel
+                    val showSimPill = !simLabel.isNullOrBlank() &&
+                            (callInfo.isIncoming || callInfo.state == LineaCallState.ACTIVE || callInfo.state == LineaCallState.HOLDING)
+                    if (showSimPill && simLabel != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
+                                    scaleIn(initialScale = 0.9f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(LineaColors.GlassFill)
+                                    .border(
+                                        LineaDimensions.HairlineBorder,
+                                        LineaColors.TitaniumBlue.copy(alpha = 0.4f),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.SimCard,
+                                        contentDescription = null,
+                                        tint = LineaColors.TitaniumBlue,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = simLabel,
+                                        style = LineaTypography.labelMedium.copy(
+                                            fontFeatureSettings = "tnum",
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = LineaColors.TitaniumBlue
+                                    )
+                                }
+                            }
                         }
                     }
                 }

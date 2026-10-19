@@ -14,12 +14,14 @@ import com.ryanshelby.linea.MainActivity
 import com.ryanshelby.linea.R
 import com.ryanshelby.linea.ui.incall.InCallActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.ryanshelby.linea.telecom.SimAccountResolver
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class CallNotificationManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val simAccountResolver: SimAccountResolver
 ) {
 
     private val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? android.telecom.TelecomManager
@@ -260,7 +262,7 @@ class CallNotificationManager @Inject constructor(
     fun showMissedCallNotification(
         callerName: String?,
         phoneNumber: String,
-        simSlot: Int = 0,
+        simSlot: Int = -1,
         timestamp: Long = System.currentTimeMillis()
     ) {
         val normalized = normalizeNumberForNotif(phoneNumber)
@@ -353,8 +355,15 @@ class CallNotificationManager @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val simLabel = "SIM ${simSlot + 1}"
-        val subText = if (phoneNumber.isNotBlank() && displayName != phoneNumber) "$phoneNumber • $simLabel" else simLabel
+        val showSim = simAccountResolver.hasMultipleSims.value && simSlot in 0..1
+        val simLabel = if (showSim) "SIM ${simSlot + 1}" else null
+        val contentText = if (simLabel != null) "Missed call • $simLabel" else "Missed call"
+        val subText = when {
+            phoneNumber.isNotBlank() && displayName != phoneNumber && simLabel != null -> "$phoneNumber • $simLabel"
+            phoneNumber.isNotBlank() && displayName != phoneNumber -> phoneNumber
+            simLabel != null -> simLabel
+            else -> null
+        }
 
         // Generic public version for lock screen privacy protection
         val publicNotification = NotificationCompat.Builder(context, LineaApp.CHANNEL_MISSED_CALLS)
@@ -368,8 +377,10 @@ class CallNotificationManager @Inject constructor(
             .setSmallIcon(R.drawable.ic_stat_call)
             .setColor(0xFFD4834E.toInt()) // Muted Rust design accent for missed calls
             .setContentTitle(displayName)
-            .setContentText("Missed call • $simLabel")
-            .setSubText(subText)
+            .setContentText(contentText)
+            .apply {
+                if (subText != null) setSubText(subText)
+            }
             .setWhen(timestamp)
             .setShowWhen(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -393,7 +404,8 @@ class CallNotificationManager @Inject constructor(
                 .setSummaryText("Missed calls")
 
             activeMissedCalls.values.sortedByDescending { it.timestamp }.take(5).forEach { item ->
-                inboxStyle.addLine("${item.displayName} • SIM ${item.simSlot + 1}")
+                val itemSim = if (simAccountResolver.hasMultipleSims.value && item.simSlot in 0..1) " • SIM ${item.simSlot + 1}" else ""
+                inboxStyle.addLine("${item.displayName}$itemSim")
             }
 
             val summaryNotification = NotificationCompat.Builder(context, LineaApp.CHANNEL_MISSED_CALLS)

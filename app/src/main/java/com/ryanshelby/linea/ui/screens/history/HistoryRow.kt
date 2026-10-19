@@ -101,7 +101,8 @@ fun HistoryRow(
     onUnblockNumber: ((String) -> Unit)? = null,
     isSwipedOpen: Boolean = false,
     onSwipeOpenChanged: ((Boolean) -> Unit)? = null,
-    onLongClick: ((CallHistoryItem) -> Unit)? = null
+    onLongClick: ((CallHistoryItem) -> Unit)? = null,
+    showSimIndicator: Boolean = true
 ) {
     val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
@@ -596,20 +597,25 @@ fun HistoryRow(
                             }
 
                             // SIM slot indicator pill
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(LineaColors.GlassFill)
-                                    .border(0.5.dp, LineaColors.GlassBorder, RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                            ) {
-                                Text(
-                                    text = "SIM ${item.primaryRecord.simSlot + 1}",
-                                    style = LineaTypography.labelSmall,
-                                    fontSize = 9.sp,
-                                    color = LineaColors.TextTertiary
-                                )
+                            if (showSimIndicator && item.primaryRecord.simSlot in 0..1) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(LineaColors.GlassFill)
+                                        .border(LineaDimensions.HairlineBorder, LineaColors.TitaniumBlue.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "SIM ${item.primaryRecord.simSlot + 1}",
+                                        style = LineaTypography.labelSmall.copy(
+                                            fontFeatureSettings = "tnum",
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        fontSize = 9.sp,
+                                        color = LineaColors.TitaniumBlue
+                                    )
+                                }
                             }
                         }
                     }
@@ -665,6 +671,26 @@ fun HistoryRow(
                                     ),
                                     color = LineaColors.TextSecondary
                                 )
+                                if (showSimIndicator && singleCall.simSlot in 0..1) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(LineaColors.GlassFill)
+                                            .border(LineaDimensions.HairlineBorder, LineaColors.TitaniumBlue.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    ) {
+                                        Text(
+                                            text = "SIM ${singleCall.simSlot + 1}",
+                                            style = LineaTypography.labelSmall.copy(
+                                                fontFeatureSettings = "tnum",
+                                                fontWeight = FontWeight.SemiBold
+                                            ),
+                                            fontSize = 9.sp,
+                                            color = LineaColors.TitaniumBlue
+                                        )
+                                    }
+                                }
                             }
 
                             Text(
@@ -727,7 +753,8 @@ fun CallSessionRow(
     onToggleExpand: () -> Unit,
     modifier: Modifier = Modifier,
     isBlocked: Boolean = false,
-    onLongClick: ((CallSessionItem) -> Unit)? = null
+    onLongClick: ((CallSessionItem) -> Unit)? = null,
+    showSimIndicator: Boolean = true
 ) {
     val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
@@ -926,19 +953,24 @@ fun CallSessionRow(
                         )
 
                         // SIM Slot
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(LineaColors.GlassFill)
-                                .border(0.5.dp, LineaColors.GlassBorder, RoundedCornerShape(4.dp))
-                                .padding(horizontal = 4.dp, vertical = 1.dp)
-                        ) {
-                            Text(
-                                text = "SIM ${session.latestSimSlot + 1}",
-                                style = LineaTypography.labelSmall,
-                                fontSize = 9.sp,
-                                color = LineaColors.TextTertiary
-                            )
+                        if (showSimIndicator && session.latestSimSlot in 0..1) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(LineaColors.GlassFill)
+                                    .border(LineaDimensions.HairlineBorder, LineaColors.TitaniumBlue.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "SIM ${session.latestSimSlot + 1}",
+                                    style = LineaTypography.labelSmall.copy(
+                                        fontFeatureSettings = "tnum",
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    fontSize = 9.sp,
+                                    color = LineaColors.TitaniumBlue
+                                )
+                            }
                         }
                     }
                 }
@@ -1001,6 +1033,26 @@ fun CallSessionRow(
                                     style = LineaTypography.bodySmall.copy(fontFeatureSettings = "tnum"),
                                     color = LineaColors.TextSecondary
                                 )
+                                if (showSimIndicator && call.simSlot in 0..1) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(LineaColors.GlassFill)
+                                            .border(LineaDimensions.HairlineBorder, LineaColors.TitaniumBlue.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    ) {
+                                        Text(
+                                            text = "SIM ${call.simSlot + 1}",
+                                            style = LineaTypography.labelSmall.copy(
+                                                fontFeatureSettings = "tnum",
+                                                fontWeight = FontWeight.SemiBold
+                                            ),
+                                            fontSize = 9.sp,
+                                            color = LineaColors.TitaniumBlue
+                                        )
+                                    }
+                                }
                             }
 
                             Text(

@@ -914,8 +914,8 @@ private fun SimSelectorPill(
             modifier = Modifier.padding(3.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            sims.forEachIndexed { index, sim ->
-                val isSelected = index == selectedIndex
+            sims.forEach { sim ->
+                val isSelected = sim.slotIndex == selectedIndex
                 Box(
                     modifier = Modifier
                         .then(
@@ -929,7 +929,7 @@ private fun SimSelectorPill(
                                 Modifier
                             }
                         )
-                        .clickable { onSelectSim(index) }
+                        .clickable { onSelectSim(sim.slotIndex) }
                         .padding(horizontal = 10.dp, vertical = 5.dp),
                     contentAlignment = Alignment.Center
                 ) {
