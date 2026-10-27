@@ -269,6 +269,46 @@ fun DialpadScreen(
         }
     }
 
+    if (LineaColors.isCrystal) {
+        CrystalDialpadLayout(
+            number = enteredNumber, profile = activeProfile, isFiery = isFieryCallButton,
+            sound = soundEnabled, vibration = vibrationEnabled, hapticProfile = dialpadHapticProfile,
+            clipboard = clipboardNumber,
+            onPaste = {
+                (clipboardNumber ?: readClipboardNumber())?.filter { it.isDigit() || it in "+*#" }
+                    ?.takeIf { it.isNotEmpty() }?.let(viewModel::setNumber)
+            },
+            onCopy = { if (enteredNumber.isNotEmpty()) copyToClipboard(enteredNumber) },
+            onDigit = viewModel::appendDigit,
+            onHoldDigit = { digit ->
+                when (digit) {
+                    '0' -> viewModel.appendDigit('+')
+                    in '1'..'9' -> viewModel.onSpeedDialLongPress(digit)
+                    else -> viewModel.appendDigit(digit)
+                }
+            },
+            onCall = { if (enteredNumber.isNotEmpty()) initiateCall(enteredNumber) },
+            onToggleSkin = viewModel::toggleFieryCallButton,
+            onDelete = viewModel::deleteLastDigit, onClear = viewModel::clearNumber,
+            onCreate = { contactsViewModel.openCreateSheet(); showCreateContactSheet = true },
+            onScan = { showQrScanner = true }, onSwitchProfile = viewModel::switchProfile,
+            status = {
+                if (!(health?.allPassed ?: isDefaultDialer)) RoleBanner(
+                    isDefaultDialer = isDefaultDialer, onRequestRole = onRequestDefaultDialer, health = health,
+                    onRequestFullScreenIntent = onRequestFullScreenIntent,
+                    onRequestNotifications = onRequestNotifications, onRequestBatteryOptimization = onRequestBatteryOptimization)
+            },
+            suggestions = { T9MatchList(t9Matches, viewModel::setNumber, initiateCall,
+                modifier = Modifier.padding(bottom = 6.dp)) },
+            simSelector = {
+                if (displayedSims.size > 1 || isAlwaysAskEnabled) SimSelectorPill(
+                    sims = displayedSims, selectedIndex = selectedSimIndex,
+                    showAlwaysAsk = isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK,
+                    onSelectSim = viewModel::selectSim)
+            },
+            timezone = { DialpadTimezonePill(internationalPreview) }, modifier = modifier
+        )
+    } else {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -795,6 +835,8 @@ fun DialpadScreen(
         }
 
         Spacer(modifier = Modifier.height(108.dp)) // Comfortable clearance above floating bottom navbar
+    }
+
     }
 
     if (showCreateContactSheet) {

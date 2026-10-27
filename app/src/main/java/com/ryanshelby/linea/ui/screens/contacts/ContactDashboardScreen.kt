@@ -86,11 +86,9 @@ fun ContactDashboardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(LineaColors.BackgroundDeep, LineaColors.BackgroundElevated)
-                )
-            )
+            .then(if (LineaColors.isCrystal) Modifier else Modifier.background(
+                Brush.verticalGradient(listOf(LineaColors.BackgroundDeep, LineaColors.BackgroundElevated))
+            ))
             .statusBarsPadding()
             .padding(horizontal = 20.dp)
     ) {
@@ -204,7 +202,7 @@ fun ContactDashboardScreen(
                 item {
                     FrostedGlassBox(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(22.dp)
+                        shape = RoundedCornerShape(if (LineaColors.isCrystal) 32.dp else 22.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -212,10 +210,14 @@ fun ContactDashboardScreen(
                                 .padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            if (LineaColors.isCrystal) {
+                                Text("CONTACT", style = LineaTypography.labelSmall, color = LineaColors.TextSecondary)
+                                Spacer(Modifier.height(20.dp))
+                            }
                             ContactAvatar(
                                 photoUri = contact.photoUri,
                                 displayName = contact.displayName,
-                                size = 80.dp,
+                                size = if (LineaColors.isCrystal) 104.dp else 80.dp,
                                 initialsTextSize = 30.sp,
                                 borderWidth = 2.dp,
                                 borderColor = LineaColors.TitaniumBlue
@@ -826,7 +828,7 @@ fun ContactDashboardScreen(
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = LineaColors.Danger,
-                            contentColor = Color.White
+                            contentColor = (if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White)
                         ),
                         shape = RoundedCornerShape(10.dp)
                     ) {
@@ -927,7 +929,7 @@ private fun SimChip(
         Text(
             text = label,
             style = LineaTypography.labelSmall.copy(fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal),
-            color = if (selected) Color.White else LineaColors.TextSecondary
+            color = if (selected) (if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White) else LineaColors.TextSecondary
         )
     }
 }

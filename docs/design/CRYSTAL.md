@@ -1,41 +1,50 @@
-# LiNEA Crystal prototype
+# LiNEA Crystal design
 
-Choose **Settings → Appearance & Motion → Design → Crystal**. Classic remains the
-fallback for existing installations and unknown preference values. The design
-choice is saved separately from Light, Dark, OLED, and System color mode.
+Choose **Settings → Appearance → Design → Crystal**. Classic remains available.
+The saved design is independent of Light, Dark, OLED, and System color mode.
 
-## Included
+## Screens and interaction
 
-- Pearl and graphite palettes, with a black-background OLED variant. Crystal
-  replaces legacy neon accent tokens with muted steel, sage, and neutral tones.
-- Shared glass surfaces: translucent fills, directional reflections, beveled
-  borders, elevation shadows, and a stationary background light field.
-- Rounded glass dialpad keys with spring compression and a subtle perspective
-  tilt. Existing digit entry, tones, haptics, and number-key long presses remain.
-- A glass call button whose long press reveals an alternate platinum skin.
-  The reveal does not invoke the call action. Classic retains its fiery Easter egg.
-- A floating dock with a moving selected-tab lens and accessible tab semantics.
-  Classic's saved circle/pill navigation settings remain available when using Classic.
-- Recents cards with inline expansion and a separate “View call details” action.
-  Foreground cards conceal swipe-action trays; the dock conceals scrolling text.
-- Appearance previews, settings search integration, and wrapping color-mode controls.
-- Reduced-motion handling for new press, skin, dock, and expansion animations.
+Crystal includes a dedicated dialpad composition, People and contact profiles,
+Recents with inline expansion, a profile-first Settings screen with expandable
+Appearance controls, and incoming/active call screens. Shared typography, shapes,
+form controls, panels, sheets, and motion keep the remaining screens consistent.
 
-## Implementation boundary
+- Pearl and graphite materials with a black-background OLED variant; restrained
+  steel, sage, and brick accents. Legacy neon tokens are neutralized in Crystal.
+- The dialpad keeps number entry and suggestions above a stable keypad and call
+  action. This upper region can scroll on compact screens when suggestions or
+  setup banners need more room.
+- Glass keys compress and tilt on press. Holding Call reveals its alternate skin
+  without invoking the call action. Number-key speed dial and “hold 0 for +” remain.
+- The floating dock refracts and diffuses the content scrolling beneath it. Its
+  selected-tab lens travels with spring motion. Screen changes use short spatial
+  transitions; reduced motion uses fast fades and disables perspective effects.
+- People has a portrait-focused favorites strip, larger contact rows, and an
+  alphabet rail with clearance above the dock. Profiles retain call/message/share,
+  editing, account selection, and private-contact behavior.
+- Call controls sample the caller's own poster. Their text and icons remain sharp,
+  and colored actions use contrasting foregrounds in both color modes.
 
-The existing view models and calling flows are shared by both designs. This first
-prototype focuses on Dialpad, Recents, Appearance, and navigation. Other screens
-inherit the palette and shared surfaces, but do not yet have bespoke Crystal layouts.
+## Live glass renderer
 
-The glass material uses Compose gradients, translucency, and shadows; it does not
-perform live background blur, optical refraction, or render a 3D scene. Depth is
-created with perspective transforms and layered surfaces. This avoids continuous
-background capture and idle animation. Device performance still needs measurement
-before claiming any specific frame-rate target.
+`CrystalBackdropCapture.kt` records a GPU `GraphicsLayer` for the material source.
+Controls sample the decorative background. The dock uses a separate capture of
+screen content, and call screens capture their contact poster. Keeping source and
+effect layers separate prevents recursive self-capture.
+
+On hardware-accelerated Android 13+, an AGSL `RuntimeShader` uses a rounded shape's
+signed distance and edge normal to displace actual source pixels, with directional
+highlights. `RenderEffect` chains this refraction with backdrop blur. Android 12
+and 12L use backdrop blur. Android 11, software rendering, and separate dialog
+windows without a source use readable opaque materials. The glass renderer uses no colored
+chromatic dispersion, screenshot readback, added rendering dependency, or idle
+animation loop.
+
+See Android's [graphics layer documentation](https://developer.android.com/develop/ui/compose/graphics/draw/modifiers)
+and [AGSL guide](https://developer.android.com/develop/ui/views/graphics/agsl/using-agsl).
 
 ## Validation
-
-Run:
 
 ```sh
 ./gradlew :app:assembleDebug :app:testDebugUnitTest \
@@ -44,15 +53,22 @@ Run:
   --tests com.ryanshelby.linea.FieryCallButtonTest
 ```
 
-`CrystalDesignTest` covers safe preference fallback, independent light/dark/OLED
-selection, and minimum 4.5:1 text contrast on conservative translucent backgrounds.
-The call-button unit tests predate Crystal and cover preference behavior; gesture
-verification is performed on the emulator.
+The design tests cover preference fallback, independent light/dark/OLED selection,
+text contrast over conservative translucent backgrounds, and the Android-version,
+software-rendering, and missing-source fallback policy. Gesture behavior is checked
+on the emulator; existing call-button unit tests cover preference behavior.
 
 Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
+Optimized signed APK: `app/build/outputs/apk/release/app-release.apk`.
 
-Emulator checks completed on Android at 1440 × 3120 / 560 dpi, plus a 360 dp-wide
-configuration with font scale 1.3. Verified light/dark rendering, inline Recents
-expansion, entering digits, long-press skin switching without dialing, restoration
-after process restart, and switching back to Classic. Emulator density and font
-scale were restored after testing. The final APK is installed on the emulator.
+## Verification record
+
+The debug build and 18 focused unit tests pass. Android lint reports 15 existing
+errors in files unchanged by this design update (telecom permissions, activity key
+dispatch, and the manifest hardware declaration); it reports no errors in the new
+glass renderer or design code.
+
+Emulator checks cover light/dark appearance, number entry, long-press skin change
+without dialing, contact profiles, and a 360 dp viewport at 1.3 font scale. The
+built-in call simulator verifies incoming, Answer, active call controls, and End
+Call without a carrier connection. Display settings are restored after testing.

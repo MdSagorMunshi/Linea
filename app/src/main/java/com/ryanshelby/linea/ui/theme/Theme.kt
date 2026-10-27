@@ -1,10 +1,10 @@
 package com.ryanshelby.linea.ui.theme
 
 import android.app.Activity
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.tween
+import androidx.compose.runtime.remember
+import com.ryanshelby.linea.ui.components.rememberCrystalBackdropSource
+import com.ryanshelby.linea.ui.components.captureCrystalBackdrop
+import com.ryanshelby.linea.ui.components.LocalCrystalBackdrop
 import com.ryanshelby.linea.data.preferences.DesignStyle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -63,7 +63,10 @@ fun LineaTheme(
         else -> DarkPalette
     }
 
-    val activePalette = if (designStyle == DesignStyle.CRYSTAL) crystalPalette(basePalette) else basePalette
+    val activePalette = remember(basePalette, designStyle) {
+        if (designStyle == DesignStyle.CRYSTAL) crystalPalette(basePalette) else basePalette
+    }
+    val backdrop = rememberCrystalBackdropSource()
 
     LineaColors.isCrystal = designStyle == DesignStyle.CRYSTAL
     // Reactively update LineaColors snapshot state so all composables recompose instantly
@@ -93,7 +96,8 @@ fun LineaTheme(
 
     CompositionLocalProvider(
         LocalReduceAnimations provides reduceAnimations,
-        LocalDesignStyle provides designStyle
+        LocalDesignStyle provides designStyle,
+        LocalCrystalBackdrop provides backdrop
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -105,11 +109,10 @@ fun LineaTheme(
                     .fillMaxSize()
                     .background(activePalette.BackgroundGradient)
             ) {
-                AnimatedVisibility(
-                    visible = designStyle == DesignStyle.CRYSTAL,
-                    enter = fadeIn(tween(if (reduceAnimations) 0 else 300)),
-                    exit = fadeOut(tween(if (reduceAnimations) 0 else 200))
-                ) { CrystalBackdrop() }
+                if (designStyle == DesignStyle.CRYSTAL) {
+                    Box(Modifier.fillMaxSize().captureCrystalBackdrop(backdrop)
+                        .background(activePalette.BackgroundGradient)) { CrystalBackdrop() }
+                }
                 content()
             }
         }

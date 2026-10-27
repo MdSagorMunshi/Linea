@@ -80,6 +80,7 @@ import com.ryanshelby.linea.telecom.LineaCallState
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.components.PreCallNoteBanner
 import com.ryanshelby.linea.ui.components.neumorphic
+import com.ryanshelby.linea.ui.incall.components.CallScene
 import com.ryanshelby.linea.ui.incall.components.ContactPosterBackground
 import com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine
 import com.ryanshelby.linea.ui.theme.LineaColors
@@ -161,12 +162,8 @@ fun InCallScreen(
         showKeypad = false
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    CallScene(callInfo.photoUri, callInfo.displayName ?: callInfo.phoneNumber, modifier) {
         // Full-Screen Frosted Contact Poster Background
-        ContactPosterBackground(
-            photoUri = callInfo.photoUri,
-            displayName = callInfo.displayName ?: callInfo.phoneNumber
-        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -276,7 +273,7 @@ fun InCallScreen(
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = LineaColors.AccentGreen,
-                                        contentColor = Color.White
+                                        contentColor = if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White
                                     )
                                 ) {
                                     Text("Hold & Answer", style = LineaTypography.bodySmall.copy(fontSize = 12.sp))
@@ -288,7 +285,7 @@ fun InCallScreen(
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = LineaColors.TitaniumBlue,
-                                        contentColor = Color.White
+                                        contentColor = if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White
                                     )
                                 ) {
                                     Text("End & Answer", style = LineaTypography.bodySmall.copy(fontSize = 12.sp))
@@ -439,7 +436,7 @@ fun InCallScreen(
                     ContactAvatar(
                         photoUri = callInfo.photoUri,
                         displayName = callInfo.displayName?.ifBlank { null } ?: callInfo.phoneNumber,
-                        size = 112.dp,
+                        size = if (LineaColors.isCrystal) 144.dp else 112.dp,
                         initialsTextSize = 42.sp,
                         borderWidth = 1.5.dp,
                         borderColor = borderColor
@@ -450,7 +447,7 @@ fun InCallScreen(
                     // Caller Display Name
                     Text(
                         text = callInfo.displayName?.ifBlank { null } ?: callInfo.phoneNumber.ifBlank { "Unknown" },
-                        style = LineaTypography.headlineMedium,
+                        style = if (LineaColors.isCrystal) LineaTypography.headlineLarge else LineaTypography.headlineMedium,
                         color = LineaColors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -758,7 +755,9 @@ private fun InCallActionButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val reduceAnimations = LocalReduceAnimations.current
 
-    val scale = if (isPressed && !reduceAnimations && enabled) 0.90f else 1.0f
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        if (isPressed && !reduceAnimations && enabled) .94f else 1f,
+        spring(dampingRatio = .85f, stiffness = 500f), label = "call_control_press")
     val iconTint by animateColorAsState(
         targetValue = when {
             !enabled -> LineaColors.TextSecondary.copy(alpha = 0.35f)
@@ -793,9 +792,9 @@ private fun InCallActionButton(
     ) {
         Box(
             modifier = Modifier
-                .size(56.dp)
+                .size(if (LineaColors.isCrystal) 64.dp else 56.dp)
                 .neumorphic(
-                    shape = CircleShape,
+                    shape = if (LineaColors.isCrystal) RoundedCornerShape(24.dp) else CircleShape,
                     elevation = currentElevation,
                     isPressed = isPressed,
                     isSunken = isActive,
@@ -866,7 +865,7 @@ internal fun EndCallButton(
         Icon(
             imageVector = Icons.Filled.CallEnd,
             contentDescription = "End Call",
-            tint = Color.White,
+            tint = if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White,
             modifier = Modifier.size(32.dp)
         )
     }

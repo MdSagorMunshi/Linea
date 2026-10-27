@@ -10,7 +10,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import com.ryanshelby.linea.ui.components.rememberCrystalBackdropSource
+import com.ryanshelby.linea.ui.components.captureCrystalBackdrop
+import com.ryanshelby.linea.ui.components.LocalCrystalBackdrop
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -89,6 +103,7 @@ fun LineaNavGraph(
     contactsViewModel: ContactsViewModel = hiltViewModel(),
     historyViewModel: HistoryViewModel = hiltViewModel()
 ) {
+    val contentBackdrop = rememberCrystalBackdropSource()
     val context = LocalContext.current
     var currentDestination by remember { mutableStateOf(targetDestination ?: LineaDestination.DIALPAD) }
     var settingsSubScreen by remember { mutableStateOf<SettingsSubScreen?>(null) }
@@ -149,12 +164,24 @@ fun LineaNavGraph(
         currentDestination = LineaDestination.DIALPAD
     }
 
+    val baseCovered = activeContactDashboardId != null || settingsSubScreen != null || isPrivateSafeOpen
     Box(modifier = modifier.fillMaxSize()) {
         // Base screens (kept in composition so scroll position and UI states are preserved smoothly)
-        Crossfade(
+        AnimatedContent(
+            modifier = (if (LineaColors.isCrystal) Modifier.captureCrystalBackdrop(contentBackdrop)
+                .graphicsLayer { alpha = if (baseCovered) 0f else 1f } else Modifier)
+                .then(if (baseCovered) Modifier.clearAndSetSemantics {} else Modifier),
             targetState = currentDestination,
-            animationSpec = tween(durationMillis = if (reduceAnim) 120 else 220),
-            label = "screen_crossfade"
+            transitionSpec = {
+                if (reduceAnim || !LineaColors.isCrystal) {
+                    fadeIn(tween(if (reduceAnim) 100 else 220)) togetherWith fadeOut(tween(if (reduceAnim) 100 else 220))
+                } else {
+                    val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
+                    (fadeIn(tween(260)) + slideInHorizontally(tween(300)) { it / 22 * direction } + scaleIn(tween(300), initialScale = .985f)) togetherWith
+                        (fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { -it / 28 * direction } + scaleOut(tween(220), targetScale = .99f))
+                }
+            },
+            label = "screen_transition"
         ) { destination ->
             when (destination) {
                 LineaDestination.DIALPAD -> {
@@ -226,6 +253,7 @@ fun LineaNavGraph(
 
         // Floating Neumorphic Bottom Navigation Bar with collapsible circle, spring morphing & gestures
         if (activeContactDashboardId == null && settingsSubScreen == null && !isPrivateSafeOpen) {
+            CompositionLocalProvider(LocalCrystalBackdrop provides contentBackdrop) {
             FloatingGlassNavBar(
                 currentDestination = currentDestination,
                 onNavigate = { destination ->
@@ -251,6 +279,7 @@ fun LineaNavGraph(
                 onSetTemporarilyExpanded = { expanded -> isNavbarTemporarilyExpanded = expanded },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
+            }
         }
 
         // Private Safe Full-screen Overlay

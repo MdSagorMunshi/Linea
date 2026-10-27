@@ -164,7 +164,7 @@ fun InCallNoteSheet(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = LineaColors.TitaniumBlue,
-                    contentColor = Color.White
+                    contentColor = (if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White)
                 )
             ) {
                 Icon(

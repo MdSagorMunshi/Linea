@@ -14,6 +14,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import com.ryanshelby.linea.ui.components.crystalSurface
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -121,16 +129,17 @@ fun ContactsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(Modifier.weight(1f).padding(end = 8.dp)) {
                     Text(
-                        text = "Contacts",
-                        style = LineaTypography.titleLarge,
+                        text = if (LineaColors.isCrystal) "People" else "Contacts",
+                        style = if (LineaColors.isCrystal) LineaTypography.headlineLarge else LineaTypography.titleLarge,
                         color = LineaColors.TextPrimary
                     )
                     Text(
-                        text = if (isPrivateModeUnlocked) "Unlocked: Showing all contacts" else "Address book with SIM affinity",
+                        text = if (isPrivateModeUnlocked) "Unlocked: Showing all contacts" else if (LineaColors.isCrystal) "Keep your people close." else "Address book with SIM affinity",
                         style = LineaTypography.bodySmall,
-                        color = if (isPrivateModeUnlocked) LineaColors.MutedSageGreen else LineaColors.TitaniumBlue
+                        color = if (isPrivateModeUnlocked) LineaColors.MutedSageGreen else LineaColors.TitaniumBlue,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -139,7 +148,7 @@ fun ContactsScreen(
                     IconButton(
                         onClick = { isScannerSheetOpen = true },
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(if (LineaColors.isCrystal) 48.dp else 38.dp)
                             .clip(CircleShape)
                             .background(LineaColors.GlassFill)
                             .border(
@@ -215,7 +224,7 @@ fun ContactsScreen(
                     IconButton(
                         onClick = { viewModel.openPinDialog() },
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(if (LineaColors.isCrystal) 48.dp else 38.dp)
                             .clip(CircleShape)
                             .background(LineaColors.GlassFill)
                             .border(
@@ -357,6 +366,7 @@ fun ContactsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .padding(bottom = if (LineaColors.isCrystal) 112.dp else 0.dp)
                 ) {
                     // Contact List
                     LazyColumn(
@@ -365,7 +375,7 @@ fun ContactsScreen(
                             .weight(1f)
                             .padding(end = 6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
-                        contentPadding = PaddingValues(bottom = 100.dp)
+                        contentPadding = PaddingValues(bottom = if (LineaColors.isCrystal) 16.dp else 100.dp)
                     ) {
                         val sortedLetters = groupedContacts.keys.sorted()
 
@@ -422,7 +432,7 @@ fun ContactsScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 48.dp, bottom = 100.dp)
+                .padding(end = 48.dp, bottom = if (LineaColors.isCrystal) 120.dp else 100.dp)
                 .size(56.dp)
                 .neumorphic(
                     shape = CircleShape,
@@ -435,7 +445,7 @@ fun ContactsScreen(
             Icon(
                 imageVector = Icons.Filled.Add,
                 contentDescription = "Add Contact",
-                tint = Color.White,
+                tint = if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -542,7 +552,7 @@ private fun PinnedContactCard(
         shape = RoundedCornerShape(16.dp),
         borderColor = LineaColors.GlassBorder,
         modifier = Modifier
-            .width(100.dp)
+            .width(if (LineaColors.isCrystal) 120.dp else 100.dp)
             .clickable(onClick = onClick)
     ) {
         Column(
@@ -552,7 +562,7 @@ private fun PinnedContactCard(
             ContactAvatar(
                 photoUri = contact.photoUri,
                 displayName = contact.displayName,
-                size = 42.dp,
+                size = if (LineaColors.isCrystal) 56.dp else 42.dp,
                 borderColor = LineaColors.TitaniumBlue.copy(alpha = 0.5f)
             )
 
@@ -587,12 +597,14 @@ private fun ContactCardRow(
         modifier = Modifier
             .fillMaxWidth()
             .neumorphic(
-                shape = RoundedCornerShape(14.dp),
-                elevation = 3.dp,
+                shape = RoundedCornerShape(if (LineaColors.isCrystal) 24.dp else 14.dp),
+                elevation = if (LineaColors.isCrystal) 6.dp else 3.dp,
                 surfaceColor = LineaColors.NeuSurfaceRaised
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .heightIn(min = if (LineaColors.isCrystal) 82.dp else 0.dp)
+            .semantics { role = Role.Button }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -660,6 +672,10 @@ private fun ContactCardRow(
             }
         }
 
+        if (LineaColors.isCrystal) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
+                tint = LineaColors.TextSecondary, modifier = Modifier.size(20.dp))
+        }
         // SIM Affinity indicator if present
         if (contact.preferredSimSlot != null) {
             Box(

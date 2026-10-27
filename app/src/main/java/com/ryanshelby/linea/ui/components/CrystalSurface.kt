@@ -8,6 +8,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalView
+import android.os.Build
 import android.graphics.Paint
 import android.graphics.RectF
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -23,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
 
-/** Layered translucent glass with a beveled rim; no per-frame bitmap or backdrop capture. */
+/** Live refracted glass over a separately recorded GPU backdrop, with readable material tints. */
 fun Modifier.crystalSurface(
     shape: Shape,
     elevation: Dp = 6.dp,
@@ -32,6 +34,10 @@ fun Modifier.crystalSurface(
     opaque: Boolean = false
 ): Modifier = composed {
     val light = LineaColors.isLight
+    val source = LocalCrystalBackdrop.current
+    val view = LocalView.current
+    val fallback = crystalOpticsMode(Build.VERSION.SDK_INT, view.isHardwareAccelerated,
+        source != null && source.owner === view) == CrystalOpticsMode.OPAQUE
     val reduceMotion = LocalReduceAnimations.current
     val surface by animateColorAsState(
         targetValue = tint ?: if (pressed) LineaColors.NeuSurfaceSunken else LineaColors.GlassFill,
@@ -39,8 +45,8 @@ fun Modifier.crystalSurface(
     )
     val rim = Brush.linearGradient(
         listOf(
-            Color.White.copy(alpha = if (light) .95f else .48f),
-            Color.White.copy(alpha = if (light) .35f else .07f),
+            Color.White.copy(alpha = if (light) .85f else .38f),
+            Color.White.copy(alpha = if (light) .2f else .04f),
             Color.White.copy(alpha = if (light) .7f else .2f)
         )
     )
@@ -60,9 +66,10 @@ fun Modifier.crystalSurface(
             }
         }
         .clip(shape)
+        .then(if (!opaque && tint == null) Modifier.crystalOptics(shape, pressed) else Modifier)
         .background(Brush.verticalGradient(listOf(
-            surface.copy(alpha = if (opaque || tint != null) 1f else .94f),
-            surface.copy(alpha = if (opaque || tint != null) 1f else .84f)
+            surface.copy(alpha = if (opaque || tint != null || fallback) 1f else if (light) .78f else .72f),
+            surface.copy(alpha = if (opaque || tint != null || fallback) 1f else if (light) .66f else .58f)
         )))
         .background(Brush.linearGradient(listOf(
             Color.White.copy(alpha = if (light) .42f else .10f),

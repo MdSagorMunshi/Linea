@@ -66,6 +66,7 @@ import com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine
 import com.ryanshelby.linea.ui.components.ContactAvatar
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
 import com.ryanshelby.linea.ui.components.neumorphic
+import com.ryanshelby.linea.ui.incall.components.CallScene
 import com.ryanshelby.linea.ui.incall.components.ContactPosterBackground
 import com.ryanshelby.linea.ui.incall.components.QuickDeclineSheet
 import com.ryanshelby.linea.ui.theme.LineaColors
@@ -136,12 +137,8 @@ fun IncomingCallScreen(
             animationSpec = slideSpec
         )
     ) {
-        Box(modifier = modifier.fillMaxSize()) {
+        CallScene(callInfo.photoUri, callInfo.displayName ?: callInfo.phoneNumber, modifier) {
             // 1. Full-Screen Frosted Contact Poster Background
-            ContactPosterBackground(
-                photoUri = callInfo.photoUri,
-                displayName = callInfo.displayName ?: callInfo.phoneNumber
-            )
 
             // 2. Main Content Container
             Column(
@@ -161,7 +158,9 @@ fun IncomingCallScreen(
                     borderColor = LineaColors.TitaniumBlue.copy(alpha = 0.35f),
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
-                    val labelText = if (callerIdResult.isEmergency) {
+                    val labelText = if (LineaColors.isCrystal) {
+                        if (callerIdResult.isEmergency) "EMERGENCY CALL" else "INCOMING CALL"
+                    } else if (callerIdResult.isEmergency) {
                         "🚨 EMERGENCY SERVICES • INCOMING"
                     } else if (callerIdResult.isTollFree) {
                         "📞 TOLL-FREE CALL • INCOMING"
@@ -195,7 +194,7 @@ fun IncomingCallScreen(
                         modifier = Modifier.size(170.dp)
                     ) {
                         // Radiant incoming ring pulses
-                        if (!reduceAnimations && !effectiveSilenced) {
+                        if (!reduceAnimations && !effectiveSilenced && !LineaColors.isCrystal) {
                             Box(
                                 modifier = Modifier
                                     .size(140.dp)
@@ -488,7 +487,7 @@ private fun TactileCallAction(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = Color.White,
+                tint = if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White,
                 modifier = Modifier.size(34.dp)
             )
         }

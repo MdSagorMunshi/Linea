@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import com.ryanshelby.linea.data.preferences.DesignStyle
@@ -66,15 +67,25 @@ fun CrystalBackdrop() {
                 center = Offset(0f, size.height * .72f), radius = radius
             ), radius, Offset(0f, size.height * .72f)
         )
-        // Broad, quiet caustic curves behind the controls.
-        repeat(3) { index ->
-            drawArc(
-                color = Color.White.copy(alpha = if (light) .32f else .055f),
-                startAngle = 115f, sweepAngle = 160f, useCenter = false,
-                topLeft = Offset(size.width * .28f + index * 12f, -size.height * .04f),
-                size = Size(size.width * 1.8f, size.height * .68f),
-                style = Stroke(width = (1f + index) * density)
-            )
+        // A curved titanium ribbon creates real edges for the glass lenses to refract.
+        val w = size.width
+        val h = size.height
+        val ribbon = Path().apply {
+            moveTo(w * 1.2f, h * .08f)
+            cubicTo(-w * .65f, h * .34f, w * .05f, h * .72f, w * 1.3f, h * .87f)
+            lineTo(w * 1.3f, h * .98f)
+            cubicTo(-w * .3f, h * .76f, -w * .72f, h * .31f, w * 1.2f, -h * .02f)
+            close()
         }
+        drawPath(ribbon, Brush.linearGradient(
+            if (light) listOf(Color(0xFFB8C6CD).copy(alpha = .38f), Color.White.copy(alpha = .8f), Color(0xFFB8C6CD).copy(alpha = .3f))
+            else listOf(Color(0xFF75858F).copy(alpha = .28f), Color(0xFFB9C8CF).copy(alpha = .16f), Color(0xFF0B1115).copy(alpha = .2f)),
+            start = Offset(w, h * .2f), end = Offset(w * .15f, h * .7f)
+        ))
+        val reflection = Path().apply {
+            moveTo(w * 1.2f, h * .08f)
+            cubicTo(-w * .65f, h * .34f, w * .05f, h * .72f, w * 1.3f, h * .87f)
+        }
+        drawPath(reflection, Color.White.copy(alpha = if (light) .85f else .20f), style = Stroke(1.2f * density))
     }
 }

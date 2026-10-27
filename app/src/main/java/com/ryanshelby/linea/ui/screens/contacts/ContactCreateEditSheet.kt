@@ -334,7 +334,7 @@ fun ContactCreateEditSheet(
                     enabled = displayName.isNotBlank() && numbersList.any { it.first.isNotBlank() },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = LineaColors.TitaniumBlue,
-                        contentColor = Color.White
+                        contentColor = (if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White)
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -377,7 +377,7 @@ fun ContactCreateEditSheet(
                         Icon(
                             imageVector = Icons.Filled.PhotoCamera,
                             contentDescription = "Set Photo",
-                            tint = Color.White,
+                            tint = (if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White),
                             modifier = Modifier.size(15.dp)
                         )
                     }
@@ -740,14 +740,14 @@ fun ContactCreateEditSheet(
                             Icon(
                                 imageVector = Icons.Filled.SimCard,
                                 contentDescription = null,
-                                tint = if (isSelected) Color.White else LineaColors.TextSecondary,
+                                tint = if (isSelected) (if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White) else LineaColors.TextSecondary,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = label,
                                 style = LineaTypography.labelSmall,
-                                color = if (isSelected) Color.White else LineaColors.TextSecondary
+                                color = if (isSelected) (if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White) else LineaColors.TextSecondary
                             )
                         }
                     }
@@ -862,7 +862,7 @@ fun ContactCreateEditSheet(
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = LineaColors.Danger,
-                            contentColor = Color.White
+                            contentColor = (if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White)
                         ),
                         shape = RoundedCornerShape(10.dp)
                     ) {

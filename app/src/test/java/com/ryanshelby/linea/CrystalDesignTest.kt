@@ -6,11 +6,24 @@ import com.ryanshelby.linea.ui.theme.AmoledPalette
 import com.ryanshelby.linea.ui.theme.DarkPalette
 import com.ryanshelby.linea.ui.theme.LightPalette
 import com.ryanshelby.linea.ui.theme.crystalPalette
+import com.ryanshelby.linea.ui.components.CrystalOpticsMode
+import com.ryanshelby.linea.ui.components.crystalOpticsMode
 import org.junit.Assert.*
 import org.junit.Test
 import kotlin.math.pow
 
 class CrystalDesignTest {
+    @Test
+    fun glassUsesSupportedRenderingAndSafeFallbacks() {
+        assertEquals(CrystalOpticsMode.OPAQUE, crystalOpticsMode(30, true, true))
+        assertEquals(CrystalOpticsMode.BLUR, crystalOpticsMode(31, true, true))
+        assertEquals(CrystalOpticsMode.BLUR, crystalOpticsMode(32, true, true))
+        assertEquals(CrystalOpticsMode.REFRACTION, crystalOpticsMode(33, true, true))
+        assertEquals(CrystalOpticsMode.REFRACTION, crystalOpticsMode(37, true, true))
+        assertEquals(CrystalOpticsMode.OPAQUE, crystalOpticsMode(37, false, true))
+        assertEquals(CrystalOpticsMode.OPAQUE, crystalOpticsMode(37, true, false))
+    }
+
     @Test
     fun existingAndUnknownPreferencesKeepClassic() {
         assertEquals(DesignStyle.CLASSIC, DesignStyle.fromStored(null))
@@ -29,9 +42,9 @@ class CrystalDesignTest {
     @Test
     fun bodyTextRemainsReadableOverTranslucentGlass() {
         listOf(LightPalette, DarkPalette, AmoledPalette).map(::crystalPalette).forEach { palette ->
-            // Test the least opaque end of the glass fill against both background endpoints.
+            // Test the conservative least opaque glass fill against both background endpoints.
             listOf(palette.BackgroundTop, palette.BackgroundBottom).forEach { background ->
-                val glass = blend(palette.GlassFill, background, .76f)
+                val glass = blend(palette.GlassFill, background, .58f)
                 listOf(palette.TextPrimary, palette.TextSecondary, palette.TextTertiary).forEach { text ->
                     assertTrue("Text contrast must be at least 4.5:1: ${contrast(text, glass)}", contrast(text, glass) >= 4.5)
                 }

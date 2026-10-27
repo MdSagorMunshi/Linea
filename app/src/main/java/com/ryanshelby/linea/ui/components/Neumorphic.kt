@@ -65,7 +65,8 @@ fun Modifier.neumorphic(
     borderShadowColor: Color? = null
 ): Modifier = composed {
     if (LocalDesignStyle.current == DesignStyle.CRYSTAL) {
-        crystalSurface(shape, elevation, isPressed || isSunken, surfaceColor)
+        val neutral = surfaceColor == LineaColors.NeuSurfaceRaised || surfaceColor == LineaColors.NeuSurfaceSunken || surfaceColor == LineaColors.GlassFill
+        crystalSurface(shape, elevation, isPressed || isSunken, if (neutral) null else surfaceColor)
     } else {
         classicNeumorphic(shape, elevation, isPressed, isSunken, surfaceColor, surfaceBrush,
             lightShadowColor, darkShadowColor, borderHighlightColor, borderShadowColor)

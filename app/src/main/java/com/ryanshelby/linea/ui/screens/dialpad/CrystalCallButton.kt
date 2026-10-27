@@ -9,6 +9,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import com.ryanshelby.linea.ui.theme.LineaTypography
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
@@ -39,14 +46,14 @@ fun CrystalCallButton(alternateSkin: Boolean, onClick: () -> Unit, onToggleSkin:
     val press by animateFloatAsState(if (pressed && !reduced) 1f else 0f,
         spring(dampingRatio = .8f, stiffness = 500f), label = "crystal_call_press")
     Box(
-        modifier.size(72.dp)
+        modifier.width(128.dp).height(64.dp)
             .graphicsLayer {
                 scaleX = 1f - .06f * press + .08f * reveal.value
                 scaleY = scaleX
                 rotationX = if (reduced) 0f else press * 7f - reveal.value * 12f
                 cameraDistance = 14f * density
             }
-            .crystalSurface(CircleShape, elevation = 10.dp, pressed = pressed,
+            .crystalSurface(RoundedCornerShape(32.dp), elevation = 10.dp, pressed = pressed,
                 tint = if (alternateSkin) Color(0xFFD6E4EB) else Color(0xFF405F70))
             .combinedClickable(
                 enabled = !revealing, role = Role.Button,
@@ -70,7 +77,12 @@ fun CrystalCallButton(alternateSkin: Boolean, onClick: () -> Unit, onToggleSkin:
                 }
             ), contentAlignment = Alignment.Center
     ) {
-        Icon(Icons.Filled.Call, contentDescription = "Call",
-            tint = if (alternateSkin) Color(0xFF243F4F) else Color.White, modifier = Modifier.size(28.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Call, contentDescription = null,
+                tint = if (alternateSkin) Color(0xFF243F4F) else Color.White, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Call", style = LineaTypography.titleMedium,
+                color = if (alternateSkin) Color(0xFF243F4F) else Color.White)
+        }
     }
 }

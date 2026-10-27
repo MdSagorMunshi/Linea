@@ -72,6 +72,16 @@ import com.ryanshelby.linea.ui.screens.settings.escape.EscapeCallSheet
 import com.ryanshelby.linea.ui.screens.settings.escape.EscapeCallTab
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -150,6 +160,7 @@ fun SettingsScreen(
     }
     val searchQuery by viewModel.searchQuery.collectAsState()
     val context = LocalContext.current
+    var appearanceExpanded by rememberSaveable { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val appearanceScope = rememberCoroutineScope()
     var showClearHistoryDialog by remember { mutableStateOf(false) }
@@ -213,6 +224,7 @@ fun SettingsScreen(
                 viewModel.setSearchQuery("")
                 focusManager.clearFocus()
                 if (section == "theme" || section == "design") {
+                    appearanceExpanded = true
                     appearanceScope.launch { scrollState.animateScrollTo(0) }
                 }
             },
@@ -248,6 +260,10 @@ fun SettingsScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
+        if (LineaColors.isCrystal) {
+            CrystalSettingsHeader(userProfile.name, userPhotoBitmap, onNavigateToProfileCard)
+            Spacer(Modifier.height(20.dp))
+        } else {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -360,6 +376,8 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        }
+
         // Tactile Neumorphic Search Bar (Exclusive to Settings)
         NeumorphicWell(
             modifier = Modifier.fillMaxWidth(),
@@ -430,7 +448,23 @@ fun SettingsScreen(
             // Appearance & Motion Panel
             FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
-                    SettingsSectionHeader(icon = Icons.Filled.Palette, title = "Appearance & Motion")
+                    if (LineaColors.isCrystal) {
+                        Row(Modifier.fillMaxWidth().clickable { appearanceExpanded = !appearanceExpanded }
+                            .heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Appearance", style = LineaTypography.titleMedium, color = LineaColors.TextPrimary)
+                                Text("Crystal · ${uiState.theme.lowercase().replaceFirstChar { it.uppercase() }}",
+                                    style = LineaTypography.bodySmall, color = LineaColors.TextSecondary)
+                            }
+                            Icon(if (appearanceExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                contentDescription = if (appearanceExpanded) "Collapse appearance" else "Expand appearance",
+                                tint = LineaColors.TextSecondary)
+                        }
+                    } else SettingsSectionHeader(icon = Icons.Filled.Palette, title = "Appearance & Motion")
+                    AnimatedVisibility(visible = !LineaColors.isCrystal || appearanceExpanded,
+                        enter = if (uiState.reduceAnimations) EnterTransition.None else fadeIn() + expandVertically(),
+                        exit = if (uiState.reduceAnimations) ExitTransition.None else fadeOut() + shrinkVertically()) {
+                    Column {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -497,6 +531,8 @@ fun SettingsScreen(
                             badge = if (uiState.navbarMode == LineaPreferences.NavbarMode.COLLAPSED) "CIRCLE" else "EXPANDED",
                             onClick = onNavigateToNavbar
                         )
+                    }
+                    }
                     }
                 }
             }

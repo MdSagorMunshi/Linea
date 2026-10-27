@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import android.graphics.Bitmap
+import com.ryanshelby.linea.ui.theme.CrystalBackdrop
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -66,6 +67,7 @@ fun ContactPosterBackground(
             .fillMaxSize()
             .background(LineaColors.BackgroundBottom)
     ) {
+        if (LineaColors.isCrystal) CrystalBackdrop()
         if (bitmap != null) {
             // Real Contact Photo Poster
             Image(
@@ -75,9 +77,10 @@ fun ContactPosterBackground(
                 modifier = Modifier
                     .fillMaxSize()
                     .scale(posterScale)
-                    .blur(20.dp)
+                    .blur(if (LineaColors.isCrystal) 36.dp else 20.dp)
+                    .alpha(if (LineaColors.isCrystal) .22f else 1f)
             )
-        } else {
+        } else if (!LineaColors.isCrystal) {
             // Generative Titanium Mesh Poster
             Box(
                 modifier = Modifier
@@ -106,6 +109,7 @@ fun ContactPosterBackground(
             }
         }
 
+        if (!LineaColors.isCrystal) {
         // Layered Vignette Gradient Scrim: ensures flawless contrast for status bar, typography, and action pills
         Box(
             modifier = Modifier
@@ -120,5 +124,6 @@ fun ContactPosterBackground(
                     )
                 )
         )
+        }
     }
 }

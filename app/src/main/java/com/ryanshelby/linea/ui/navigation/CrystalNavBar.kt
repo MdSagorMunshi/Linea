@@ -37,7 +37,7 @@ fun CrystalNavBar(current: LineaDestination, onNavigate: (LineaDestination) -> U
     Box(modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center) {
         BoxWithConstraints(Modifier.widthIn(max = 430.dp).fillMaxWidth()
-            .crystalSurface(RoundedCornerShape(30.dp), elevation = 14.dp, opaque = true).padding(6.dp)) {
+            .crystalSurface(RoundedCornerShape(30.dp), elevation = 14.dp).padding(6.dp)) {
             val slot = maxWidth / LineaDestination.entries.size
             val density = LocalDensity.current
             Box(Modifier.offset { androidx.compose.ui.unit.IntOffset(with(density) { (slot * index).roundToPx() }, 0) }

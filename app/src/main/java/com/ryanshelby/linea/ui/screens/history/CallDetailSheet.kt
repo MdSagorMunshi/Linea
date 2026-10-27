@@ -513,7 +513,7 @@ fun CallDetailSheet(
                     Icon(
                         imageVector = Icons.Filled.NoteAdd,
                         contentDescription = "Save Note",
-                        tint = if (noteInput.isNotBlank()) Color.White else LineaColors.TextSecondary,
+                        tint = if (noteInput.isNotBlank()) (if (LineaColors.isCrystal) LineaColors.OnAccent else Color.White) else LineaColors.TextSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
