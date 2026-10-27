@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -70,6 +73,8 @@ import com.ryanshelby.linea.ui.screens.settings.escape.EscapeCallTab
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -113,7 +118,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
@@ -146,6 +151,7 @@ fun SettingsScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val appearanceScope = rememberCoroutineScope()
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showEscapeCallSheet by remember { mutableStateOf(false) }
     var escapeCallTab by remember { mutableStateOf(EscapeCallTab.SIMULATOR) }
@@ -203,7 +209,13 @@ fun SettingsScreen(
                 }
             },
             onShowClearHistoryDialog = { showClearHistoryDialog = true },
-            onScrollToSection = { _ -> viewModel.setSearchQuery("") },
+            onScrollToSection = { section ->
+                viewModel.setSearchQuery("")
+                focusManager.clearFocus()
+                if (section == "theme" || section == "design") {
+                    appearanceScope.launch { scrollState.animateScrollTo(0) }
+                }
+            },
             onOpenEscapeCall = {
                 escapeCallTab = EscapeCallTab.SIMULATOR
                 showEscapeCallSheet = true
@@ -415,6 +427,82 @@ fun SettingsScreen(
                 onSelectSuggestedQuery = { viewModel.setSearchQuery(it) }
             )
         } else {
+            // Appearance & Motion Panel
+            FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
+                    SettingsSectionHeader(icon = Icons.Filled.Palette, title = "Appearance & Motion")
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    DesignPicker(selected = uiState.designStyle, onSelect = viewModel::setDesignStyle)
+                    Spacer(modifier = Modifier.height(22.dp))
+
+                    Text(
+                        text = "Color Theme",
+                        style = LineaTypography.bodyMedium,
+                        color = LineaColors.TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        SelectionPill(
+                            label = "Light",
+                            isSelected = uiState.theme.uppercase() == "LIGHT",
+                            onClick = { viewModel.setTheme("LIGHT") }
+                        )
+                        SelectionPill(
+                            label = "Dark",
+                            isSelected = uiState.theme.uppercase() == "DARK",
+                            onClick = { viewModel.setTheme("DARK") }
+                        )
+                        SelectionPill(
+                            label = "OLED",
+                            isSelected = uiState.theme.uppercase() == "AMOLED",
+                            onClick = { viewModel.setTheme("AMOLED") }
+                        )
+                        SelectionPill(
+                            label = "System",
+                            isSelected = uiState.theme.uppercase() == "SYSTEM",
+                            onClick = { viewModel.setTheme("SYSTEM") }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    SettingsToggleRow(
+                        title = "Reduce Animations",
+                        subtitle = "Swaps spring physics for fast cross-fades",
+                        checked = uiState.reduceAnimations,
+                        onCheckedChange = { viewModel.setReduceAnimations(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    if (uiState.designStyle == com.ryanshelby.linea.data.preferences.DesignStyle.CRYSTAL) {
+                        Text("Crystal includes a floating glass dock.",
+                            style = LineaTypography.bodySmall, color = LineaColors.TextSecondary)
+                    } else {
+                        SettingsNavCard(
+                            icon = Icons.Filled.RadioButtonChecked,
+                            title = "Navigation Bar",
+                            subtitle = if (uiState.navbarMode == LineaPreferences.NavbarMode.COLLAPSED) {
+                                "Floating Circle (${uiState.navbarCircleSize}dp • ${uiState.navbarAnimationStyle.lowercase().replaceFirstChar { it.uppercase() }})"
+                            } else {
+                                "Expanded Pill Bar (${uiState.navbarAnimationStyle.lowercase().replaceFirstChar { it.uppercase() }})"
+                            },
+                            badge = if (uiState.navbarMode == LineaPreferences.NavbarMode.COLLAPSED) "CIRCLE" else "EXPANDED",
+                            onClick = onNavigateToNavbar
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
             // Call Handling & Telecom Readiness Status
             val health = remember(isDefaultDialer) { viewModel.getHealth() }
             RoleBanner(
@@ -1017,73 +1105,6 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Appearance & Motion Panel
-        FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
-                SettingsSectionHeader(icon = Icons.Filled.Palette, title = "Appearance & Motion")
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Color Theme",
-                    style = LineaTypography.bodyMedium,
-                    color = LineaColors.TextPrimary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    SelectionPill(
-                        label = "Light",
-                        isSelected = uiState.theme.uppercase() == "LIGHT",
-                        onClick = { viewModel.setTheme("LIGHT") }
-                    )
-                    SelectionPill(
-                        label = "Dark",
-                        isSelected = uiState.theme.uppercase() == "DARK",
-                        onClick = { viewModel.setTheme("DARK") }
-                    )
-                    SelectionPill(
-                        label = "OLED",
-                        isSelected = uiState.theme.uppercase() == "AMOLED",
-                        onClick = { viewModel.setTheme("AMOLED") }
-                    )
-                    SelectionPill(
-                        label = "System",
-                        isSelected = uiState.theme.uppercase() == "SYSTEM",
-                        onClick = { viewModel.setTheme("SYSTEM") }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                SettingsToggleRow(
-                    title = "Reduce Animations",
-                    subtitle = "Swaps spring physics for fast cross-fades",
-                    checked = uiState.reduceAnimations,
-                    onCheckedChange = { viewModel.setReduceAnimations(it) }
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                SettingsNavCard(
-                    icon = Icons.Filled.RadioButtonChecked,
-                    title = "Navigation Bar",
-                    subtitle = if (uiState.navbarMode == LineaPreferences.NavbarMode.COLLAPSED) {
-                        "Floating Circle (${uiState.navbarCircleSize}dp • ${uiState.navbarAnimationStyle.lowercase().replaceFirstChar { it.uppercase() }})"
-                    } else {
-                        "Expanded Pill Bar (${uiState.navbarAnimationStyle.lowercase().replaceFirstChar { it.uppercase() }})"
-                    },
-                    badge = if (uiState.navbarMode == LineaPreferences.NavbarMode.COLLAPSED) "CIRCLE" else "EXPANDED",
-                    onClick = onNavigateToNavbar
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
         // Call History & Retention Panel
         FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
@@ -1496,13 +1517,14 @@ private fun SelectionPill(
                 RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .heightIn(min = 48.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             fontSize = 12.sp,
-            color = if (isSelected) LineaColors.TextPrimary else LineaColors.TextSecondary
+            color = if (isSelected && LineaColors.isCrystal) LineaColors.OnAccent else if (isSelected) LineaColors.TextPrimary else LineaColors.TextSecondary
         )
     }
 }

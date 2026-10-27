@@ -126,9 +126,10 @@ class InCallActivity : ComponentActivity() {
 
 
             val themePreference by lineaPreferences.themePreference.collectAsState(initial = "DARK")
+            val designStyle by lineaPreferences.designStyle.collectAsState(initial = com.ryanshelby.linea.data.preferences.DesignStyle.CLASSIC)
 
             CompositionLocalProvider(LocalReduceAnimations provides reduceAnimations) {
-                LineaTheme(theme = themePreference, reduceAnimations = reduceAnimations) {
+                LineaTheme(theme = themePreference, reduceAnimations = reduceAnimations, designStyle = designStyle) {
                     val call = currentCall ?: secondaryCall
                     if (call != null && call.state != LineaCallState.DISCONNECTED) {
                         if (call.state == LineaCallState.RINGING && call.isIncoming) {

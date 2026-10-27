@@ -116,6 +116,10 @@ fun CallButton(
     onToggleFiery: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    if (com.ryanshelby.linea.ui.theme.LocalDesignStyle.current == com.ryanshelby.linea.data.preferences.DesignStyle.CRYSTAL) {
+        CrystalCallButton(isFiery, onClick, onToggleFiery, modifier)
+        return
+    }
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
 

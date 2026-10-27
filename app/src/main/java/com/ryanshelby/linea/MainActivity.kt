@@ -99,9 +99,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val reduceAnimations by lineaPreferences.reduceAnimations.collectAsState(initial = false)
             val themePreference by lineaPreferences.themePreference.collectAsState(initial = "DARK")
+            val designStyle by lineaPreferences.designStyle.collectAsState(initial = com.ryanshelby.linea.data.preferences.DesignStyle.CLASSIC)
             val permissionIntroShown by lineaPreferences.permissionIntroShown.collectAsState(initial = null)
 
-            LineaTheme(theme = themePreference, reduceAnimations = reduceAnimations) {
+            LineaTheme(theme = themePreference, reduceAnimations = reduceAnimations, designStyle = designStyle) {
                 LineaNavGraph(
                     isDefaultDialer = isDefaultDialerState,
                     simAccounts = simAccountsState,

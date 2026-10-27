@@ -24,6 +24,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import com.ryanshelby.linea.ui.theme.LocalDesignStyle
+import com.ryanshelby.linea.data.preferences.DesignStyle
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
@@ -50,6 +53,26 @@ import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
  * Draws opposing directional light highlight (top-left) and ambient shadow (bottom-right).
  */
 fun Modifier.neumorphic(
+    shape: Shape = RoundedCornerShape(LineaDimensions.CardCornerRadius),
+    elevation: Dp = 5.dp,
+    isPressed: Boolean = false,
+    isSunken: Boolean = false,
+    surfaceColor: Color? = null,
+    surfaceBrush: Brush? = null,
+    lightShadowColor: Color? = null,
+    darkShadowColor: Color? = null,
+    borderHighlightColor: Color? = null,
+    borderShadowColor: Color? = null
+): Modifier = composed {
+    if (LocalDesignStyle.current == DesignStyle.CRYSTAL) {
+        crystalSurface(shape, elevation, isPressed || isSunken, surfaceColor)
+    } else {
+        classicNeumorphic(shape, elevation, isPressed, isSunken, surfaceColor, surfaceBrush,
+            lightShadowColor, darkShadowColor, borderHighlightColor, borderShadowColor)
+    }
+}
+
+private fun Modifier.classicNeumorphic(
     shape: Shape = RoundedCornerShape(LineaDimensions.CardCornerRadius),
     elevation: Dp = 5.dp,
     isPressed: Boolean = false,

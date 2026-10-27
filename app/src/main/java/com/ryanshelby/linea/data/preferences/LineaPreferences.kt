@@ -106,6 +106,7 @@ class LineaPreferences @Inject constructor(
         val KEY_DIALPAD_VIBRATION = booleanPreferencesKey("dialpad_vibration")
         val KEY_CALL_VIBRATION = booleanPreferencesKey("call_vibration")
         val KEY_THEME = stringPreferencesKey("theme") // DARK, LIGHT, SYSTEM, AMOLED
+        val KEY_DESIGN_STYLE = stringPreferencesKey("design_style")
         val KEY_NUMBER_FORMATTING = booleanPreferencesKey("number_formatting")
         val KEY_CALL_CONFIRMATION = booleanPreferencesKey("call_confirmation")
         val KEY_CALL_COUNTDOWN_SECONDS = intPreferencesKey("call_countdown_seconds") // 0, 3, 5, 10
@@ -212,6 +213,7 @@ class LineaPreferences @Inject constructor(
     val blockInternational: Flow<Boolean> = dataStore.data.map { it[KEY_BLOCK_INTERNATIONAL] ?: false }
     val allowListMode: Flow<Boolean> = dataStore.data.map { it[KEY_ALLOW_LIST_MODE] ?: false }
     val themePreference: Flow<String> = dataStore.data.map { it[KEY_THEME] ?: "DARK" }
+    val designStyle: Flow<DesignStyle> = dataStore.data.map { DesignStyle.fromStored(it[KEY_DESIGN_STYLE]) }
     val cleanupDays: Flow<Int> = dataStore.data.map { it[KEY_CLEANUP_DAYS] ?: 0 }
     val compactDialpad: Flow<Boolean> = dataStore.data.map { it[KEY_COMPACT_DIALPAD] ?: false }
     val activeProfile: Flow<String> = dataStore.data.map { it[KEY_ACTIVE_PROFILE] ?: "PERSONAL" }
@@ -372,6 +374,10 @@ class LineaPreferences @Inject constructor(
 
     suspend fun setThemePreference(theme: String) {
         dataStore.edit { it[KEY_THEME] = theme }
+    }
+
+    suspend fun setDesignStyle(style: DesignStyle) {
+        dataStore.edit { it[KEY_DESIGN_STYLE] = style.name }
     }
 
     suspend fun setCallDurationWarningMinutes(minutes: Int) {

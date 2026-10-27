@@ -1,6 +1,11 @@
 package com.ryanshelby.linea.ui.theme
 
 import android.app.Activity
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import com.ryanshelby.linea.data.preferences.DesignStyle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -16,28 +21,28 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private fun buildDarkColorScheme(palette: LineaColorPalette) = darkColorScheme(
+private fun buildDarkColorScheme(palette: LineaColorPalette, onAccent: androidx.compose.ui.graphics.Color) = darkColorScheme(
     primary = palette.TitaniumBlue,
     secondary = palette.DesaturatedTeal,
     tertiary = palette.MutedSageGreen,
     background = palette.BackgroundTop,
     surface = palette.GlassFallbackFill,
     error = palette.MutedBrickRed,
-    onPrimary = palette.TextPrimary,
-    onSecondary = palette.TextPrimary,
+    onPrimary = onAccent,
+    onSecondary = onAccent,
     onBackground = palette.TextPrimary,
     onSurface = palette.TextPrimary
 )
 
-private fun buildLightColorScheme(palette: LineaColorPalette) = lightColorScheme(
+private fun buildLightColorScheme(palette: LineaColorPalette, onAccent: androidx.compose.ui.graphics.Color) = lightColorScheme(
     primary = palette.TitaniumBlue,
     secondary = palette.DesaturatedTeal,
     tertiary = palette.MutedSageGreen,
     background = palette.BackgroundTop,
     surface = palette.GlassFallbackFill,
     error = palette.MutedBrickRed,
-    onPrimary = palette.TextPrimary,
-    onSecondary = palette.TextPrimary,
+    onPrimary = onAccent,
+    onSecondary = onAccent,
     onBackground = palette.TextPrimary,
     onSurface = palette.TextPrimary
 )
@@ -46,17 +51,21 @@ private fun buildLightColorScheme(palette: LineaColorPalette) = lightColorScheme
 fun LineaTheme(
     theme: String = "DARK",
     reduceAnimations: Boolean = false,
+    designStyle: DesignStyle = DesignStyle.CLASSIC,
     content: @Composable () -> Unit
 ) {
     val systemInDark = isSystemInDarkTheme()
 
-    val activePalette = when (theme.uppercase()) {
+    val basePalette = when (theme.uppercase()) {
         "LIGHT" -> LightPalette
         "AMOLED" -> AmoledPalette
         "SYSTEM" -> if (systemInDark) DarkPalette else LightPalette
         else -> DarkPalette
     }
 
+    val activePalette = if (designStyle == DesignStyle.CRYSTAL) crystalPalette(basePalette) else basePalette
+
+    LineaColors.isCrystal = designStyle == DesignStyle.CRYSTAL
     // Reactively update LineaColors snapshot state so all composables recompose instantly
     LineaColors.updatePalette(activePalette)
 
@@ -75,14 +84,16 @@ fun LineaTheme(
         }
     }
 
+    val onAccent = if (designStyle == DesignStyle.CRYSTAL) LineaColors.OnAccent else activePalette.TextPrimary
     val colorScheme = if (activePalette.isLight) {
-        buildLightColorScheme(activePalette)
+        buildLightColorScheme(activePalette, onAccent)
     } else {
-        buildDarkColorScheme(activePalette)
+        buildDarkColorScheme(activePalette, onAccent)
     }
 
     CompositionLocalProvider(
-        LocalReduceAnimations provides reduceAnimations
+        LocalReduceAnimations provides reduceAnimations,
+        LocalDesignStyle provides designStyle
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -94,6 +105,11 @@ fun LineaTheme(
                     .fillMaxSize()
                     .background(activePalette.BackgroundGradient)
             ) {
+                AnimatedVisibility(
+                    visible = designStyle == DesignStyle.CRYSTAL,
+                    enter = fadeIn(tween(if (reduceAnimations) 0 else 300)),
+                    exit = fadeOut(tween(if (reduceAnimations) 0 else 200))
+                ) { CrystalBackdrop() }
                 content()
             }
         }

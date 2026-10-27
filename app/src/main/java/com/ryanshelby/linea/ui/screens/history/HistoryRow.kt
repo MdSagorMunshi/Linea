@@ -6,6 +6,10 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -46,6 +50,7 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -104,6 +109,8 @@ fun HistoryRow(
     onLongClick: ((CallHistoryItem) -> Unit)? = null,
     showSimIndicator: Boolean = true
 ) {
+    val reduceMotion = LocalReduceAnimations.current
+    val crystal = LineaColors.isCrystal
     val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     var offsetX by remember { mutableFloatStateOf(0f) }
@@ -154,7 +161,7 @@ fun HistoryRow(
         modifier = modifier.fillMaxWidth()
     ) {
         // 1. Quick Actions Background Tray (revealed on left swipe)
-        if (offsetX <= 0f) {
+        if (offsetX < 0f || !crystal) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -428,8 +435,8 @@ fun HistoryRow(
                     }
                 }
                 .neumorphic(
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = 3.dp,
+                    shape = RoundedCornerShape(if (crystal) 24.dp else 16.dp),
+                    elevation = if (crystal) 6.dp else 3.dp,
                     surfaceColor = LineaColors.NeuSurfaceRaised
                 )
         ) {
@@ -444,11 +451,13 @@ fun HistoryRow(
                         if (isOpen) {
                             animateOffsetTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
                             onSwipeOpenChanged?.invoke(false)
+                        } else if (crystal) {
+                            onToggleExpand()
                         } else {
                             onClick()
                         }
                     }
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 14.dp, vertical = if (crystal) 16.dp else 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -631,7 +640,7 @@ fun HistoryRow(
                             onCallBack(item.primaryRecord)
                         }
                     },
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(if (crystal) 48.dp else 38.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Call,
@@ -644,9 +653,9 @@ fun HistoryRow(
 
             // Expandable List of Individual Calls in this Session
             AnimatedVisibility(
-                visible = item.isExpanded && item.callCount > 1,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
+                visible = item.isExpanded && (crystal || item.callCount > 1),
+                enter = if (reduceMotion) EnterTransition.None else fadeIn() + expandVertically(tween(280)),
+                exit = if (reduceMotion) ExitTransition.None else fadeOut() + shrinkVertically(tween(220))
             ) {
                 Column(
                     modifier = Modifier
@@ -655,6 +664,11 @@ fun HistoryRow(
                         .padding(horizontal = 24.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    if (crystal) {
+                        TextButton(onClick = onClick) {
+                            Text("View call details", color = LineaColors.TitaniumBlue)
+                        }
+                    }
                     item.groupedCalls.forEach { singleCall ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),

@@ -7,6 +7,7 @@ import com.ryanshelby.linea.data.local.dao.BlockedNumberDao
 import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.data.local.dao.CallRuleDao
 import com.ryanshelby.linea.data.preferences.LineaPreferences
+import com.ryanshelby.linea.data.preferences.DesignStyle
 import com.ryanshelby.linea.data.preferences.UserProfile
 import com.ryanshelby.linea.telecom.cleanup.CallHistoryCleanupManager
 import com.ryanshelby.linea.telecom.escape.EscapeCallManager
@@ -35,6 +36,7 @@ data class SettingsUiState(
     val dialpadVibration: Boolean = true,
     val callVibration: Boolean = true,
     val theme: String = "DARK",
+    val designStyle: DesignStyle = DesignStyle.CLASSIC,
     val cleanupDays: Int = 0,
     val reduceAnimations: Boolean = false,
     val blockedRulesCount: Int = 0,
@@ -98,7 +100,8 @@ class SettingsViewModel @Inject constructor(
         preferences.postCallHudDurationSeconds,
         preferences.navbarMode,
         preferences.navbarCircleSize,
-        preferences.navbarAnimationStyle
+        preferences.navbarAnimationStyle,
+        preferences.designStyle
     ) { args ->
         val defaultSim = args[0] as Int
         val askSim = args[1] as Boolean
@@ -144,6 +147,7 @@ class SettingsViewModel @Inject constructor(
             dialpadVibration = haptic,
             callVibration = callVib,
             theme = theme,
+            designStyle = args[27] as DesignStyle,
             cleanupDays = cleanup,
             reduceAnimations = reduceAnim,
             blockedRulesCount = blockedList.size,
@@ -240,6 +244,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setTheme(theme: String) {
         viewModelScope.launch { preferences.setThemePreference(theme) }
+    }
+
+    fun setDesignStyle(style: DesignStyle) {
+        viewModelScope.launch { preferences.setDesignStyle(style) }
     }
 
     fun setCleanupDays(days: Int) {

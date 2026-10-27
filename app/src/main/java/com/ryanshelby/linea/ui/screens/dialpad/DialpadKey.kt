@@ -21,6 +21,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import com.ryanshelby.linea.ui.theme.LocalDesignStyle
+import com.ryanshelby.linea.data.preferences.DesignStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -63,6 +73,7 @@ fun DialpadKey(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val crystal = LocalDesignStyle.current == DesignStyle.CRYSTAL
     val reduceAnimations = LocalReduceAnimations.current
     val haptic = LocalHapticFeedback.current
     var isPressed by remember { mutableStateOf(false) }
@@ -138,12 +149,22 @@ fun DialpadKey(
         modifier = modifier
             .size(size)
             .scale(scale)
+            .graphicsLayer {
+                rotationX = if (crystal && !reduceAnimations) (1f - scale) * 65f else 0f
+                cameraDistance = 12f * density
+            }
             .neumorphic(
-                shape = CircleShape,
+                shape = if (crystal) RoundedCornerShape(24.dp) else CircleShape,
                 elevation = if (isPressed) 1.dp else 5.dp,
                 isPressed = isPressed
             )
-            .pointerInput(digit) {
+            .semantics {
+                role = Role.Button
+                contentDescription = if (subLetters.isEmpty()) digit.toString() else "$digit, $subLetters"
+                onClick { onDigitPress(digit); true }
+                if (onLongPress != null) onLongClick { onLongPress(); true }
+            }
+            .pointerInput(digit, soundEnabled, vibrationEnabled, hapticProfile) {
                 detectTapGestures(
                     onPress = {
                         isPressed = true
@@ -178,8 +199,7 @@ fun DialpadKey(
                         if (soundEnabled && toneDuration > 0) {
                             toneGenerator?.startTone(getToneForChar(digit), toneDuration)
                         }
-                        tryAwaitRelease()
-                        isPressed = false
+                        try { tryAwaitRelease() } finally { isPressed = false }
                     },
                     onTap = {
                         onDigitPress(digit)
@@ -208,7 +228,7 @@ fun DialpadKey(
                     fontWeight = FontWeight.SemiBold,
                     fontFeatureSettings = "tnum"
                 ),
-                color = if (isPressed) Color.White else LineaColors.TextPrimary,
+                color = if (isPressed && !crystal) Color.White else LineaColors.TextPrimary,
                 fontSize = if (digit in listOf('*', '#')) 24.sp else 26.sp
             )
 

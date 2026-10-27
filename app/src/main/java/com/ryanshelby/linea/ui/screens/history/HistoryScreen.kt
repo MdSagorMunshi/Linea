@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -132,16 +133,18 @@ fun HistoryScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(
-                    text = "Recent",
-                    style = LineaTypography.titleLarge,
+                    text = if (LineaColors.isCrystal) "Recents" else "Recent",
+                    style = if (LineaColors.isCrystal) LineaTypography.headlineLarge else LineaTypography.titleLarge,
                     color = LineaColors.TextPrimary
                 )
                 Text(
-                    text = if (historyViewMode == "SESSIONS") "Aggregated Contact Sessions" else "Cellular call logs & sessions",
+                    text = if (LineaColors.isCrystal) "Your conversations, together." else if (historyViewMode == "SESSIONS") "Aggregated Contact Sessions" else "Cellular call logs & sessions",
                     style = LineaTypography.bodySmall,
-                    color = LineaColors.TitaniumBlue
+                    color = LineaColors.TitaniumBlue,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
 
@@ -167,12 +170,14 @@ fun HistoryScreen(
                                 } else Modifier
                             )
                             .clickable { if (historyViewMode != "FEED") viewModel.toggleViewMode() }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .heightIn(min = if (LineaColors.isCrystal) 48.dp else 0.dp)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "Feed",
                             style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = if (historyViewMode == "FEED") Color.White else LineaColors.TextSecondary
+                            color = if (historyViewMode == "FEED") LineaColors.OnAccent else LineaColors.TextSecondary
                         )
                     }
                     Box(
@@ -187,12 +192,14 @@ fun HistoryScreen(
                                 } else Modifier
                             )
                             .clickable { if (historyViewMode != "SESSIONS") viewModel.toggleViewMode() }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .heightIn(min = if (LineaColors.isCrystal) 48.dp else 0.dp)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "Sessions",
                             style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = if (historyViewMode == "SESSIONS") Color.White else LineaColors.TextSecondary
+                            color = if (historyViewMode == "SESSIONS") LineaColors.OnAccent else LineaColors.TextSecondary
                         )
                     }
                 }
@@ -318,6 +325,7 @@ fun HistoryScreen(
                             surfaceColor = if (isSelected) LineaColors.TitaniumBlue else LineaColors.NeuSurfaceRaised
                         )
                         .clickable { viewModel.onFilterSelect(filter) }
+                        .heightIn(min = if (LineaColors.isCrystal) 48.dp else 0.dp)
                         .padding(horizontal = 14.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -332,7 +340,7 @@ fun HistoryScreen(
                         style = LineaTypography.labelSmall.copy(
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                         ),
-                        color = if (isSelected) Color.White else LineaColors.TextSecondary
+                        color = if (isSelected) LineaColors.OnAccent else LineaColors.TextSecondary
                     )
                 }
             }

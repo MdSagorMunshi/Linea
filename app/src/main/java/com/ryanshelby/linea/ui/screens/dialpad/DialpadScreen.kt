@@ -286,12 +286,12 @@ fun DialpadScreen(
         ) {
             Column {
                 Text(
-                    text = "LINEA",
+                    text = if (LineaColors.isCrystal) "LiNEA" else "LINEA",
                     style = LineaTypography.titleLarge,
                     color = LineaColors.TextPrimary
                 )
                 Text(
-                    text = "Cellular Dial Pad",
+                    text = if (LineaColors.isCrystal) "Stay connected." else "Cellular Dial Pad",
                     style = LineaTypography.bodySmall,
                     color = LineaColors.TitaniumBlue
                 )
@@ -304,7 +304,7 @@ fun DialpadScreen(
                 // QR Scanner Button
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(if (LineaColors.isCrystal) 48.dp else 36.dp)
                         .neumorphic(
                             shape = CircleShape,
                             elevation = 3.dp,
@@ -446,6 +446,9 @@ fun DialpadScreen(
                     ) {
                         if (enteredNumber.isEmpty()) {
                             val clipText = clipboardNumber
+                            if (clipText.isNullOrEmpty() && LineaColors.isCrystal) {
+                                Text("Enter a number", style = LineaTypography.bodyLarge, color = LineaColors.TextSecondary)
+                            }
                             if (!clipText.isNullOrEmpty()) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -718,7 +721,7 @@ fun DialpadScreen(
                             subLetters = sub,
                             onDigitPress = { d -> viewModel.appendDigit(d) },
                             onLongPress = longPress,
-                            size = 68.dp,
+                            size = if (LineaColors.isCrystal) 72.dp else 68.dp,
                             soundEnabled = soundEnabled,
                             vibrationEnabled = vibrationEnabled,
                             hapticProfile = dialpadHapticProfile

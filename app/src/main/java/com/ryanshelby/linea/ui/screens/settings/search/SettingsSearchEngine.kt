@@ -563,6 +563,21 @@ object SettingsSearchEngine {
             )
         )
 
+        list.add(
+            SettingsSearchItem(
+                id = "design_style",
+                title = "Design",
+                subtitle = "Choose Classic or Crystal glass",
+                category = SettingsCategory.APPEARANCE,
+                icon = Icons.Filled.Palette,
+                keywords = listOf("crystal", "classic", "glass", "design", "appearance", "3d", "theme"),
+                action = SettingsSearchAction.Select(
+                    currentValue = { it.designStyle.name },
+                    onAction = { callbacks.onScrollToSection("design") }
+                )
+            )
+        )
+
         // 25. Color Theme
         list.add(
             SettingsSearchItem(
@@ -599,8 +614,8 @@ object SettingsSearchEngine {
         list.add(
             SettingsSearchItem(
                 id = "navbar_settings",
-                title = "Navigation Bar",
-                subtitle = "Choose Floating Circle or Expanded Pill Bar, configure circle size and animation spring dynamics",
+                title = "Classic Navigation Bar",
+                subtitle = "Customize the Classic design’s floating circle or expanded pill bar",
                 category = SettingsCategory.APPEARANCE,
                 icon = Icons.Filled.RadioButtonChecked,
                 keywords = listOf("navbar", "navigation", "circle", "pill", "bottom bar", "floating", "navbar size", "navbar animation", "spring", "gestures"),

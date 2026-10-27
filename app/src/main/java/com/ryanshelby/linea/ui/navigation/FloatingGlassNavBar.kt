@@ -89,6 +89,10 @@ fun FloatingGlassNavBar(
     onSetTemporarilyExpanded: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    if (com.ryanshelby.linea.ui.theme.LocalDesignStyle.current == com.ryanshelby.linea.data.preferences.DesignStyle.CRYSTAL) {
+        CrystalNavBar(currentDestination, onNavigate, unreadMissedCalls, modifier)
+        return
+    }
     val reduceAnimations = LocalReduceAnimations.current
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
