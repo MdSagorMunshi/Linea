@@ -3,7 +3,6 @@ package com.ryanshelby.linea
 import com.ryanshelby.linea.nfc.LineaBeamApduService
 import com.ryanshelby.linea.nfc.NfcBeamManager
 import com.ryanshelby.linea.qr_code.QrCodeEngine
-import com.ryanshelby.linea.ui.screens.dialpad.OrbitalSpeedDialContact
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -12,7 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.charset.StandardCharsets
 
-class NfcBeamAndOrbitalDialTest {
+class NfcBeamTest {
 
     @Test
     fun testLineaBeamApduServiceDirectExchange() {
@@ -97,18 +96,6 @@ class NfcBeamAndOrbitalDialTest {
         assertTrue(res5.size > 4)
         assertEquals(0x90.toByte(), res5[res5.size - 2])
         assertEquals(0x00.toByte(), res5[res5.size - 1])
-    }
-
-    @Test
-    fun testOrbitalSpeedDialContactInitials() {
-        val c1 = OrbitalSpeedDialContact(1, "Marcus Vance", "+15554321098")
-        assertEquals("M", c1.initials)
-
-        val c2 = OrbitalSpeedDialContact(2, "  alexander ", "+15551234567")
-        assertEquals("A", c2.initials)
-
-        val c3 = OrbitalSpeedDialContact(3, "", "+15550000000")
-        assertEquals("C", c3.initials)
     }
 
     @Test

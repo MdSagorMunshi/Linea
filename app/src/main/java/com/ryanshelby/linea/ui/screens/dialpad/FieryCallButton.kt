@@ -26,7 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,7 +52,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import com.ryanshelby.linea.ui.components.neumorphic
-import com.ryanshelby.linea.ui.theme.LineaColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
@@ -111,8 +109,7 @@ private data class AmbientEmber(
  * CallButton with:
  * 1. Default Titanium Blue neumorphic style OR Fiery Magma style.
  * 2. Regular tap triggers [onClick].
- * 3. Hold (~400ms) triggers Orbital Speed Dial ([onLongPress]).
- * 4. Double tap (when empty) or Triple tap triggers the secret Fiery Magma Easter Egg:
+ * 3. Double tap (when empty) or Triple tap triggers the secret Fiery Magma Easter Egg:
  *    - Slow-motion explosion of fragments, fire shockwave, and burning sparks.
  *    - Slow-motion healing / rearranging sequence as fragments pull inward.
  *    - Toggles permanent fiery style ([onToggleFiery]).
@@ -123,14 +120,12 @@ fun CallButton(
     onClick: () -> Unit,
     onToggleFiery: () -> Unit,
     modifier: Modifier = Modifier,
-    onLongPress: (() -> Unit)? = null,
     isActionEmpty: Boolean = false
 ) {
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
 
     var isPressed by remember { mutableStateOf(false) }
-    var holdProgress by remember { mutableFloatStateOf(0f) }
     var blastPhase by remember { mutableStateOf(BlastPhase.IDLE) }
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
@@ -239,7 +234,6 @@ fun CallButton(
     val triggerEasterEgg: () -> Unit = {
         coroutineScope.launch {
             blastPhase = BlastPhase.BLAST_SLOW_MO
-            holdProgress = 0f
             isPressed = false
 
             // Stage 1: Explosive blast in slow motion (~1600ms)
@@ -343,34 +337,6 @@ fun CallButton(
             }
         }
 
-        // --- CHARGING GLOW & RADIAL RING (while holding towards ~400ms orbital speed dial trigger) ---
-        if (holdProgress > 0f && blastPhase == BlastPhase.IDLE) {
-            Canvas(modifier = Modifier.size(82.dp)) {
-                val strokeWidth = 3.dp.toPx()
-                val radius = (size.width - strokeWidth) / 2f
-                drawCircle(
-                    brush = Brush.sweepGradient(
-                        listOf(
-                            LineaColors.CyanPrimary,
-                            LineaColors.EmeraldPrimary,
-                            LineaColors.CyanPrimary
-                        )
-                    ),
-                    radius = radius,
-                    style = Stroke(width = strokeWidth * holdProgress)
-                )
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        listOf(
-                            LineaColors.CyanPrimary.copy(alpha = 0.35f * holdProgress),
-                            Color.Transparent
-                        )
-                    ),
-                    radius = radius + 6.dp.toPx()
-                )
-            }
-        }
-
         // --- MAIN BUTTON SURFACE (hidden when exploded in blast phase) ---
         val buttonVisible = blastPhase == BlastPhase.IDLE || blastPhase == BlastPhase.HEALING
         val buttonAlpha = when (blastPhase) {
@@ -405,39 +371,19 @@ fun CallButton(
                             )
                         }
                     )
-                    // Pointer gesture detection: Handles quick tap, double/triple-tap Easter Egg, and hold for Orbital Speed Dial
+                    // Quick taps call or trigger the double/triple-tap Easter Egg; holds do nothing.
                     .pointerInput(isAnimating, isActionEmpty) {
                         if (isAnimating) return@pointerInput
                         awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
+                            awaitFirstDown(requireUnconsumed = false)
                             val startTime = SystemClock.elapsedRealtime()
                             isPressed = true
-                            var longPressHandled = false
-
-                            val holdDuration = 400L
-                            val holdJob = coroutineScope.launch {
-                                while (true) {
-                                    val elapsed = SystemClock.elapsedRealtime() - startTime
-                                    val progress = (elapsed.toFloat() / holdDuration).coerceIn(0f, 1f)
-                                    holdProgress = progress
-
-                                    if (onLongPress != null && elapsed >= holdDuration && !longPressHandled) {
-                                        longPressHandled = true
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onLongPress()
-                                        break
-                                    }
-                                    delay(16L)
-                                }
-                            }
 
                             val up = waitForUpOrCancellation()
-                            holdJob.cancel()
                             val totalHeld = SystemClock.elapsedRealtime() - startTime
                             isPressed = false
-                            holdProgress = 0f
 
-                            if (!longPressHandled && up != null && totalHeld < 400L) {
+                            if (up != null && totalHeld < 400L) {
                                 val now = SystemClock.elapsedRealtime()
                                 if (now - lastTapTime < 450L) {
                                     tapCount++

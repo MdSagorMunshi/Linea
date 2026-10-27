@@ -97,8 +97,6 @@ import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import com.ryanshelby.linea.telecom.CallHandlingHealth
 import com.ryanshelby.linea.ui.components.NeumorphicWell
 
@@ -139,8 +137,6 @@ fun DialpadScreen(
     var showSimSelectSheet by remember { mutableStateOf(false) }
     var showCreateContactSheet by remember { mutableStateOf(false) }
     var showQrScanner by remember { mutableStateOf(false) }
-    var showOrbitalSpeedDial by remember { mutableStateOf(false) }
-    var callButtonCenter by remember { mutableStateOf(Offset.Zero) }
     var lastInitiateCallTime by remember { mutableLongStateOf(0L) }
     val simSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -772,18 +768,7 @@ fun DialpadScreen(
                 onToggleFiery = {
                     viewModel.toggleFieryCallButton()
                 },
-                onLongPress = {
-                    showOrbitalSpeedDial = true
-                },
-                isActionEmpty = enteredNumber.isEmpty(),
-                modifier = Modifier.onGloballyPositioned { coords ->
-                    val pos = coords.positionInRoot()
-                    val size = coords.size
-                    callButtonCenter = Offset(
-                        pos.x + size.width / 2f,
-                        pos.y + size.height / 2f
-                    )
-                }
+                isActionEmpty = enteredNumber.isEmpty()
             )
 
             // Backspace / Clear Button
@@ -879,21 +864,6 @@ fun DialpadScreen(
             onCancel = {
                 showCountdownDialog = false
                 selectedSheetAccount = null
-            }
-        )
-    }
-
-    if (showOrbitalSpeedDial) {
-        val orbitalContacts by viewModel.orbitalContacts.collectAsState()
-        OrbitalSpeedDialOverlay(
-            contacts = orbitalContacts,
-            centerOffset = if (callButtonCenter != Offset.Zero) callButtonCenter else Offset(540f, 1800f),
-            onSelectContact = { contact ->
-                showOrbitalSpeedDial = false
-                initiateCall(contact.phoneNumber)
-            },
-            onDismiss = {
-                showOrbitalSpeedDial = false
             }
         )
     }

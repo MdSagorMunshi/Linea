@@ -128,18 +128,6 @@ class DialpadViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val orbitalContacts: StateFlow<List<OrbitalSpeedDialContact>> = _contacts.map { list ->
-        list.take(8).map { t9 ->
-            OrbitalSpeedDialContact(
-                id = t9.id,
-                name = t9.displayName,
-                phoneNumber = t9.phoneNumber,
-                photoUri = t9.photoUri,
-                initials = t9.displayName.trim().firstOrNull()?.uppercase() ?: "C"
-            )
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     init {
         loadSimAccounts()
         loadContacts()
