@@ -767,8 +767,7 @@ fun DialpadScreen(
                 },
                 onToggleFiery = {
                     viewModel.toggleFieryCallButton()
-                },
-                isActionEmpty = enteredNumber.isEmpty()
+                }
             )
 
             // Backspace / Clear Button

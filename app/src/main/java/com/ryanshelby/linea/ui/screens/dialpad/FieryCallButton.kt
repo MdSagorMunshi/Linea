@@ -1,6 +1,5 @@
 package com.ryanshelby.linea.ui.screens.dialpad
 
-import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -14,9 +13,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -24,13 +21,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,7 +104,7 @@ private data class AmbientEmber(
  * CallButton with:
  * 1. Default Titanium Blue neumorphic style OR Fiery Magma style.
  * 2. Regular tap triggers [onClick].
- * 3. Double tap (when empty) or Triple tap triggers the secret Fiery Magma Easter Egg:
+ * 3. Long press triggers the secret Fiery Magma Easter Egg:
  *    - Slow-motion explosion of fragments, fire shockwave, and burning sparks.
  *    - Slow-motion healing / rearranging sequence as fragments pull inward.
  *    - Toggles permanent fiery style ([onToggleFiery]).
@@ -119,16 +114,13 @@ fun CallButton(
     isFiery: Boolean,
     onClick: () -> Unit,
     onToggleFiery: () -> Unit,
-    modifier: Modifier = Modifier,
-    isActionEmpty: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
 
     var isPressed by remember { mutableStateOf(false) }
     var blastPhase by remember { mutableStateOf(BlastPhase.IDLE) }
-    var tapCount by remember { mutableIntStateOf(0) }
-    var lastTapTime by remember { mutableLongStateOf(0L) }
 
     // Blast phase progress: 0f -> 1f
     val blastProgress = remember { Animatable(0f) }
@@ -272,6 +264,9 @@ fun CallButton(
         }
     }
 
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentTriggerEasterEgg by rememberUpdatedState(triggerEasterEgg)
+
     // Standard scale compression on normal tap press
     val scale by animateFloatAsState(
         targetValue = when {
@@ -371,37 +366,24 @@ fun CallButton(
                             )
                         }
                     )
-                    // Quick taps call or trigger the double/triple-tap Easter Egg; holds do nothing.
-                    .pointerInput(isAnimating, isActionEmpty) {
+                    // A tap calls; holding switches skins without placing a call.
+                    .pointerInput(isAnimating) {
                         if (isAnimating) return@pointerInput
-                        awaitEachGesture {
-                            awaitFirstDown(requireUnconsumed = false)
-                            val startTime = SystemClock.elapsedRealtime()
-                            isPressed = true
-
-                            val up = waitForUpOrCancellation()
-                            val totalHeld = SystemClock.elapsedRealtime() - startTime
-                            isPressed = false
-
-                            if (up != null && totalHeld < 400L) {
-                                val now = SystemClock.elapsedRealtime()
-                                if (now - lastTapTime < 450L) {
-                                    tapCount++
-                                } else {
-                                    tapCount = 1
+                        detectTapGestures(
+                            onPress = {
+                                isPressed = true
+                                try {
+                                    tryAwaitRelease()
+                                } finally {
+                                    isPressed = false
                                 }
-                                lastTapTime = now
-
-                                val threshold = if (isActionEmpty) 2 else 3
-                                if (tapCount >= threshold) {
-                                    tapCount = 0
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    triggerEasterEgg()
-                                } else {
-                                    onClick()
-                                }
+                            },
+                            onTap = { currentOnClick() },
+                            onLongPress = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                currentTriggerEasterEgg()
                             }
-                        }
+                        )
                     },
                 contentAlignment = Alignment.Center
             ) {

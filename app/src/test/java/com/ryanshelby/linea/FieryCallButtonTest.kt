@@ -42,11 +42,11 @@ class FieryCallButtonTest {
 
         // 1st Easter egg trigger: Standard -> Fiery
         prefs.toggleFieryCallButton()
-        assertTrue("1st 3s hold should activate fiery call button", prefs.fieryCallButton)
+        assertTrue("1st long press should activate fiery call button", prefs.fieryCallButton)
 
         // 2nd Easter egg trigger: Fiery -> Standard
         prefs.toggleFieryCallButton()
-        assertFalse("2nd 3s hold should reverse fiery call button back to standard", prefs.fieryCallButton)
+        assertFalse("2nd long press should reverse fiery call button back to standard", prefs.fieryCallButton)
     }
 
     @Test
