@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://lineaapp.pages.dev"><img src="https://img.shields.io/badge/Website-lineaapp.pages.dev-38BDF8?style=for-the-badge&logo=cloudflarepages&logoColor=white" alt="Live Website" /></a>
   <a href="https://developer.android.com/about/versions/17"><img src="https://img.shields.io/badge/Target%20Android-17%20(API%2037)-5C7C99?style=for-the-badge&logo=android&logoColor=white" alt="Target Android 17" /></a>
   <a href="https://developer.android.com"><img src="https://img.shields.io/badge/Min%20SDK-33%20(Android%2013)-2B313A?style=for-the-badge" alt="Min SDK 33" /></a>
   <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin 2.0" /></a>
@@ -18,6 +19,7 @@
 </p>
 
 <p align="center">
+  <a href="https://lineaapp.pages.dev"><strong>🌐 Official Website</strong></a> •
   <a href="#about-linea">About</a> •
   <a href="#interface-showcase">Showcase</a> •
   <a href="#feature-suite">Features</a> •
