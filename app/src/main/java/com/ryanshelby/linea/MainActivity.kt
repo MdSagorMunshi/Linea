@@ -1,5 +1,6 @@
 package com.ryanshelby.linea
 
+import com.ryanshelby.linea.telecom.installCallKeyInterceptor
 import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
@@ -84,6 +85,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.installCallKeyInterceptor(::interceptCallKeyEvent)
 
         checkRoleAndAccounts()
         lifecycleScope.launch {
@@ -297,7 +299,7 @@ class MainActivity : ComponentActivity() {
         startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    private fun interceptCallKeyEvent(event: KeyEvent): Boolean {
         when (event.keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP,
             KeyEvent.KEYCODE_VOLUME_DOWN,
@@ -318,7 +320,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        return super.dispatchKeyEvent(event)
+        return false
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

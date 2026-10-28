@@ -1,5 +1,6 @@
 package com.ryanshelby.linea
 
+import com.ryanshelby.linea.telecom.TelecomRoleActions
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -54,7 +55,7 @@ class LineaApp : Application() {
         com.ryanshelby.linea.telecom.screening.SimCountryDetector.detectSimCountryIso(this)
         try {
             val tm = getSystemService(android.telecom.TelecomManager::class.java)
-            tm?.cancelMissedCallsNotification()
+            TelecomRoleActions.cancelMissedCalls(this, tm)
         } catch (_: Exception) {}
         CoroutineScope(Dispatchers.IO).launch {
             try {

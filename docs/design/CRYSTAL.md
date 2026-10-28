@@ -35,11 +35,10 @@ effect layers separate prevents recursive self-capture.
 
 On hardware-accelerated Android 13+, an AGSL `RuntimeShader` uses a rounded shape's
 signed distance and edge normal to displace actual source pixels, with directional
-highlights. `RenderEffect` chains this refraction with backdrop blur. Android 12
-and 12L use backdrop blur. Android 11, software rendering, and separate dialog
-windows without a source use readable opaque materials. The glass renderer uses no colored
-chromatic dispersion, screenshot readback, added rendering dependency, or idle
-animation loop.
+highlights. `RenderEffect` chains this refraction with backdrop blur. Software
+rendering and separate dialog windows without a source use readable opaque
+materials. The glass renderer uses no colored chromatic dispersion, screenshot
+readback, added rendering dependency, or idle animation loop.
 
 See Android's [graphics layer documentation](https://developer.android.com/develop/ui/compose/graphics/draw/modifiers)
 and [AGSL guide](https://developer.android.com/develop/ui/views/graphics/agsl/using-agsl).
@@ -63,10 +62,10 @@ Optimized signed APK: `app/build/outputs/apk/release/app-release.apk`.
 
 ## Verification record
 
-The debug build and 18 focused unit tests pass. Android lint reports 15 existing
-errors in files unchanged by this design update (telecom permissions, activity key
-dispatch, and the manifest hardware declaration); it reports no errors in the new
-glass renderer or design code.
+The app requires Android 13 (API 33) or later. Telecom actions check the active
+dialer role or system privilege before calling protected APIs; subscription details
+are read only when phone state permission is granted. Key events are intercepted
+through the public window callback.
 
 Emulator checks cover light/dark appearance, number entry, long-press skin change
 without dialing, contact profiles, and a 360 dp viewport at 1.3 font scale. The

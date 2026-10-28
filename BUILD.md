@@ -17,6 +17,8 @@ To build LINEA, ensure your workstation meets the following prerequisites:
 | **Android NDK** | Not required (100% Kotlin/Java runtime) | N/A |
 | **Gradle** | 8.11+ (Managed via `./gradlew` wrapper) | Wrapper specified |
 
+The app requires Android 13 (API 33) or later. It compiles and targets API 37.
+
 ### Environment Variables
 Verify that `ANDROID_HOME` or `ANDROID_SDK_ROOT` is configured in your shell profile:
 

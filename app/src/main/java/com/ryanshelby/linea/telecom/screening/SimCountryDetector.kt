@@ -1,9 +1,13 @@
 package com.ryanshelby.linea.telecom.screening
 
 import android.content.Context
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
+import android.telephony.SubscriptionInfo
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Locale
 import javax.inject.Inject
@@ -72,7 +76,7 @@ class SimCountryDetector @Inject constructor(
          * 4. TelephonyManager cell network MCC country (telephonyManager.networkCountryIso)
          * 5. Device system locale
          *
-         * Requires ZERO dangerous permissions (no ACCESS_FINE_LOCATION, no ACCESS_COARSE_LOCATION).
+         * Requires no location permission. Subscription details are used only when READ_PHONE_STATE is granted.
          */
         fun detectSimCountryIso(
             context: Context?,
@@ -84,7 +88,7 @@ class SimCountryDetector @Inject constructor(
             val tm = telephonyManager ?: (context?.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager)
 
             // 1. Primary SIM Country ISO from TelephonyManager
-            val simIso = tm?.simCountryIso?.trim()?.uppercase(Locale.ROOT)
+            val simIso = tm?.let { readCountryIso { it.simCountryIso } }
             if (!simIso.isNullOrBlank() && simIso.length == 2) {
                 cachedCountryIso = simIso
                 return simIso
@@ -92,25 +96,17 @@ class SimCountryDetector @Inject constructor(
 
             // 2. Multi-SIM SubscriptionManager inspection
             if (context != null) {
-                try {
-                    val sm = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
-                    val subList = sm?.activeSubscriptionInfoList
-                    if (!subList.isNullOrEmpty()) {
-                        for (sub in subList) {
-                            val subIso = sub.countryIso?.trim()?.uppercase(Locale.ROOT)
-                            if (!subIso.isNullOrBlank() && subIso.length == 2) {
-                                cachedCountryIso = subIso
-                                return subIso
-                            }
-                        }
+                for (sub in activeSubscriptions(context)) {
+                    val subIso = sub.countryIso?.trim()?.uppercase(Locale.ROOT)
+                    if (!subIso.isNullOrBlank() && subIso.length == 2) {
+                        cachedCountryIso = subIso
+                        return subIso
                     }
-                } catch (_: Exception) {
-                    // Ignored: fallback to network/locale
                 }
             }
 
             // 3. Registered Mobile Network Country ISO (from cell tower MCC)
-            val networkIso = tm?.networkCountryIso?.trim()?.uppercase(Locale.ROOT)
+            val networkIso = tm?.let { readCountryIso { it.networkCountryIso } }
             if (!networkIso.isNullOrBlank() && networkIso.length == 2) {
                 cachedCountryIso = networkIso
                 return networkIso
@@ -139,23 +135,34 @@ class SimCountryDetector @Inject constructor(
             if (overrideCountryIso != null) return "Manual Override"
 
             val tm = telephonyManager ?: (context?.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager)
-            val simIso = tm?.simCountryIso?.trim()
+            val simIso = tm?.let { readCountryIso { it.simCountryIso } }
             if (!simIso.isNullOrBlank() && simIso.length == 2) return "SIM Card (UICC)"
 
-            if (context != null) {
-                try {
-                    val sm = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
-                    val subList = sm?.activeSubscriptionInfoList
-                    if (!subList.isNullOrEmpty() && subList.any { !it.countryIso.isNullOrBlank() }) {
-                        return "SIM Subscription"
-                    }
-                } catch (_: Exception) {}
-            }
+            if (context != null && activeSubscriptions(context).any { !it.countryIso.isNullOrBlank() }) return "SIM Subscription"
 
-            val networkIso = tm?.networkCountryIso?.trim()
+            val networkIso = tm?.let { readCountryIso { it.networkCountryIso } }
             if (!networkIso.isNullOrBlank() && networkIso.length == 2) return "Cellular Network (MCC)"
 
             return "System Locale"
+        }
+
+        private fun activeSubscriptions(context: Context): List<SubscriptionInfo> {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) return emptyList()
+            return try {
+                context.getSystemService(SubscriptionManager::class.java)?.activeSubscriptionInfoList.orEmpty()
+            } catch (_: SecurityException) {
+                emptyList()
+            } catch (_: UnsupportedOperationException) {
+                emptyList()
+            }
+        }
+
+        private inline fun readCountryIso(read: () -> String?): String? = try {
+            read()?.trim()?.uppercase(Locale.ROOT)
+        } catch (_: SecurityException) {
+            null
+        } catch (_: UnsupportedOperationException) {
+            null
         }
     }
 }

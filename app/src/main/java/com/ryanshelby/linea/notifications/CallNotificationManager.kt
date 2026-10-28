@@ -1,5 +1,6 @@
 package com.ryanshelby.linea.notifications
 
+import com.ryanshelby.linea.telecom.TelecomRoleActions
 import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -280,7 +281,7 @@ class CallNotificationManager @Inject constructor(
             if (callerName.isNullOrBlank() || existing.displayName == callerName) {
                 android.util.Log.d("CallNotificationManager", "Duplicate missed call notification for '$phoneNumber' suppressed (existing ID=$notifId)")
                 try {
-                    telecomManager?.cancelMissedCallsNotification()
+                    TelecomRoleActions.cancelMissedCalls(context, telecomManager)
                 } catch (_: Exception) {}
                 return
             }
@@ -294,7 +295,7 @@ class CallNotificationManager @Inject constructor(
 
         // Cancel stock Telecom missed-call notification so only LINEA's notification is shown
         try {
-            telecomManager?.cancelMissedCallsNotification()
+            TelecomRoleActions.cancelMissedCalls(context, telecomManager)
         } catch (_: Exception) {}
 
         activeMissedCalls[notifId] = MissedCallData(
@@ -427,15 +428,15 @@ class CallNotificationManager @Inject constructor(
 
         // Suppress and clear stock Telecom system "Phone Calls" notification
         try {
-            telecomManager?.cancelMissedCallsNotification()
+            TelecomRoleActions.cancelMissedCalls(context, telecomManager)
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 try {
-                    telecomManager?.cancelMissedCallsNotification()
+                    TelecomRoleActions.cancelMissedCalls(context, telecomManager)
                 } catch (_: Exception) {}
             }, 500)
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 try {
-                    telecomManager?.cancelMissedCallsNotification()
+                    TelecomRoleActions.cancelMissedCalls(context, telecomManager)
                 } catch (_: Exception) {}
             }, 1200)
         } catch (_: Exception) {}
@@ -448,7 +449,7 @@ class CallNotificationManager @Inject constructor(
             notificationManager.cancel(NOTIFICATION_ID_MISSED_SUMMARY)
         }
         try {
-            telecomManager?.cancelMissedCallsNotification()
+            TelecomRoleActions.cancelMissedCalls(context, telecomManager)
         } catch (_: Exception) {}
     }
 
@@ -459,7 +460,7 @@ class CallNotificationManager @Inject constructor(
         activeMissedCalls.clear()
         notificationManager.cancel(NOTIFICATION_ID_MISSED_SUMMARY)
         try {
-            telecomManager?.cancelMissedCallsNotification()
+            TelecomRoleActions.cancelMissedCalls(context, telecomManager)
         } catch (_: Exception) {}
     }
 

@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://developer.android.com/about/versions/17"><img src="https://img.shields.io/badge/Target%20Android-17%20(API%2037)-5C7C99?style=for-the-badge&logo=android&logoColor=white" alt="Target Android 17" /></a>
-  <a href="https://developer.android.com"><img src="https://img.shields.io/badge/Min%20SDK-30%20(Android%2011)-2B313A?style=for-the-badge" alt="Min SDK 30" /></a>
+  <a href="https://developer.android.com"><img src="https://img.shields.io/badge/Min%20SDK-33%20(Android%2013)-2B313A?style=for-the-badge" alt="Min SDK 33" /></a>
   <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin 2.0" /></a>
   <a href="https://developer.android.com/jetpack/compose"><img src="https://img.shields.io/badge/Jetpack%20Compose-2024.11.00-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-5A8F6B?style=for-the-badge" alt="Apache 2.0 License" /></a>

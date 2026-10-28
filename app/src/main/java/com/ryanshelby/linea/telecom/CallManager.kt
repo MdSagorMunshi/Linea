@@ -1141,7 +1141,7 @@ class CallManager @Inject constructor(
         callRingtoneManager.silence()
         callGestureManager.stopListening()
         try {
-            telecomManager.silenceRinger()
+            TelecomRoleActions.silenceRinger(context, telecomManager)
         } catch (e: Exception) {
             e.printStackTrace()
         }

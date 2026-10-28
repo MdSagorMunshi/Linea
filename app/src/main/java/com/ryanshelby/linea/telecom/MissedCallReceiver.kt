@@ -1,5 +1,6 @@
 package com.ryanshelby.linea.telecom
 
+import com.ryanshelby.linea.telecom.TelecomRoleActions
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -40,10 +41,10 @@ class MissedCallReceiver : BroadcastReceiver() {
 
             val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
             try {
-                telecomManager?.cancelMissedCallsNotification()
+                TelecomRoleActions.cancelMissedCalls(context, telecomManager)
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                     try {
-                        telecomManager?.cancelMissedCallsNotification()
+                        TelecomRoleActions.cancelMissedCalls(context, telecomManager)
                     } catch (_: Exception) {}
                 }, 600)
             } catch (e: Exception) {

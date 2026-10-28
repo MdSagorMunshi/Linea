@@ -1,5 +1,6 @@
 package com.ryanshelby.linea.ui.incall
 
+import com.ryanshelby.linea.telecom.installCallKeyInterceptor
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
@@ -55,6 +56,7 @@ class InCallActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.installCallKeyInterceptor(::interceptCallKeyEvent)
         volumeControlStream = AudioManager.STREAM_RING
         handleIntent(intent)
         enableEdgeToEdge()
@@ -273,7 +275,7 @@ class InCallActivity : ComponentActivity() {
         }
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    private fun interceptCallKeyEvent(event: KeyEvent): Boolean {
         when (event.keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP,
             KeyEvent.KEYCODE_VOLUME_DOWN,
@@ -286,7 +288,7 @@ class InCallActivity : ComponentActivity() {
                 }
             }
         }
-        return super.dispatchKeyEvent(event)
+        return false
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

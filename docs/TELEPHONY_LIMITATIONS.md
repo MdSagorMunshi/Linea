@@ -17,7 +17,7 @@ system default account.
 
 ## Cellular call recording (Removed in v2.1.0)
 
-LINEA targets Android 17 with a minimum SDK of Android 11 (API 30). On Android 10 and newer,
+LINEA targets Android 17 with a minimum SDK of Android 13 (API 33). On Android 10 and newer,
 ordinary userland dialers cannot reliably capture bidirectional cellular call uplink/downlink audio
 without system-privileged `CAPTURE_AUDIO_OUTPUT` permission or specialized OEM firmware hooks.
 AOSP `AudioPolicyService` enforces strict audio isolation while Android Telecom owns the cellular stream,

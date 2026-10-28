@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Telephony is optional so non-cellular devices can install and use contact features. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
     <!-- Calling & Telecom Permissions -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
