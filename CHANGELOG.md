@@ -5,6 +5,26 @@ All notable changes to the **LINEA** cellular dialer project will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-10-29
+
+### Added
+- **Crystal Design System (Liquid-Glass Aesthetic)**:
+  - **Selectable Design Theme**: Added an optional, selectable liquid-glass interface with live background refraction, depth, and smooth spring transitions under **Settings &rarr; Appearance &rarr; Design**. The original Classic design remains fully available and selectable independently of Light, Dark, OLED, and System themes.
+  - **Live GPU Glass Renderer**: Built on AGSL `RuntimeShader` for Android 13+ with signed distance field and edge normal displacement, specular highlights, and `RenderEffect` backdrop blur without third-party rendering dependencies or idle animation loops.
+  - **Live Backdrop Capture**: Integrated GPU `GraphicsLayer` backdrop capture (`CrystalBackdropCapture`) cleanly isolating material sources across the dialpad, contact posters, dock, and active call scenes.
+  - **Dedicated Crystal Components**: Custom `CrystalDialpadLayout`, `CrystalCallButton` with tactile compression and tilt physics, `CrystalNavBar` floating dock with spring lens dynamics, redesigned People and Contact profiles, and portrait-sampling `CallScene`.
+  - **Configurable Optics Profiles**: Switch between Performance, Balanced, and Full Optics rendering modes in Settings.
+
+### Changed
+- **Call Button Easter Egg**: Pressing and holding the primary call button now reveals the alternate call button skin immediately in one gesture with tactile spring feedback.
+- **Minimum Android Version**: Elevated minimum supported platform version to **Android 13 (API 33)**, targeting **Android 17 (API 37)**.
+
+### Fixed & Optimized
+- **Streamlined Call Button Gesture**: Removed the legacy orbital speed dial options on call button long press; standard number-key speed dial (press and hold 1–9) and "hold 0 for +" remain fully functional.
+- **Android Lint & Telecom Hardening**: Resolved all 15 previously reported Android lint warnings and errors across Telecom authorization, subscription access, window key event dispatch (`CallKeyEventInterceptor`), notification permission guards, and telephony hardware manifest declarations.
+
+---
+
 ## [2.6.1] - 2026-10-19
 
 ### Fixed & Optimized
