@@ -229,6 +229,8 @@ class MainActivity : ComponentActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -292,6 +294,7 @@ class MainActivity : ComponentActivity() {
         Manifest.permission.RECORD_AUDIO -> "Microphone permission"
         Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS -> "Contacts permission"
         Manifest.permission.READ_CALL_LOG, Manifest.permission.WRITE_CALL_LOG -> "Call log permission"
+        Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_ADVERTISE -> "Nearby devices permission"
         else -> "Required permission"
     }
 

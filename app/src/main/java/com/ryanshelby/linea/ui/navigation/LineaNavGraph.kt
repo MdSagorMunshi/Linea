@@ -218,6 +218,7 @@ fun LineaNavGraph(
                     ContactsScreen(
                         listState = contactsListState,
                         viewModel = contactsViewModel,
+                        nfcBeamManager = nfcBeamManager,
                         onContactClick = { contactId -> activeContactDashboardId = contactId },
                         onOpenPrivateSafe = {
                             activeContactDashboardId = null
@@ -316,7 +317,8 @@ fun LineaNavGraph(
             ) {
                 com.ryanshelby.linea.ui.screens.contacts.ContactDashboardScreen(
                     contactId = activeContactDashboardId!!,
-                    onNavigateBack = { activeContactDashboardId = null }
+                    onNavigateBack = { activeContactDashboardId = null },
+                    nfcBeamManager = nfcBeamManager
                 )
             }
         }

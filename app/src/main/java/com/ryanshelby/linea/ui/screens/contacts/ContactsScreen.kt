@@ -85,7 +85,8 @@ fun ContactsScreen(
     onContactClick: ((Long) -> Unit)? = null,
     onOpenPrivateSafe: () -> Unit = {},
     viewModel: ContactsViewModel = hiltViewModel(),
-    listState: LazyListState = rememberLazyListState()
+    listState: LazyListState = rememberLazyListState(),
+    nfcBeamManager: com.ryanshelby.linea.nfc.NfcBeamManager? = null
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val activeLetter by viewModel.activeLetter.collectAsState()
@@ -458,6 +459,7 @@ fun ContactsScreen(
             contact = selected,
             numbers = numbersForSelected,
             emails = emptyList(),
+            nfcBeamManager = nfcBeamManager,
             onDismiss = { viewModel.selectContactForDetail(null) },
             onCallNumber = { num, simSlot ->
                 if (callConfirmationEnabled && callCountdownSeconds > 0) {

@@ -5,6 +5,24 @@ All notable changes to the **LINEA** cellular dialer project will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **NFC-Triggered BLE Contact Sharing & Digital Card Handover**:
+  - **Sub-100ms Out-of-Band Touch Discovery**: Tapping two devices together now uses NFC purely for instant proximity intent and 32-byte ephemeral session key negotiation (`HANDOVER_INIT` / `0xB1`), immediately freeing users to pull devices apart without dropping transfer sessions.
+  - **High-Speed Encrypted BLE Data Transfer (`BleHandoverManager`)**: Complete contact and Digital Card data exchange runs over an AES-GCM-256 encrypted Bluetooth Low Energy (BLE) channel using negotiated MTU 512 and LE 2M/1M PHY.
+  - **Bidirectional Mutual Exchange**: Symmetrical data flow allows both users to exchange and receive each other's Digital Cards or contacts in a single tap without RF master/slave collisions.
+  - **Automatic Share Action**: Tapping the Share button on any contact immediately initiates NFC touch discovery and sets active contact priority without requiring intermediate "LiNEA Beam" buttons.
+  - **Privacy & Permission Integration**: Declared `BLUETOOTH_SCAN` with `neverForLocation` flag and `BLUETOOTH_ADVERTISE`, ensuring zero location permission prompts while maintaining targeted hardware scan filtering.
+  - **Hardware Detection & QR Fallback**: Clean visual fallback for devices lacking NFC hardware displaying `"Your phone doesn't have NFC."`, and an inline prompt to enable NFC in Android Settings when hardware is turned off.
+
+### Fixed & Optimized
+- **Contact Sharing Priority Override & Restoration**: Fixed issue where contact sharing fell back to transmitting sender's Digital Card or failed if no Digital Card was configured. Contact Sharing now strictly overrides Digital Card mode while active and automatically restores Digital Card mode upon dismissal.
+- **Singleton Lifecycle & Event Bus Integrity**: Removed ephemeral `remember { NfcBeamManager() }` instantiations across contact sheets that severed HCE incoming contact listeners, ensuring incoming beamed contacts reliably trigger `BeamedContactSheet`.
+- **Pure-NFC Legacy Fallback**: Preserved standard NFC Forum Type 4 Tag NDEF Application (`D2760000850101`) and chunked APDU exchange for non-BLE readers and physical NFC smart cards/tags.
+
+---
+
 ## [2.7.0] - 2026-10-29
 
 ### Added

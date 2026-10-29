@@ -14,9 +14,11 @@ import androidx.core.app.NotificationCompat
 import com.ryanshelby.linea.LineaApp
 import com.ryanshelby.linea.R
 import com.ryanshelby.linea.qr_code.QrCodeEngine
+import com.ryanshelby.linea.nfc.ble.BleHandoverManager
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.Arrays
+import java.util.Random
 
 /**
  * Host Card Emulation (HCE) service for LiNEA Beam.
@@ -55,6 +57,7 @@ class LineaBeamApduService : HostApduService() {
         const val INS_SEND_CHUNK = 0xA1
         const val INS_GET_CHUNK = 0xA2
         const val INS_SWAP_CARDS = 0xA5
+        const val INS_HANDOVER_INIT = 0xB1
         const val CHUNK_SIZE = 192
 
         // Type 4 Tag CC file content (15 bytes)
@@ -75,6 +78,9 @@ class LineaBeamApduService : HostApduService() {
 
         // Callback invoked on HCE device when peer transmits its contact card during bump
         var onContactReceivedListener: ((QrCodeEngine.ContactPayload) -> Unit)? = null
+
+        @Volatile
+        var bleHandoverManager: BleHandoverManager? = null
 
         fun setActiveContact(payload: QrCodeEngine.ContactPayload?) {
             activePayload = payload
@@ -159,6 +165,37 @@ class LineaBeamApduService : HostApduService() {
                 }
                 return STATUS_FILE_NOT_FOUND
             }
+        }
+
+        // 1.5 BLE HANDOVER INIT command (INS = B1)
+        if (ins == INS_HANDOVER_INIT) {
+            if (commandApdu.size >= 21) {
+                val nonceA = commandApdu.copyOfRange(5, 21)
+                val nonceB = ByteArray(16).apply { Random().nextBytes(this) }
+                val (serviceUuid, secretKey) = BleHandoverManager.deriveSessionKeys(nonceA, nonceB)
+                val outboundPayload = currentPayload
+
+                triggerHapticFeedback()
+                val manager = bleHandoverManager ?: try {
+                    BleHandoverManager(applicationContext)
+                } catch (_: Exception) {
+                    null
+                }
+                manager?.startPeripheralTransfer(
+                    serviceUuid = serviceUuid,
+                    secretKey = secretKey,
+                    outboundPayload = outboundPayload,
+                    onSuccess = { receivedPayload ->
+                        handleIncomingContact(receivedPayload)
+                    },
+                    onError = { err ->
+                        android.util.Log.e("LineaBeamApduService", "BLE Handover Peripheral error: $err")
+                    }
+                )
+
+                return nonceB + STATUS_SUCCESS
+            }
+            return STATUS_FAILED
         }
 
         // 2. INIT_EXCHANGE command (INS = A0)

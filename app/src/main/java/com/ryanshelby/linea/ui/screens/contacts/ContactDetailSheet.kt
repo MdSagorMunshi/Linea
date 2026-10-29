@@ -97,6 +97,7 @@ fun ContactDetailSheet(
     preCallNote: CallNoteEntity? = null,
     onSetPreCallNote: ((String) -> Unit)? = null,
     onClearPreCallNote: (() -> Unit)? = null,
+    nfcBeamManager: com.ryanshelby.linea.nfc.NfcBeamManager? = null,
     modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -173,7 +174,8 @@ fun ContactDetailSheet(
                 QrCodeSheet(
                     name = contact.displayName,
                     numbers = numbers.map { it.normalizedNumber.ifEmpty { it.number } },
-                    onDismiss = { showQrCodeSheet = false }
+                    onDismiss = { showQrCodeSheet = false },
+                    nfcBeamManager = nfcBeamManager
                 )
             }
 

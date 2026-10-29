@@ -793,8 +793,14 @@ fun MyProfileCardScreen(
             QrCodeSheet(
                 name = effectiveName,
                 numbers = effectiveNumbers,
+                email = email.ifBlank { null },
+                photoThumbnailBase64 = photoBase64,
+                social1Platform = if (social1Platform != SocialPlatform.NONE && social1Handle.isNotBlank()) social1Platform.name else null,
+                social1Handle = social1Handle.ifBlank { null },
+                social2Platform = if (social2Platform != SocialPlatform.NONE && social2Handle.isNotBlank()) social2Platform.name else null,
+                social2Handle = social2Handle.ifBlank { null },
                 onDismiss = { showQrShareSheet = false },
-                nfcBeamManager = nfcBeamManager ?: remember { NfcBeamManager() }
+                nfcBeamManager = nfcBeamManager
             )
         } else {
             Toast.makeText(context, "Please enter your name or number first", Toast.LENGTH_SHORT).show()

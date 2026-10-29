@@ -49,7 +49,8 @@ import com.ryanshelby.linea.ui.screens.dialpad.CallCountdownDialog
 fun ContactDashboardScreen(
     contactId: Long,
     onNavigateBack: () -> Unit,
-    viewModel: ContactDashboardViewModel = hiltViewModel()
+    viewModel: ContactDashboardViewModel = hiltViewModel(),
+    nfcBeamManager: com.ryanshelby.linea.nfc.NfcBeamManager? = null
 ) {
     LaunchedEffect(contactId) {
         viewModel.loadContactData(contactId)
@@ -847,7 +848,8 @@ fun ContactDashboardScreen(
             QrCodeSheet(
                 name = contact.displayName,
                 numbers = state.numbers.map { it.number },
-                onDismiss = { showQrCodeSheet = false }
+                onDismiss = { showQrCodeSheet = false },
+                nfcBeamManager = nfcBeamManager
             )
         }
 

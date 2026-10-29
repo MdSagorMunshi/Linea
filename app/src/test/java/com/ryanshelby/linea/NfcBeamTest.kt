@@ -2,14 +2,18 @@ package com.ryanshelby.linea
 
 import com.ryanshelby.linea.nfc.LineaBeamApduService
 import com.ryanshelby.linea.nfc.NfcBeamManager
+import com.ryanshelby.linea.nfc.ble.BleHandoverManager
 import com.ryanshelby.linea.qr_code.QrCodeEngine
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.charset.StandardCharsets
+import java.util.Random
 
 class NfcBeamTest {
 
@@ -329,6 +333,112 @@ class NfcBeamTest {
         assertEquals("daedalus@linea.mesh", parsedTarget?.email)
         assertEquals("TELEGRAM", parsedTarget?.social1Platform)
         assertEquals("daedalus_prime", parsedTarget?.social1Handle)
+    }
+
+    @Test
+    fun testBleHandoverCryptoAndKeyDerivation() {
+        val nonceA = ByteArray(16).apply { Random(42).nextBytes(this) }
+        val nonceB = ByteArray(16).apply { Random(84).nextBytes(this) }
+
+        // Both devices derive keys from the shared nonces exchanged via NFC
+        val (uuidA, keyA) = BleHandoverManager.deriveSessionKeys(nonceA, nonceB)
+        val (uuidB, keyB) = BleHandoverManager.deriveSessionKeys(nonceA, nonceB)
+
+        // Ephemeral Service UUIDs and AES-256 keys must match identically
+        assertEquals(uuidA, uuidB)
+        assertArrayEquals(keyA.encoded, keyB.encoded)
+
+        // Test encryption of rich contact payload
+        val payload = QrCodeEngine.ContactPayload(
+            name = "Sarah Connor",
+            numbers = listOf("+13105550199"),
+            email = "sarah@resistance.org",
+            photoThumbnailBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            social1Platform = "TELEGRAM",
+            social1Handle = "sarah_connor"
+        )
+        val plainText = QrCodeEngine.serializeToUri(payload)
+        val encrypted = BleHandoverManager.encryptPayload(plainText, keyA)
+
+        assertNotNull(encrypted)
+        assertTrue("Encrypted payload must have IV + ciphertext (> 12 bytes)", encrypted.size > 12)
+        assertFalse("Ciphertext must not contain plaintext string", String(encrypted, StandardCharsets.ISO_8859_1).contains("sarah@resistance.org"))
+
+        // Decrypt on recipient device with keyB
+        val decrypted = BleHandoverManager.decryptPayload(encrypted, keyB)
+        assertNotNull(decrypted)
+        assertEquals(plainText, decrypted)
+
+        val parsed = QrCodeEngine.parseLineaScannedText(decrypted!!)
+        assertNotNull(parsed)
+        assertEquals("Sarah Connor", parsed?.name)
+        assertEquals(listOf("+13105550199"), parsed?.numbers)
+        assertEquals("sarah@resistance.org", parsed?.email)
+        assertEquals("TELEGRAM", parsed?.social1Platform)
+    }
+
+    @Test
+    fun testContactSharingPriorityAndAutomaticRestoration() {
+        val manager = NfcBeamManager()
+
+        val profilePayload = QrCodeEngine.ContactPayload(
+            name = "Personal Digital Card",
+            numbers = listOf("+10000000000"),
+            email = "me@linea.app"
+        )
+        val contactToShare = QrCodeEngine.ContactPayload(
+            name = "Colleague Contact",
+            numbers = listOf("+19999999999"),
+            email = "colleague@work.com"
+        )
+
+        // 1. Initial State: User profile configured -> HCE should serve Digital Card
+        manager.setUserProfilePayload(profilePayload)
+        assertEquals(profilePayload, LineaBeamApduService.activePayload)
+
+        // 2. User taps Share on a contact: Contact Sharing must take priority over Digital Card
+        manager.setActiveBeamContact(contactToShare)
+        assertEquals(contactToShare, LineaBeamApduService.activePayload)
+
+        // 3. User closes Share sheet: Active contact cleared -> Must automatically restore Digital Card
+        manager.setActiveBeamContact(null)
+        assertEquals(profilePayload, LineaBeamApduService.activePayload)
+
+        // 4. User clears digital card: Must be null
+        manager.setUserProfilePayload(null)
+        manager.setActiveBeamContact(null)
+        assertNull(LineaBeamApduService.activePayload)
+    }
+
+    @Test
+    fun testHandoverInitApduCommand() {
+        val service = LineaBeamApduService()
+        val digitalCard = QrCodeEngine.ContactPayload(
+            name = "Receiver Profile",
+            numbers = listOf("+18887776655")
+        )
+        LineaBeamApduService.setActiveContact(digitalCard)
+
+        val nonceA = ByteArray(16).apply { Random(101).nextBytes(this) }
+        val handoverApdu = byteArrayOf(
+            0x00, LineaBeamApduService.INS_HANDOVER_INIT.toByte(), 0x00, 0x00, 0x10.toByte()
+        ) + nonceA + byteArrayOf(0x10.toByte())
+
+        val response = service.processCommandApdu(handoverApdu, null)
+        assertNotNull(response)
+        // Response must contain 16 bytes nonceB + 2 bytes status words (0x90, 0x00) = 18 bytes
+        assertEquals(18, response.size)
+        assertEquals(0x90.toByte(), response[16])
+        assertEquals(0x00.toByte(), response[17])
+
+        val nonceB = response.copyOfRange(0, 16)
+        assertFalse("nonceB must not be all zeros", nonceB.all { it == 0.toByte() })
+
+        // Derive keys on both sides
+        val (clientUuid, clientKey) = BleHandoverManager.deriveSessionKeys(nonceA, nonceB)
+        val (serverUuid, serverKey) = BleHandoverManager.deriveSessionKeys(nonceA, nonceB)
+        assertEquals(clientUuid, serverUuid)
+        assertArrayEquals(clientKey.encoded, serverKey.encoded)
     }
 }
 

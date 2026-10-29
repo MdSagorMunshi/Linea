@@ -28,8 +28,10 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 import java.lang.ref.WeakReference
 import java.nio.charset.StandardCharsets
+import java.util.Random
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.ryanshelby.linea.nfc.ble.BleHandoverManager
 
 /**
  * High-performance NFC Manager for LiNEA Beam.
@@ -42,7 +44,14 @@ import javax.inject.Singleton
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Singleton
-class NfcBeamManager @Inject constructor() {
+class NfcBeamManager private constructor(
+    val bleHandoverManager: BleHandoverManager?,
+    @Suppress("UNUSED_PARAMETER") marker: Any?
+) {
+    @Inject
+    constructor(bleHandoverManager: BleHandoverManager) : this(bleHandoverManager, null)
+
+    constructor() : this(null, null)
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
@@ -75,6 +84,9 @@ class NfcBeamManager @Inject constructor() {
         // Bridge HCE service incoming beam transmissions to UI flow
         LineaBeamApduService.onContactReceivedListener = { payload ->
             _incomingBeamedContact.tryEmit(payload)
+        }
+        if (bleHandoverManager != null) {
+            LineaBeamApduService.bleHandoverManager = bleHandoverManager
         }
     }
 
@@ -374,6 +386,45 @@ class NfcBeamManager @Inject constructor() {
                         selectResponse[selectResponse.size - 2] == 0x90.toByte() &&
                         selectResponse[selectResponse.size - 1] == 0x00.toByte()
                     ) {
+                        // Step A.1: High-Speed Encrypted BLE Handover
+                        val outboundPayload = activeBeamPayload ?: userProfilePayload
+                        if (bleHandoverManager != null && bleHandoverManager.isBluetoothEnabled) {
+                            val nonceA = ByteArray(16).apply { Random().nextBytes(this) }
+                            val handoverApdu = byteArrayOf(
+                                0x00, LineaBeamApduService.INS_HANDOVER_INIT.toByte(), 0x00, 0x00, 0x10.toByte()
+                            ) + nonceA + byteArrayOf(0x10.toByte())
+
+                            try {
+                                val handoverResp = isoDep.transceive(handoverApdu)
+                                if (handoverResp != null && handoverResp.size >= 18 &&
+                                    handoverResp[handoverResp.size - 2] == 0x90.toByte() &&
+                                    handoverResp[handoverResp.size - 1] == 0x00.toByte()
+                                ) {
+                                    val nonceB = handoverResp.copyOfRange(0, 16)
+                                    val (serviceUuid, secretKey) = BleHandoverManager.deriveSessionKeys(nonceA, nonceB)
+
+                                    triggerHapticFeedback()
+                                    try { isoDep.close() } catch (_: Exception) {}
+
+                                    bleHandoverManager.startCentralTransfer(
+                                        serviceUuid = serviceUuid,
+                                        secretKey = secretKey,
+                                        outboundPayload = outboundPayload,
+                                        onSuccess = { receivedPayload ->
+                                            triggerHapticFeedback()
+                                            _incomingBeamedContact.tryEmit(receivedPayload)
+                                        },
+                                        onError = { err ->
+                                            android.util.Log.e("NfcBeamManager", "BLE Handover Central error: $err")
+                                        }
+                                    )
+                                    return null
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.d("NfcBeamManager", "BLE Handover APDU failed, falling back to pure NFC: ${e.message}")
+                            }
+                        }
+
                         // Check if peer returned payload directly on SELECT AID (for small cards <= 240 bytes)
                         if (selectResponse.size > 2) {
                             val payloadBytes = selectResponse.copyOfRange(0, selectResponse.size - 2)
@@ -382,7 +433,6 @@ class NfcBeamManager @Inject constructor() {
                         }
 
                         // Prepare outbound chunks to transmit reader's contact card to the target phone
-                        val outboundPayload = activeBeamPayload ?: userProfilePayload
                         val outboundUriBytes = if (outboundPayload != null) {
                             QrCodeEngine.serializeToUri(outboundPayload).toByteArray(StandardCharsets.UTF_8)
                         } else ByteArray(0)
