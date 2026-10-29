@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.provider.CallLog
+import android.util.Log
 import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.data.local.entities.CallDirectionType
 import com.ryanshelby.linea.data.local.entities.CallRecordEntity
@@ -11,6 +12,7 @@ import com.ryanshelby.linea.telecom.ContactLookupHelper
 import com.ryanshelby.linea.telecom.SimAccountResolver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,6 +24,44 @@ class CallLogRepository @Inject constructor(
     private val contactLookupHelper: ContactLookupHelper,
     private val simAccountResolver: SimAccountResolver
 ) {
+
+    private val repoScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+    private var callLogObserverRegistered = false
+
+    fun startObservingCallLog() {
+        if (callLogObserverRegistered) return
+        try {
+            val hasRead = androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.READ_CALL_LOG
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!hasRead) return
+
+            val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+                private var syncJob: kotlinx.coroutines.Job? = null
+                override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+                    super.onChange(selfChange, uri)
+                    syncJob?.cancel()
+                    syncJob = repoScope.launch {
+                        kotlinx.coroutines.delay(500L) // debounce
+                        syncSystemCallLog()
+                    }
+                }
+            }
+            context.contentResolver.registerContentObserver(
+                CallLog.Calls.CONTENT_URI,
+                true,
+                observer
+            )
+            callLogObserverRegistered = true
+        } catch (e: Exception) {
+            Log.w("CallLogRepository", "Could not register CallLog ContentObserver", e)
+        }
+    }
+
+    init {
+        startObservingCallLog()
+    }
 
     private fun normalizeNumber(phoneNumber: String): String {
         val digits = phoneNumber.filter { it.isDigit() }
@@ -36,42 +76,63 @@ class CallLogRepository @Inject constructor(
     private suspend fun hasRecordNearTimestamp(
         phoneNumber: String,
         timestamp: Long,
+        direction: CallDirectionType,
         durationSeconds: Long = 0L
     ): Boolean {
         val normTarget = normalizeNumber(phoneNumber)
-        val window = kotlin.math.max(45_000L, durationSeconds * 1000L + 20_000L)
+        val window = 3_000L
         val records = callRecordDao.getRecordsInTimeWindow(timestamp - window, timestamp + window)
         return records.any { existing ->
             val normExisting = normalizeNumber(existing.phoneNumber)
             val numberMatches = (normTarget.isNotEmpty() && normExisting.isNotEmpty() &&
                     (normTarget == normExisting || normTarget.endsWith(normExisting) || normExisting.endsWith(normTarget)))
                     || (existing.phoneNumber == phoneNumber)
+            val sameType = existing.callType == direction
             val timeDiff = kotlin.math.abs(existing.timestamp - timestamp)
-            val maxDur = kotlin.math.max(existing.durationSeconds, durationSeconds) * 1000L
-            numberMatches && timeDiff <= kotlin.math.max(45_000L, maxDur + 20_000L)
+            val durDiff = kotlin.math.abs(existing.durationSeconds - durationSeconds)
+            numberMatches && sameType && timeDiff <= window && durDiff <= 2L
         }
     }
 
-    private fun checkSystemCallLogExists(number: String, timestamp: Long, durationSeconds: Long): Boolean {
+    private fun checkSystemCallLogExists(
+        number: String,
+        timestamp: Long,
+        direction: CallDirectionType,
+        durationSeconds: Long
+    ): Boolean {
         val norm = normalizeNumber(number)
-        val window = kotlin.math.max(45_000L, durationSeconds * 1000L + 20_000L)
+        val window = 3_000L
         val minDate = timestamp - window
         val maxDate = timestamp + window
         try {
             val cursor = context.contentResolver.query(
                 CallLog.Calls.CONTENT_URI,
-                arrayOf(CallLog.Calls._ID, CallLog.Calls.NUMBER, CallLog.Calls.DATE),
+                arrayOf(CallLog.Calls._ID, CallLog.Calls.NUMBER, CallLog.Calls.DATE, CallLog.Calls.TYPE, CallLog.Calls.DURATION),
                 "${CallLog.Calls.DATE} BETWEEN ? AND ?",
                 arrayOf(minDate.toString(), maxDate.toString()),
                 null
             )
+            val expectedSysType = when (direction) {
+                CallDirectionType.INCOMING -> CallLog.Calls.INCOMING_TYPE
+                CallDirectionType.OUTGOING -> CallLog.Calls.OUTGOING_TYPE
+                CallDirectionType.MISSED -> CallLog.Calls.MISSED_TYPE
+                CallDirectionType.REJECTED -> CallLog.Calls.REJECTED_TYPE
+                CallDirectionType.BLOCKED -> CallLog.Calls.BLOCKED_TYPE
+            }
             cursor?.use {
                 val numIdx = it.getColumnIndex(CallLog.Calls.NUMBER)
+                val typeIdx = it.getColumnIndex(CallLog.Calls.TYPE)
+                val durIdx = it.getColumnIndex(CallLog.Calls.DURATION)
                 while (it.moveToNext()) {
                     val sysNum = if (numIdx >= 0) it.getString(numIdx) ?: "" else ""
+                    val sysType = if (typeIdx >= 0) it.getInt(typeIdx) else -1
+                    val sysDur = if (durIdx >= 0) it.getLong(durIdx) else 0L
                     val sysNorm = normalizeNumber(sysNum)
-                    if (sysNum == number || (norm.isNotEmpty() && sysNorm.isNotEmpty() &&
-                            (norm == sysNorm || norm.endsWith(sysNorm) || sysNorm.endsWith(norm)))) {
+                    val numMatch = sysNum == number || (norm.isNotEmpty() && sysNorm.isNotEmpty() &&
+                            (norm == sysNorm || norm.endsWith(sysNorm) || sysNorm.endsWith(norm)))
+                    val typeMatch = sysType == expectedSysType
+                    val durMatch = kotlin.math.abs(sysDur - durationSeconds) <= 2L
+                    if (numMatch && typeMatch && durMatch) {
                         return true
                     }
                 }
@@ -112,7 +173,7 @@ class CallLogRepository @Inject constructor(
         }
 
         // Check if this call was already logged to prevent duplicates
-        if (!hasRecordNearTimestamp(phoneNumber, timestamp, durationSeconds)) {
+        if (!hasRecordNearTimestamp(phoneNumber, timestamp, direction, durationSeconds)) {
             // 1. Insert into LINEA local Room database
             val record = CallRecordEntity(
                 phoneNumber = phoneNumber,
@@ -135,7 +196,7 @@ class CallLogRepository @Inject constructor(
         // and not already logged by Android Telecom subsystem
         if (!isPrivate) {
             try {
-                if (!checkSystemCallLogExists(phoneNumber, timestamp, durationSeconds)) {
+                if (!checkSystemCallLogExists(phoneNumber, timestamp, direction, durationSeconds)) {
                     val systemCallType = when (direction) {
                         CallDirectionType.INCOMING -> CallLog.Calls.INCOMING_TYPE
                         CallDirectionType.OUTGOING -> CallLog.Calls.OUTGOING_TYPE
@@ -194,12 +255,11 @@ class CallLogRepository @Inject constructor(
                 val sameNumber = (normNum.isNotEmpty() && normExisting.isNotEmpty() &&
                         (normNum == normExisting || normNum.endsWith(normExisting) || normExisting.endsWith(normNum)))
                         || (record.phoneNumber == existing.phoneNumber)
-                        || (!record.callerName.isNullOrBlank() && record.callerName.equals(existing.callerName, ignoreCase = true))
 
                 val sameType = existing.callType == record.callType
                 val timeDiff = kotlin.math.abs(existing.timestamp - record.timestamp)
-                val maxDuration = kotlin.math.max(existing.durationSeconds, record.durationSeconds) * 1000L
-                sameNumber && sameType && timeDiff <= kotlin.math.max(45_000L, maxDuration + 20_000L)
+                val durDiff = kotlin.math.abs(existing.durationSeconds - record.durationSeconds)
+                sameNumber && sameType && timeDiff <= 3_000L && durDiff <= 2L
             }
 
             if (duplicate != null) {
@@ -216,7 +276,7 @@ class CallLogRepository @Inject constructor(
 
     @SuppressLint("Range")
     suspend fun syncSystemCallLog() = withContext(Dispatchers.IO) {
-        // 1. Purge any duplicate records already accumulated in the Room DB
+        // 1. Purge any true duplicate records (<= 3s)
         try {
             deduplicateRecords()
         } catch (e: Exception) {
@@ -280,10 +340,10 @@ class CallLogRepository @Inject constructor(
 
                     if (number.isNotBlank()) {
                         val norm = normalizeNumber(number)
-                        // Clean up duplicate row in system call log if already seen
+                        // Clean up duplicate row in system call log ONLY if exact duplicate within 3s
                         val isDuplicateInSystem = seenSystemCalls.any { (_, seenNorm, seenDate) ->
                             (seenNorm == norm || seenNorm.endsWith(norm) || norm.endsWith(seenNorm)) &&
-                                    kotlin.math.abs(seenDate - timestamp) <= kotlin.math.max(45_000L, duration * 1000L + 20_000L)
+                                    kotlin.math.abs(seenDate - timestamp) <= 3_000L
                         }
 
                         if (isDuplicateInSystem && sysId > 0) {
@@ -299,27 +359,25 @@ class CallLogRepository @Inject constructor(
                                 seenSystemCalls.add(Triple(sysId, norm, timestamp))
                             }
 
-                            // Check existing records in LINEA Room DB to repair wrongly labelled entries or insert new ones
-                            val window = kotlin.math.max(45_000L, duration * 1000L + 20_000L)
+                            // Match records within a narrow 3s window with matching call direction
+                            val window = 3_000L
                             val existingRecords = callRecordDao.getRecordsInTimeWindow(timestamp - window, timestamp + window)
                             val existing = existingRecords.find { rec ->
                                 val normRec = normalizeNumber(rec.phoneNumber)
-                                (norm.isNotEmpty() && normRec.isNotEmpty() && (norm == normRec || norm.endsWith(normRec) || normRec.endsWith(norm)))
-                                    || rec.phoneNumber == number
+                                ((norm.isNotEmpty() && normRec.isNotEmpty() && (norm == normRec || norm.endsWith(normRec) || normRec.endsWith(norm)))
+                                    || rec.phoneNumber == number) && rec.callType == direction
                             }
 
                             if (existing != null) {
-                                // Repair wrongly labelled records or stale SIM slots
                                 var updated = existing
+                                if (duration > 0 && existing.durationSeconds == 0L) {
+                                    updated = updated.copy(durationSeconds = duration)
+                                }
                                 if (resolvedSlot != null && (existing.simSlot != resolvedSlot || existing.simDisplayName != simDisplayName)) {
                                     updated = updated.copy(simSlot = resolvedSlot, simDisplayName = simDisplayName)
                                 }
-                                if (updated.callType == CallDirectionType.OUTGOING &&
-                                    (direction == CallDirectionType.MISSED || direction == CallDirectionType.REJECTED || direction == CallDirectionType.INCOMING) &&
-                                    updated.durationSeconds == 0L) {
-                                    updated = updated.copy(callType = direction)
-                                } else if (updated.callType == CallDirectionType.MISSED && direction == CallDirectionType.REJECTED) {
-                                    updated = updated.copy(callType = direction)
+                                if (existing.callerName.isNullOrBlank() && !name.isNullOrBlank()) {
+                                    updated = updated.copy(callerName = name)
                                 }
                                 if (updated != existing) {
                                     callRecordDao.updateCallRecord(updated)

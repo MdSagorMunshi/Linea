@@ -103,6 +103,9 @@ interface ContactDao {
     @Query("SELECT * FROM contacts")
     suspend fun getAllContactsOnce(): List<ContactEntity>
 
+    @Query("SELECT * FROM contacts WHERE isPrivate = 0")
+    suspend fun getAllPublicContactsOnce(): List<ContactEntity>
+
     @Query("DELETE FROM contact_numbers WHERE contactId = :contactId")
     suspend fun deleteNumbersForContact(contactId: Long)
 
@@ -117,6 +120,9 @@ interface ContactDao {
 
     @Query("SELECT * FROM contact_emails WHERE contactId = :contactId")
     suspend fun getEmailsForContactOnce(contactId: Long): List<ContactEmailEntity>
+
+    @Query("UPDATE contact_emails SET contactId = :newContactId WHERE contactId = :oldContactId")
+    suspend fun reassignEmailsContact(oldContactId: Long, newContactId: Long)
 
     @Query("DELETE FROM contact_emails WHERE contactId = :contactId")
     suspend fun deleteEmailsForContact(contactId: Long)

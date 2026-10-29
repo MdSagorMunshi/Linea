@@ -69,10 +69,10 @@ object HistoryGrouper {
         for (rec in sortedDescending) {
             val existingIndex = result.indexOfFirst { existing ->
                 val timeDiff = kotlin.math.abs(existing.timestamp - rec.timestamp)
-                val maxDuration = kotlin.math.max(existing.durationSeconds, rec.durationSeconds) * 1000L
                 val sameType = existing.callType == rec.callType
-                val timeClose = timeDiff <= kotlin.math.max(45_000L, maxDuration + 20_000L)
-                sameType && timeClose
+                val sameNumber = normalizeNumberKey(existing.phoneNumber) == normalizeNumberKey(rec.phoneNumber)
+                val durDiff = kotlin.math.abs(existing.durationSeconds - rec.durationSeconds)
+                sameNumber && sameType && timeDiff <= 3_000L && durDiff <= 2L
             }
             if (existingIndex >= 0) {
                 val existing = result[existingIndex]
@@ -159,15 +159,17 @@ object HistoryGrouper {
     }
 
     /**
-     * Groups raw call records by date, and within each date groups repeated calls
-     * from the same phone number into a single collapsible item with badge count.
+     * Groups raw call records by date, displaying each call as its own distinct entry
+     * with accurate timestamp, call status, and duration.
      */
     fun groupRecords(records: List<CallRecordEntity>): List<DateGroup> {
         if (records.isEmpty()) return emptyList()
 
+        val deduplicated = deduplicateCallRecords(records.sortedByDescending { it.timestamp })
+
         // 1. Group by date string ("Today", "Yesterday", "Mon, 14 Jul")
         val byDateMap = LinkedHashMap<String, MutableList<CallRecordEntity>>()
-        for (record in records) {
+        for (record in deduplicated) {
             val dateKey = formatRelativeDate(record.timestamp)
             byDateMap.getOrPut(dateKey) { mutableListOf() }.add(record)
         }
@@ -175,36 +177,15 @@ object HistoryGrouper {
         val dateGroups = mutableListOf<DateGroup>()
 
         for ((dateHeader, dateRecords) in byDateMap) {
-            // Group repeated calls by normalized contact identity within the same day
-            val byNumberMap = LinkedHashMap<String, MutableList<CallRecordEntity>>()
-            for (rec in dateRecords) {
-                val key = getGroupingKey(rec)
-                byNumberMap.getOrPut(key) { mutableListOf() }.add(rec)
-            }
-
-            val items = mutableListOf<CallHistoryItem>()
-            for ((key, callList) in byNumberMap) {
-                val sortedList = callList.sortedByDescending { it.timestamp }
-                val deduplicatedList = deduplicateCallRecords(sortedList)
-                if (deduplicatedList.isEmpty()) continue
-                val rawPrimary = deduplicatedList.first()
-                val bestCallerName = deduplicatedList.firstOrNull { !it.callerName.isNullOrBlank() }?.callerName ?: rawPrimary.callerName
-                val primary = if (rawPrimary.callerName.isNullOrBlank() && !bestCallerName.isNullOrBlank()) {
-                    rawPrimary.copy(callerName = bestCallerName)
-                } else {
-                    rawPrimary
-                }
-                items.add(
-                    CallHistoryItem(
-                        id = "${dateHeader}_${key}_${primary.id}",
-                        primaryRecord = primary,
-                        groupedCalls = deduplicatedList,
-                        callCount = deduplicatedList.size,
-                        isExpanded = false
-                    )
+            val items = dateRecords.map { rec ->
+                CallHistoryItem(
+                    id = "call_${rec.id}_${rec.timestamp}",
+                    primaryRecord = rec,
+                    groupedCalls = listOf(rec),
+                    callCount = 1,
+                    isExpanded = false
                 )
             }
-            items.sortByDescending { it.primaryRecord.timestamp }
             dateGroups.add(DateGroup(dateHeader = dateHeader, items = items))
         }
 

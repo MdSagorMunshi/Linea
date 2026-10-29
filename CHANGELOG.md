@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **LiNEA SF: Smart Contact Management (Settings &rarr; LiNEA SF)**:
+  - **Smart Duplicate Detection Engine**: Multi-signal matching algorithm combining normalized phone numbers (canonical E.164 digits and country code tolerance), Jaro-Winkler string similarity, email address matches, and confidence scoring.
+  - **Intelligent Contact Merging with Safe Merge Preview**: Side-by-side preview bottom sheet displaying preserved phone numbers, merged email addresses, companies, and unified notes before confirming destructive merges.
+  - **Name Cleanup & Title-Casing System**: Automatically detects and repairs ALL CAPS, all lowercase, redundant spaces, stray punctuation, name particles (*van*, *von*, *de*, *del*, *di*), and uppercase suffixes/Roman numerals (*Jr.*, *Sr.*, *II*, *III*, *IV*, *VIII*, *MD*, *PhD*).
+  - **Duplicate Number Detection**: Identifies identical phone numbers saved across multiple distinct contact names or records.
+  - **Incomplete Contact Detection & Quality Scoring**: Calculates a real-time Address Book Quality Score (0–100%) with Completeness, Consistency, and Hygiene ratings, accompanied by letter grades (A+ to Needs Work) and actionable smart suggestions.
+  - **One-Tap Bulk Cleanup**: Provides batch operations including "Clean All Names" and "Merge High-Confidence Duplicates".
+  - **Transactional Undo & Recovery Stack**: Full LIFO undo manager supporting rollback of name cleanups and contact merges across both the local Room database and Android `ContactsContract`.
+  - **Customizable Sensitivity & Normalization Rules**: Configurable matching sensitivity (Strict 90%+, Balanced 75%+, Aggressive 60%+), toggleable auto-capitalization, and international number normalization rules.
+  - **Settings Search Deep-Linking**: Fully indexed in the Settings search engine with keywords `smart filter`, `linea sf`, `clean`, `merge`, `duplicate`, `quality score`.
 - **Multi-Theme UI/UX Design System Suite (6 Distinct Design Systems + Preserved Classic & Crystal)**:
   - **Six New Production UI/UX Themes**:
     - **Neumorphism (`NEUMORPHISM`)**: Physical extruded surfaces, debossed wells, dual ambient light and shadow bevels, pill call button, and cushioned tactile spring motion.
@@ -45,6 +55,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Automated Security Verification Test Suite (`PrivateVaultSecurityManagerTest`)**: Added 18 comprehensive automated tests covering PIN validation, answer complexity, unauthorized overwrite rejection, brute-force rate-limiting lockouts, session timeouts, forged session rejection, legacy PBKDF2 migration, and RAM zeroization.
 
 ### Fixed & Optimized
+- **Call History Logging & Duration Tracking Overhaul**:
+  - **Successive Call Deduplication Fix**: Replaced the erroneous 45-second duplicate suppression window in `CallLogRepository` with a precise 3-second deduplication check requiring identical direction, normalized number, and matching duration ($\le 2$s). Successive calls from the same contact are now recorded and displayed as separate, distinct entries with accurate timestamps.
+  - **Connected Conversation Duration Accuracy**: Updated `CallManager` to compute duration starting strictly when the call reaches `LineaCallState.ACTIVE` (`establishedConnectTime`), ensuring logged durations reflect actual connected conversation time and completely exclude ringing duration.
+  - **Disconnect State Duration Preservation**: Fixed race condition on disconnect where zero or unset `call.details?.connectTimeMillis` erroneously erased active duration and marked answered calls as missed/incoming with 0 seconds duration.
+  - **Real-Time CallLog Observer**: Registered an automatic `ContentObserver` on Android `CallLog.Calls.CONTENT_URI` with debounced background sync, ensuring external calls or system telecom events reflect immediately in LiNEA without requiring app restarts or manual syncs.
+  - **Feed Call Entry Granularity**: Updated `groupRecords` in `HistoryModels` to display each call as its own distinct item card with status and duration while keeping multi-call aggregation available in Sessions mode.
+- **Contact Persistence & Instant Cross-App Synchronization**:
+  - **Real-Time Contacts ContentObserver**: Added a background `ContentObserver` on `ContactsContract.Contacts.CONTENT_URI` within `ContactSyncRepository` to automatically detect system address book changes and synchronize them into Room within 600ms.
+  - **Instant UI Reflection Without App Restart**: Eliminated the need for app restarts by invalidating `ContactLookupHelper` in-memory caches, propagating new caller names to `CallRecordDao`, and directly collecting `cachedT9Contacts` in `DialpadViewModel` for real-time T9 search results.
+  - **Contact Edit Form Keying**: Keyed `ContactCreateEditSheet` remember state to contact ID and initial numbers, preventing stale form fields when toggling between contact edits.
 - **Private Vault Security Hardening & Password Recovery Vulnerability Remediation**:
   - **Cryptographic Recovery Answer Validation**: Fixed critical vulnerability where entering any recovery answer allowed users to reset the vault PIN without answer verification. PIN resets now strictly require valid answer verification before authorizing a new PIN.
   - **Vault Overwrite Prevention**: Sealed `setupInitialPin` to reject re-initialization when a PIN is already configured (`hasPinSet()`), preventing malicious or accidental master key erasure.

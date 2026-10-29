@@ -32,7 +32,7 @@ class HistoryGrouperTest {
     }
 
     @Test
-    fun groupRecords_coalescesSameDayCallsFromSameNumber() {
+    fun groupRecords_recordsSeparateEntriesForCallsFromSameNumber() {
         val now = System.currentTimeMillis()
         val records = listOf(
             CallRecordEntity(
@@ -69,20 +69,29 @@ class HistoryGrouperTest {
         assertEquals("Today", groups.first().dateHeader)
 
         val items = groups.first().items
-        assertEquals(2, items.size) // 2 distinct numbers: 5551234 and 5559999
+        // Each call must appear as a separate entry with accurate timestamp and details
+        assertEquals(3, items.size)
 
-        val aliceGroup = items.find { it.primaryRecord.phoneNumber == "5551234" }
-        assertEquals(2, aliceGroup?.callCount)
-        assertEquals(2, aliceGroup?.groupedCalls?.size)
-        // Primary record should be the latest call (id = 2)
-        assertEquals(2L, aliceGroup?.primaryRecord?.id)
-        assertEquals(CallDirectionType.INCOMING, aliceGroup?.primaryRecord?.callType)
+        // Item 0 is latest (Bob, missed, 0s)
+        assertEquals("5559999", items[0].primaryRecord.phoneNumber)
+        assertEquals(CallDirectionType.MISSED, items[0].primaryRecord.callType)
+        assertEquals(0L, items[0].primaryRecord.durationSeconds)
+
+        // Item 1 is Alice incoming (60s)
+        assertEquals("5551234", items[1].primaryRecord.phoneNumber)
+        assertEquals(CallDirectionType.INCOMING, items[1].primaryRecord.callType)
+        assertEquals(60L, items[1].primaryRecord.durationSeconds)
+
+        // Item 2 is Alice outgoing (30s)
+        assertEquals("5551234", items[2].primaryRecord.phoneNumber)
+        assertEquals(CallDirectionType.OUTGOING, items[2].primaryRecord.callType)
+        assertEquals(30L, items[2].primaryRecord.durationSeconds)
     }
 
     @Test
-    fun groupRecords_deduplicatesNearDuplicateCallsWithSameDirection() {
+    fun groupRecords_deduplicatesOnlyExactDuplicateWritesWithin3Seconds() {
         val now = System.currentTimeMillis()
-        // Simulate a call logged twice (e.g. once at start time and once at disconnect time)
+        // Simulate a call logged twice simultaneously (e.g. system and app double write within 1s)
         val records = listOf(
             CallRecordEntity(
                 id = 114,
@@ -99,7 +108,7 @@ class HistoryGrouperTest {
                 formattedNumber = "15559012345",
                 callerName = "Sarah Connor",
                 callType = CallDirectionType.OUTGOING,
-                timestamp = now - 13000, // 12 seconds prior (start time vs end time)
+                timestamp = now - 1500, // 500ms difference
                 durationSeconds = 10
             )
         )
@@ -109,13 +118,11 @@ class HistoryGrouperTest {
         val items = groups.first().items
         assertEquals(1, items.size)
         val sarah = items.first()
-        // Must be coalesced into 1 call, not 2
         assertEquals(1, sarah.callCount)
-        assertEquals(1, sarah.groupedCalls.size)
     }
 
     @Test
-    fun groupRecords_coalescesFormattedNumberVariantsIntoSingleCard() {
+    fun groupSessions_coalescesSameDayCallsFromSameNumber() {
         val now = System.currentTimeMillis()
         val records = listOf(
             CallRecordEntity(
@@ -147,14 +154,13 @@ class HistoryGrouperTest {
             )
         )
 
-        val groups = HistoryGrouper.groupRecords(records)
-        assertEquals(1, groups.size)
-        val items = groups.first().items
-        // All variants must be grouped into a single card
-        assertEquals(1, items.size)
-        val sarah = items.first()
+        val sessions = HistoryGrouper.groupSessions(records)
+        // All variants must be grouped into a single session
+        assertEquals(1, sessions.size)
+        val sarah = sessions.first()
         assertEquals(3, sarah.callCount)
-        assertEquals("Sarah Connor", sarah.primaryRecord.callerName)
+        assertEquals(65L, sarah.totalDurationSeconds)
+        assertEquals("Sarah Connor", sarah.callerName)
     }
 
     @Test

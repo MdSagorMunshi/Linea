@@ -1,6 +1,7 @@
 package com.ryanshelby.linea.ui.screens.settings.search
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.automirrored.filled.PhoneForwarded
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Backup
@@ -50,6 +51,23 @@ object SettingsSearchEngine {
                     "vcard", "qr", "linea beam", "avatar", "always share", "touch to share", "business card"
                 ),
                 action = SettingsSearchAction.Navigate(callbacks.onNavigateToProfileCard)
+            )
+        )
+
+        // LiNEA SF: Smart Filter & Contact Management
+        list.add(
+            SettingsSearchItem(
+                id = "linea_sf",
+                title = "LiNEA SF (Smart Contact Management)",
+                subtitle = "Detect duplicate contacts, fix name casing, merge records & evaluate quality",
+                category = SettingsCategory.GENERAL,
+                icon = Icons.Filled.AutoFixHigh,
+                keywords = listOf(
+                    "sf", "linea sf", "smart filter", "duplicates", "merge", "duplicate contacts",
+                    "cleanup", "clean names", "quality score", "contact score", "incomplete contacts",
+                    "organize contacts", "google contacts", "undo merge"
+                ),
+                action = SettingsSearchAction.Navigate(callbacks.onNavigateToSmartFilter)
             )
         )
 

@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
@@ -150,6 +151,7 @@ fun SettingsScreen(
     onNavigateToAbout: () -> Unit = {},
     onNavigateToRingtone: () -> Unit = {},
     onNavigateToNavbar: () -> Unit = {},
+    onNavigateToSmartFilter: () -> Unit = {},
     scrollState: ScrollState = rememberScrollState(),
     modifier: Modifier = Modifier
 ) {
@@ -185,7 +187,7 @@ fun SettingsScreen(
         onNavigateToPermissions, onNavigateToVoicemail, onNavigateToCallForwarding,
         onNavigateToCallBarring, onNavigateToCallRules, onNavigateToDiagnostics,
         onNavigateToStats, onNavigateToBackup, onNavigateToAbout, onNavigateToRingtone,
-        onNavigateToNavbar, onNavigateToProfileCard
+        onNavigateToNavbar, onNavigateToProfileCard, onNavigateToSmartFilter
     ) {
         SettingsSearchCallbacks(
             onRequestDefaultDialer = onRequestDefaultDialer,
@@ -204,6 +206,7 @@ fun SettingsScreen(
             onNavigateToRingtone = onNavigateToRingtone,
             onNavigateToNavbar = onNavigateToNavbar,
             onNavigateToProfileCard = onNavigateToProfileCard,
+            onNavigateToSmartFilter = onNavigateToSmartFilter,
             onExportCsv = {
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 exportCsvLauncher.launch("linea_call_history_$timestamp.csv")
@@ -618,6 +621,17 @@ fun SettingsScreen(
             },
             badge = if (uiState.askSimBeforeDial) "ALWAYS ASK" else null,
             onClick = onNavigateToDualSim
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // LiNEA SF: Smart Contact Management
+        SettingsNavCard(
+            icon = Icons.Filled.AutoFixHigh,
+            title = "LiNEA SF",
+            subtitle = "Smart contact cleanup, duplicate detector & quality scoring",
+            badge = "SMART",
+            onClick = onNavigateToSmartFilter
         )
 
         Spacer(modifier = Modifier.height(10.dp))

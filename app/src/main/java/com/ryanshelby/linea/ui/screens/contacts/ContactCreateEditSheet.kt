@@ -105,14 +105,14 @@ fun ContactCreateEditSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
 
-    var displayName by remember { mutableStateOf(contactToEdit?.displayName ?: "") }
-    var company by remember { mutableStateOf(contactToEdit?.company ?: "") }
-    var notes by remember { mutableStateOf(contactToEdit?.notes ?: "") }
-    var preferredSimSlot by remember { mutableStateOf(contactToEdit?.preferredSimSlot) }
-    var emailInput by remember { mutableStateOf("") }
+    var displayName by remember(contactToEdit?.id) { mutableStateOf(contactToEdit?.displayName ?: "") }
+    var company by remember(contactToEdit?.id) { mutableStateOf(contactToEdit?.company ?: "") }
+    var notes by remember(contactToEdit?.id) { mutableStateOf(contactToEdit?.notes ?: "") }
+    var preferredSimSlot by remember(contactToEdit?.id) { mutableStateOf(contactToEdit?.preferredSimSlot) }
+    var emailInput by remember(contactToEdit?.id) { mutableStateOf("") }
 
-    var currentPhotoUri by remember { mutableStateOf(contactToEdit?.photoUri) }
-    var currentPhotoBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var currentPhotoUri by remember(contactToEdit?.id) { mutableStateOf(contactToEdit?.photoUri) }
+    var currentPhotoBytes by remember(contactToEdit?.id) { mutableStateOf<ByteArray?>(null) }
     var showPhotoOptionsDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -155,7 +155,7 @@ fun ContactCreateEditSheet(
         }
     }
 
-    val numbersList = remember {
+    val numbersList = remember(initialNumbers, contactToEdit?.id) {
         mutableStateListOf<Pair<String, String>>().apply {
             if (initialNumbers.isNotEmpty()) {
                 addAll(initialNumbers)

@@ -518,8 +518,15 @@ fun ContactsScreen(
 
     // Contact Create / Edit Bottom Sheet
     if (isCreateSheetOpen) {
+        val initialNumbersForEdit = if (contactToEdit != null && numbersForSelected.isNotEmpty()) {
+            numbersForSelected.map { it.number to it.label }
+        } else {
+            listOf("" to "Mobile")
+        }
+
         ContactCreateEditSheet(
             contactToEdit = contactToEdit,
+            initialNumbers = initialNumbersForEdit,
             availableAccounts = availableAccounts,
             selectedAccount = selectedContactAccount,
             isPrivate = createAsPrivate,

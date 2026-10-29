@@ -60,6 +60,12 @@ interface CallRecordDao {
     @Query("UPDATE call_records SET isPrivateContact = 0 WHERE phoneNumber = :number OR REPLACE(REPLACE(REPLACE(phoneNumber, '+', ''), '-', ''), ' ', '') = :normalized")
     suspend fun markRecordsAsPublic(number: String, normalized: String)
 
+    @Query("UPDATE call_records SET callerName = :callerName WHERE phoneNumber = :number OR REPLACE(REPLACE(REPLACE(phoneNumber, '+', ''), '-', ''), ' ', '') = :normalized")
+    suspend fun updateCallerNameForNumber(number: String, normalized: String, callerName: String)
+
+    @Query("UPDATE call_records SET callerName = NULL WHERE (phoneNumber = :number OR REPLACE(REPLACE(REPLACE(phoneNumber, '+', ''), '-', ''), ' ', '') = :normalized) AND isPrivateContact = 0")
+    suspend fun clearCallerNameForNumber(number: String, normalized: String)
+
     @Query("""
         SELECT COUNT(*) FROM call_records 
         WHERE (phoneNumber = :number OR REPLACE(REPLACE(REPLACE(phoneNumber, '+', ''), '-', ''), ' ', '') = REPLACE(REPLACE(REPLACE(:number, '+', ''), '-', ''), ' ', ''))

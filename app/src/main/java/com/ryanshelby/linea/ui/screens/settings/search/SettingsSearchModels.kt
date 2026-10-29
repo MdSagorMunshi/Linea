@@ -94,5 +94,6 @@ data class SettingsSearchCallbacks(
     val onOpenEscapeCall: () -> Unit = {},
     val onOpenEscapeSettings: () -> Unit = {},
     val onOpenEscapeHelp: () -> Unit = {},
-    val onNavigateToProfileCard: () -> Unit = {}
+    val onNavigateToProfileCard: () -> Unit = {},
+    val onNavigateToSmartFilter: () -> Unit = {}
 )

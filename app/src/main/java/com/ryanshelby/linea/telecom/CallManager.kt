@@ -73,7 +73,8 @@ data class ActiveCallInfo(
     val isSimulated: Boolean = false,
     val simSlot: Int? = null,
     val simLabel: String? = null,
-    val phoneAccountHandle: android.telecom.PhoneAccountHandle? = null
+    val phoneAccountHandle: android.telecom.PhoneAccountHandle? = null,
+    val wasEverConnected: Boolean = false
 )
 
 @Singleton
@@ -703,9 +704,18 @@ class CallManager @Inject constructor(
             val disconnectCause = call.details?.disconnectCause
             val disconnectCode = disconnectCause?.code ?: DisconnectCause.UNKNOWN
             val detailsConnectTime = call.details?.connectTimeMillis ?: 0L
-            val wasConnected = detailsConnectTime > 0L || active.connectTimeMillis > 0L
+            val wasConnected = active.wasEverConnected || detailsConnectTime > 0L || active.connectTimeMillis > 0L || active.durationSeconds > 0L
 
-            android.util.Log.d("CallManager", "onCallRemoved: isIncoming=${active.isIncoming}, wasConnected=$wasConnected, wasUserRejected=$wasUserRejected, disconnectCode=$disconnectCode")
+            val finalDuration = if (wasConnected && active.connectTimeMillis > 0L) {
+                val elapsed = (System.currentTimeMillis() - active.connectTimeMillis) / 1000L
+                kotlin.math.max(active.durationSeconds, elapsed.coerceAtLeast(1L))
+            } else if (wasConnected) {
+                kotlin.math.max(active.durationSeconds, 1L)
+            } else {
+                0L
+            }
+
+            android.util.Log.d("CallManager", "onCallRemoved: isIncoming=${active.isIncoming}, wasConnected=$wasConnected, wasUserRejected=$wasUserRejected, disconnectCode=$disconnectCode, finalDuration=$finalDuration")
 
             val direction = if (active.isIncoming) {
                 if (wasConnected) {
@@ -733,7 +743,7 @@ class CallManager @Inject constructor(
             val finalSimDisplayName = if (resolvedSlot != null) (active.simLabel ?: simAccountResolver.getSimLabel(resolvedSlot)) else null
 
             val callStartTime = call.details?.creationTimeMillis.takeIf { it != null && it > 0L }
-                ?: (if (active.connectTimeMillis > 0L) active.connectTimeMillis else (System.currentTimeMillis() - active.durationSeconds * 1000L))
+                ?: (if (active.connectTimeMillis > 0L) active.connectTimeMillis else (System.currentTimeMillis() - finalDuration * 1000L))
 
             scope.launch {
                 try {
@@ -744,7 +754,7 @@ class CallManager @Inject constructor(
                         photoUri = active.photoUri,
                         direction = direction,
                         timestamp = callStartTime,
-                        durationSeconds = active.durationSeconds,
+                        durationSeconds = finalDuration,
                         simSlot = finalSimSlot,
                         simDisplayName = finalSimDisplayName,
                         phoneAccountHandle = callHandle
@@ -849,8 +859,20 @@ class CallManager @Inject constructor(
         }
 
         val previousInfo = _currentCall.value
-        val connectTime = call.details?.connectTimeMillis ?: 0L
-        val duration = if (connectTime > 0) (System.currentTimeMillis() - connectTime) / 1000 else 0L
+        val wasEverConnected = previousInfo?.wasEverConnected == true || state == LineaCallState.ACTIVE
+        val detailsConnectTime = call.details?.connectTimeMillis ?: 0L
+        val establishedConnectTime = when {
+            detailsConnectTime > 0L -> detailsConnectTime
+            previousInfo?.connectTimeMillis != null && previousInfo.connectTimeMillis > 0L -> previousInfo.connectTimeMillis
+            state == LineaCallState.ACTIVE -> System.currentTimeMillis()
+            else -> 0L
+        }
+        val duration = if (establishedConnectTime > 0L) {
+            val elapsed = (System.currentTimeMillis() - establishedConnectTime) / 1000L
+            kotlin.math.max(elapsed.coerceAtLeast(0L), previousInfo?.durationSeconds ?: 0L)
+        } else {
+            previousInfo?.durationSeconds ?: 0L
+        }
 
         val handle = call.details?.accountHandle ?: previousInfo?.phoneAccountHandle ?: requestedOutgoingAccount
         val isEmergency = simAccountResolver.isEmergencyCall(call, number)
@@ -864,14 +886,15 @@ class CallManager @Inject constructor(
             photoUri = photoUri,
             state = state,
             isIncoming = isIncoming,
-            connectTimeMillis = connectTime,
+            connectTimeMillis = establishedConnectTime,
             durationSeconds = duration,
             isHeld = call.state == Call.STATE_HOLDING,
             isMuted = _isMuted.value,
             audioRoute = _audioRoute.value,
             simSlot = resolvedSlot,
             simLabel = resolvedLabel,
-            phoneAccountHandle = handle
+            phoneAccountHandle = handle,
+            wasEverConnected = wasEverConnected
         )
         _currentCall.value = updatedInfo
         if (state == LineaCallState.RINGING && _incomingFloatingCall.value != null) {
@@ -902,12 +925,12 @@ class CallManager @Inject constructor(
         previousCallState = state
 
         if (state == LineaCallState.ACTIVE) {
-            startDurationTimer(connectTime)
+            startDurationTimer(establishedConnectTime)
             notificationManager.showOngoingCallNotification(
                 callerName = callerName,
                 phoneNumber = number,
                 stateText = "In call",
-                connectTimeMillis = connectTime,
+                connectTimeMillis = establishedConnectTime,
                 isMuted = _isMuted.value,
                 isSpeakerOn = _audioRoute.value == LineaAudioRoute.SPEAKER,
                 photoUri = photoUri
@@ -959,7 +982,8 @@ class CallManager @Inject constructor(
 
     private fun startDurationTimer(connectTime: Long) {
         if (timerJob != null) return
-        val baseTime = if (connectTime > 0) connectTime else System.currentTimeMillis()
+        val baseTime = if (connectTime > 0) connectTime else (_currentCall.value?.connectTimeMillis?.takeIf { it > 0 } ?: System.currentTimeMillis())
+        _currentCall.value = _currentCall.value?.copy(connectTimeMillis = baseTime, wasEverConnected = true)
         var warningFired = false
 
         timerJob = scope.launch {
@@ -968,7 +992,7 @@ class CallManager @Inject constructor(
                 val current = _currentCall.value
                 if (current != null && current.state == LineaCallState.ACTIVE) {
                     val secs = (System.currentTimeMillis() - baseTime) / 1000
-                    _currentCall.value = current.copy(durationSeconds = secs)
+                    _currentCall.value = current.copy(durationSeconds = secs, connectTimeMillis = baseTime, wasEverConnected = true)
 
                     if (warningMinutes > 0 && secs >= (warningMinutes * 60) && !warningFired) {
                         warningFired = true

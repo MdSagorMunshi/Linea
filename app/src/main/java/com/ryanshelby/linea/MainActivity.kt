@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import com.ryanshelby.linea.ui.components.LiquidGlassPermissionDialog
 import com.ryanshelby.linea.ui.theme.LineaTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 import javax.inject.Inject
@@ -60,6 +61,12 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var callSetupHealthCoordinator: CallSetupHealthCoordinator
+
+    @Inject
+    lateinit var contactSyncRepository: com.ryanshelby.linea.data.repository.ContactSyncRepository
+
+    @Inject
+    lateinit var callLogRepository: com.ryanshelby.linea.data.repository.CallLogRepository
 
     private var isDefaultDialerState by mutableStateOf(false)
     private var simAccountsState by mutableStateOf<List<SimAccountInfo>>(emptyList())
@@ -166,6 +173,19 @@ class MainActivity : ComponentActivity() {
         checkRoleAndAccounts()
         permissionCoordinator.resumePendingOutgoingCallIfPermitted()
         nfcBeamManager.checkPendingBeamedContact(this)
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+            contactSyncRepository.startObservingContacts()
+            lifecycleScope.launch(Dispatchers.IO) {
+                contactSyncRepository.syncWithLocalDb()
+            }
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
+            callLogRepository.startObservingCallLog()
+            lifecycleScope.launch(Dispatchers.IO) {
+                callLogRepository.syncSystemCallLog()
+            }
+        }
     }
 
     override fun onPause() {
@@ -272,6 +292,18 @@ class MainActivity : ComponentActivity() {
         // The queued call itself only requires the coordinator's phone/mic set; unrelated
         // permissions denied in the same first-launch batch must not make that re-check stale.
         permissionCoordinator.resumePendingOutgoingCallIfPermitted()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+            contactSyncRepository.startObservingContacts()
+            lifecycleScope.launch(Dispatchers.IO) {
+                contactSyncRepository.syncWithLocalDb()
+            }
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
+            callLogRepository.startObservingCallLog()
+            lifecycleScope.launch(Dispatchers.IO) {
+                callLogRepository.syncSystemCallLog()
+            }
+        }
         if (denied.isNotEmpty()) {
             val openSettings = denied.any { !shouldShowRequestPermissionRationale(it) }
             showPermissionExplanation(denied, openSettings)

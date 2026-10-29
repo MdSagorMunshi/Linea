@@ -77,7 +77,8 @@ enum class SettingsSubScreen {
     BACKUP,
     ABOUT,
     RINGTONE,
-    NAVBAR
+    NAVBAR,
+    SMART_FILTER
 }
 
 @Composable
@@ -241,7 +242,8 @@ fun LineaNavGraph(
                         onNavigateToBackup = { settingsSubScreen = SettingsSubScreen.BACKUP },
                         onNavigateToAbout = { settingsSubScreen = SettingsSubScreen.ABOUT },
                         onNavigateToRingtone = { settingsSubScreen = SettingsSubScreen.RINGTONE },
-                        onNavigateToNavbar = { settingsSubScreen = SettingsSubScreen.NAVBAR }
+                        onNavigateToNavbar = { settingsSubScreen = SettingsSubScreen.NAVBAR },
+                        onNavigateToSmartFilter = { settingsSubScreen = SettingsSubScreen.SMART_FILTER }
                     )
                 }
             }
@@ -415,6 +417,11 @@ fun LineaNavGraph(
                     SettingsSubScreen.NAVBAR -> {
                         com.ryanshelby.linea.ui.screens.settings.navbar.NavbarSettingsScreen(
                             preferences = lineaPreferences,
+                            onNavigateBack = { settingsSubScreen = null }
+                        )
+                    }
+                    SettingsSubScreen.SMART_FILTER -> {
+                        com.ryanshelby.linea.smartfilter.SmartFilterScreen(
                             onNavigateBack = { settingsSubScreen = null }
                         )
                     }

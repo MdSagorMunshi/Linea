@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,11 +34,51 @@ data class ContactAccount(
 @Singleton
 class ContactSyncRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val contactDao: ContactDao
+    private val contactDao: ContactDao,
+    private val callRecordDao: com.ryanshelby.linea.data.local.dao.CallRecordDao,
+    private val contactLookupHelper: com.ryanshelby.linea.telecom.ContactLookupHelper
 ) {
 
     private val _cachedT9Contacts = MutableStateFlow<List<T9Contact>>(emptyList())
     val cachedT9Contacts: StateFlow<List<T9Contact>> = _cachedT9Contacts.asStateFlow()
+
+    private var contentObserverRegistered = false
+    private val syncScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+
+    fun startObservingContacts() {
+        if (contentObserverRegistered) return
+        try {
+            val hasRead = androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.READ_CONTACTS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!hasRead) return
+
+            val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+                private var syncJob: kotlinx.coroutines.Job? = null
+                override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+                    super.onChange(selfChange, uri)
+                    syncJob?.cancel()
+                    syncJob = syncScope.launch {
+                        kotlinx.coroutines.delay(600L) // debounce
+                        syncWithLocalDb()
+                    }
+                }
+            }
+            context.contentResolver.registerContentObserver(
+                ContactsContract.Contacts.CONTENT_URI,
+                true,
+                observer
+            )
+            contentObserverRegistered = true
+        } catch (e: Exception) {
+            Log.w("ContactSyncRepo", "Could not register Contacts ContentObserver", e)
+        }
+    }
+
+    init {
+        startObservingContacts()
+    }
 
     @SuppressLint("Range")
     suspend fun loadContacts(): List<T9Contact> = withContext(Dispatchers.IO) {
@@ -570,6 +611,12 @@ class ContactSyncRepository @Inject constructor(
             contactDao.insertEmails(emailEntities)
         }
 
+        contactLookupHelper.clearCache()
+        for ((num, _) in numbers) {
+            val norm = num.filter { it.isDigit() }
+            callRecordDao.updateCallerNameForNumber(num, norm, displayName)
+        }
+
         // Refresh cached T9 contacts
         loadContacts()
 
@@ -660,6 +707,14 @@ class ContactSyncRepository @Inject constructor(
 
         // 3. Reload from persistent source and verify
         val reloaded = contactDao.getContactById(contact.id) ?: updatedContact
+
+        contactLookupHelper.clearCache()
+        if (numbers != null) {
+            for ((num, _) in numbers) {
+                val norm = num.filter { it.isDigit() }
+                callRecordDao.updateCallerNameForNumber(num, norm, contact.displayName)
+            }
+        }
 
         // 4. Refresh cached T9 contacts
         loadContacts()
@@ -936,6 +991,7 @@ class ContactSyncRepository @Inject constructor(
                 e.printStackTrace()
             }
         }
+        contactLookupHelper.clearCache()
         loadContacts()
     }
 }

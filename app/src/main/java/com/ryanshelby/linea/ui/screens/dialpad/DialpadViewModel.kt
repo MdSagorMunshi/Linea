@@ -119,7 +119,7 @@ class DialpadViewModel @Inject constructor(
 
     val t9Matches: StateFlow<List<T9SearchResult>> = combine(
         _enteredNumber,
-        _contacts
+        contactSyncRepository.cachedT9Contacts
     ) { query, contacts ->
         if (query.isEmpty()) {
             emptyList()
@@ -163,7 +163,7 @@ class DialpadViewModel @Inject constructor(
                 placeCall(vmNumber)
             }
         } else {
-            val contacts = _contacts.value
+            val contacts = contactSyncRepository.cachedT9Contacts.value
             val index = digit.digitToIntOrNull()?.minus(2) ?: -1
             if (index in contacts.indices) {
                 placeCall(contacts[index].phoneNumber)
@@ -186,8 +186,7 @@ class DialpadViewModel @Inject constructor(
 
     fun loadContacts() {
         viewModelScope.launch {
-            val contactsList = contactSyncRepository.loadContacts()
-            _contacts.value = contactsList
+            contactSyncRepository.loadContacts()
         }
     }
 
