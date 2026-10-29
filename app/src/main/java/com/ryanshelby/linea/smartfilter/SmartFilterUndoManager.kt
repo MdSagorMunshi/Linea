@@ -49,3 +49,4 @@ class SmartFilterUndoManager @Inject constructor() {
         return undoStack.toList()
     }
 }
+

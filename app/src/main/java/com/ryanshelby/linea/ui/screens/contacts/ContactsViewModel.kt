@@ -35,6 +35,17 @@ import com.ryanshelby.linea.data.local.dao.CallRecordDao
 import com.ryanshelby.linea.qr_code.QrCodeEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
 
+enum class ContactFilter(val label: String) {
+    ALL("All contacts"),
+    PHONE("Phone contacts"),
+    EMAIL("Email contacts"),
+    COMPANY("Company"),
+    DUPLICATES("Duplicates"),
+    INCOMPLETE("Incomplete"),
+    FAVORITES("Favorites"),
+    FIX_MANAGE("Fix & manage")
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ContactsViewModel @Inject constructor(
@@ -47,11 +58,21 @@ class ContactsViewModel @Inject constructor(
     private val callNoteDao: CallNoteDao,
     private val preferences: LineaPreferences,
     val vaultSecurityManager: com.ryanshelby.linea.security.PrivateVaultSecurityManager,
-    private val vaultExportImportManager: com.ryanshelby.linea.security.PrivateVaultExportImportManager
+    private val vaultExportImportManager: com.ryanshelby.linea.security.PrivateVaultExportImportManager,
+    val smartFilterRepository: com.ryanshelby.linea.smartfilter.SmartFilterRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _selectedFilter = MutableStateFlow(ContactFilter.ALL)
+    val selectedFilter: StateFlow<ContactFilter> = _selectedFilter.asStateFlow()
+
+    val duplicateContactIds: StateFlow<Set<Long>> = smartFilterRepository.duplicateContactIds
+
+    fun setFilter(filter: ContactFilter) {
+        _selectedFilter.value = filter
+    }
 
     private val _activeLetter = MutableStateFlow<Char?>(null)
     val activeLetter: StateFlow<Char?> = _activeLetter.asStateFlow()
@@ -237,17 +258,34 @@ class ContactsViewModel @Inject constructor(
 
     val rawContacts: Flow<List<ContactEntity>> = contactDao.getAllContacts()
 
+    private val idsWithNumbers: Flow<List<Long>> = contactDao.getAllContactIdsWithNumbers()
+    private val idsWithEmails: Flow<List<Long>> = contactDao.getAllContactIdsWithEmails()
+
     val filteredContacts: StateFlow<List<ContactEntity>> = combine(
         rawContacts,
-        _searchQuery
-    ) { contacts, query ->
+        _searchQuery,
+        _selectedFilter,
+        idsWithNumbers,
+        combine(idsWithEmails, duplicateContactIds) { ems, dups -> ems.toSet() to dups }
+    ) { contacts, query, filter, hasNums, (hasEms, dupIds) ->
+        val numsSet = hasNums.toSet()
+        val baseFiltered = when (filter) {
+            ContactFilter.ALL -> contacts
+            ContactFilter.PHONE -> contacts.filter { it.id in numsSet }
+            ContactFilter.EMAIL -> contacts.filter { it.id in hasEms }
+            ContactFilter.COMPANY -> contacts.filter { !it.company.isNullOrBlank() }
+            ContactFilter.DUPLICATES -> contacts.filter { it.id in dupIds }
+            ContactFilter.INCOMPLETE -> contacts.filter { it.id !in numsSet || it.displayName.isBlank() }
+            ContactFilter.FAVORITES -> contacts.filter { it.isFavorite }
+            ContactFilter.FIX_MANAGE -> contacts
+        }
+
         if (query.isBlank()) {
-            contacts.sortedBy { it.displayName.lowercase() }
+            baseFiltered.sortedBy { it.displayName.lowercase() }
         } else {
             val q = query.trim().lowercase()
-            // Supports both text filter and T9 digit mapping
             val isDigitsOnly = q.all { it.isDigit() }
-            contacts.filter { contact ->
+            baseFiltered.filter { contact ->
                 if (isDigitsOnly) {
                     val nameDigits = T9SearchEngine.convertNameToDigits(contact.displayName)
                     nameDigits.contains(q)
@@ -280,6 +318,7 @@ class ContactsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             contactSyncRepository.syncWithLocalDb()
+            smartFilterRepository.refreshDuplicateIds()
         }
         loadAccounts()
     }

@@ -16,8 +16,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import com.ryanshelby.linea.ui.components.crystalSurface
+import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
@@ -84,11 +91,14 @@ fun ContactsScreen(
     modifier: Modifier = Modifier,
     onContactClick: ((Long) -> Unit)? = null,
     onOpenPrivateSafe: () -> Unit = {},
+    onOpenSmartFilter: () -> Unit = {},
     viewModel: ContactsViewModel = hiltViewModel(),
     listState: LazyListState = rememberLazyListState(),
     nfcBeamManager: com.ryanshelby.linea.nfc.NfcBeamManager? = null
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
+    val duplicateContactIds by viewModel.duplicateContactIds.collectAsState()
     val activeLetter by viewModel.activeLetter.collectAsState()
     val pinnedFavorites by viewModel.pinnedFavorites.collectAsState()
     val groupedContacts by viewModel.groupedContacts.collectAsState()
@@ -294,6 +304,44 @@ fun ContactsScreen(
                         focusedTextColor = LineaColors.TextPrimary,
                         unfocusedTextColor = LineaColors.TextPrimary
                     )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Google Contacts Smart Filter Chips
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 2.dp)
+            ) {
+                items(ContactFilter.values()) { filter ->
+                    val isSelected = selectedFilter == filter
+                    val badgeCount = when (filter) {
+                        ContactFilter.DUPLICATES -> duplicateContactIds.size
+                        else -> 0
+                    }
+                    ContactFilterChip(
+                        filter = filter,
+                        isSelected = isSelected,
+                        badgeCount = badgeCount,
+                        onClick = {
+                            if (filter == ContactFilter.FIX_MANAGE) {
+                                onOpenSmartFilter()
+                            } else {
+                                viewModel.setFilter(filter)
+                            }
+                        }
+                    )
+                }
+            }
+
+            // Google Contacts "X duplicate contacts detected · Fix & manage" banner when Duplicates filter is active
+            if (selectedFilter == ContactFilter.DUPLICATES && duplicateContactIds.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                DuplicateContactsBanner(
+                    duplicateCount = duplicateContactIds.size,
+                    onFixClick = onOpenSmartFilter
                 )
             }
 
@@ -699,6 +747,160 @@ private fun ContactCardRow(
                     style = LineaTypography.labelSmall,
                     fontSize = 10.sp,
                     color = LineaColors.TitaniumBlue
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactFilterChip(
+    filter: ContactFilter,
+    isSelected: Boolean,
+    badgeCount: Int = 0,
+    onClick: () -> Unit
+) {
+    val isFixManage = filter == ContactFilter.FIX_MANAGE
+    val baseBg = when {
+        isFixManage -> LineaColors.MutedSageGreen.copy(alpha = 0.18f)
+        isSelected -> LineaColors.TitaniumBlue.copy(alpha = 0.22f)
+        else -> LineaColors.GlassFill
+    }
+    val borderColor = when {
+        isFixManage -> LineaColors.MutedSageGreen.copy(alpha = 0.6f)
+        isSelected -> LineaColors.TitaniumBlue
+        else -> LineaColors.GlassBorder
+    }
+    val contentColor = when {
+        isFixManage -> LineaColors.MutedSageGreen
+        isSelected -> LineaColors.TitaniumBlue
+        else -> LineaColors.TextSecondary
+    }
+
+    val icon = when (filter) {
+        ContactFilter.ALL -> null
+        ContactFilter.PHONE -> Icons.Filled.Call
+        ContactFilter.EMAIL -> Icons.Filled.Email
+        ContactFilter.COMPANY -> Icons.Filled.Business
+        ContactFilter.DUPLICATES -> Icons.AutoMirrored.Filled.CallMerge
+        ContactFilter.INCOMPLETE -> Icons.Filled.ErrorOutline
+        ContactFilter.FAVORITES -> Icons.Filled.Star
+        ContactFilter.FIX_MANAGE -> Icons.Filled.AutoFixHigh
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(baseBg)
+            .border(
+                width = if (isSelected || isFixManage) 1.5.dp else LineaDimensions.HairlineBorder,
+                color = borderColor,
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Text(
+                text = filter.label,
+                style = LineaTypography.labelMedium.copy(
+                    fontWeight = if (isSelected || isFixManage) FontWeight.SemiBold else FontWeight.Normal
+                ),
+                color = contentColor
+            )
+            if (badgeCount > 0) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (isSelected) LineaColors.TitaniumBlue else LineaColors.TextTertiary.copy(alpha = 0.35f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = badgeCount.toString(),
+                        style = LineaTypography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                        color = if (isSelected) Color.White else LineaColors.TextPrimary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DuplicateContactsBanner(
+    duplicateCount: Int,
+    onFixClick: () -> Unit
+) {
+    FrostedGlassBox(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(LineaColors.TitaniumBlue.copy(alpha = 0.12f))
+            .border(
+                width = 1.dp,
+                color = LineaColors.TitaniumBlue.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.CallMerge,
+                    contentDescription = null,
+                    tint = LineaColors.TitaniumBlue,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "$duplicateCount duplicate contacts detected",
+                        style = LineaTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = LineaColors.TextPrimary
+                    )
+                    Text(
+                        text = "Review and merge with LiNEA SF",
+                        style = LineaTypography.bodySmall,
+                        color = LineaColors.TextSecondary
+                    )
+                }
+            }
+
+            TextButton(
+                onClick = onFixClick,
+                colors = ButtonDefaults.textButtonColors(contentColor = LineaColors.TitaniumBlue)
+            ) {
+                Text(
+                    text = "Fix & manage",
+                    style = LineaTypography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }

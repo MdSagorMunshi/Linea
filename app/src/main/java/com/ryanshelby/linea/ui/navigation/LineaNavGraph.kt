@@ -219,6 +219,9 @@ fun LineaNavGraph(
                         onOpenPrivateSafe = {
                             activeContactDashboardId = null
                             isPrivateSafeOpen = true
+                        },
+                        onOpenSmartFilter = {
+                            settingsSubScreen = SettingsSubScreen.SMART_FILTER
                         }
                     )
                 }

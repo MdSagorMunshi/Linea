@@ -49,19 +49,27 @@ class SmartFilterViewModel @Inject constructor(
 
             withContext(Dispatchers.Default) {
                 // 1. Detect duplicates
-                val duplicates = SmartFilterEngine.findDuplicateMatches(profiles, config)
+                val rawDuplicates = SmartFilterEngine.findDuplicateMatches(profiles, config)
+                val dismissedDups = repository.dismissedDuplicatePairIds.value
+                val duplicates = rawDuplicates.filter { !dismissedDups.contains(it.id) }
+                repository.setDuplicateContactIds(duplicates.flatMap { listOf(it.contactA.contact.id, it.contactB.contact.id) }.toSet())
 
                 // 2. Evaluate name cleanup
+                val dismissedClean = repository.dismissedCleanupContactIds.value
                 val cleanups = profiles.mapNotNull { profile ->
-                    val cleanup = SmartFilterEngine.evaluateNameCleanup(profile.contact.displayName)
-                    cleanup?.copy(contactId = profile.contact.id)
+                    if (dismissedClean.contains(profile.contact.id)) null
+                    else {
+                        val cleanup = SmartFilterEngine.evaluateNameCleanup(profile.contact.displayName)
+                        cleanup?.copy(contactId = profile.contact.id)
+                    }
                 }
 
                 // 3. Find duplicate numbers across contacts
                 val duplicateNumbers = SmartFilterEngine.findDuplicateNumbersAcrossContacts(profiles)
 
                 // 4. Incomplete contacts
-                val incomplete = profiles.filter { it.completenessScore < 60 }.map { profile ->
+                val dismissedInc = repository.dismissedIncompleteContactIds.value
+                val incomplete = profiles.filter { it.completenessScore < 60 && !dismissedInc.contains(it.contact.id) }.map { profile ->
                     val missing = mutableListOf<String>()
                     val suggestions = mutableListOf<String>()
                     if (profile.numbers.isEmpty()) {
@@ -135,6 +143,37 @@ class SmartFilterViewModel @Inject constructor(
                     userMessage = "Failed to merge contacts"
                 )
             }
+        }
+    }
+
+    fun dismissDuplicate(match: DuplicateMatch) {
+        repository.dismissDuplicate(match.id)
+        scanContacts()
+    }
+
+    fun dismissCleanup(item: NameCleanupItem) {
+        repository.dismissCleanup(item.contactId)
+        scanContacts()
+    }
+
+    fun dismissIncomplete(item: IncompleteContactItem) {
+        repository.dismissIncomplete(item.contact.id)
+        scanContacts()
+    }
+
+    fun bulkMergeAll() {
+        val matches = _uiState.value.duplicateMatches
+        if (matches.isEmpty()) {
+            _uiState.value = _uiState.value.copy(userMessage = "No duplicates found to merge")
+            return
+        }
+
+        viewModelScope.launch {
+            val count = repository.executeBulkMerge(matches)
+            _uiState.value = _uiState.value.copy(
+                userMessage = "Successfully merged $count duplicate contact(s)"
+            )
+            scanContacts()
         }
     }
 
@@ -214,3 +253,4 @@ class SmartFilterViewModel @Inject constructor(
         return repository.undoManager.getHistory()
     }
 }
+

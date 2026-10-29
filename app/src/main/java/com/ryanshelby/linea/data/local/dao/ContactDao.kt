@@ -127,6 +127,12 @@ interface ContactDao {
     @Query("DELETE FROM contact_emails WHERE contactId = :contactId")
     suspend fun deleteEmailsForContact(contactId: Long)
 
+    @Query("SELECT DISTINCT contactId FROM contact_numbers")
+    fun getAllContactIdsWithNumbers(): Flow<List<Long>>
+
+    @Query("SELECT DISTINCT contactId FROM contact_emails")
+    fun getAllContactIdsWithEmails(): Flow<List<Long>>
+
     @Query("DELETE FROM contact_group_members WHERE contactId = :contactId")
     suspend fun removeContactFromAllGroups(contactId: Long)
 }

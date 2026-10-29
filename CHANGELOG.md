@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Google Contacts-Style Smart Filter Chips & Live Filtering (Contacts Screen)**:
+  - **Horizontal Filter Chips**: Added quick filter chips directly below the search bar: `All contacts`, `Phone contacts`, `Email contacts`, `Company`, `Duplicates` (with dynamic count badge), `Incomplete`, `Favorites`, and `Fix & manage`.
+  - **Live Filter Synchronization**: Tapping any chip immediately filters the contact list in real time with zero latency, eliminating stale data and the need to restart the application.
+  - **Duplicate Contacts Banner**: Selecting the `Duplicates` filter displays an actionable frosted-glass banner (`"X duplicate contacts detected · Review and merge with LiNEA SF"`) with direct one-tap navigation into LiNEA SF.
+  - **"Fix & manage" Direct Entry**: One-click shortcut chip that opens LiNEA SF directly from the Contacts tab.
+- **Google Contacts-Style Merge & Fix Enhancements in LiNEA SF**:
+  - **Dismiss Capability Across All Recommendations**: Added per-card "Dismiss" actions across duplicate candidate pairs, name cleanup suggestions, and incomplete contact alerts so users can permanently or temporarily dismiss individual false positives.
+  - **Google Contacts Actionable Overview Cards**: Restructured the Overview tab into modular, actionable sections ("Merge duplicates", "Clean up names", "Add missing details") with dynamic counts, summary descriptions, and instant "Merge all" / "Clean all" / "Review" buttons.
+  - **Merge All Duplicate Candidates**: One-tap bulk merge workflow with live progress and automatic recalculation of duplicate counts and contact health score.
+  - **Safe Merge Preview Modal**: Full-fidelity comparison sheet before merging displaying retained names, combined numbers, email addresses, and notes.
 - **LiNEA SF: Smart Contact Management (Settings &rarr; LiNEA SF)**:
   - **Smart Duplicate Detection Engine**: Multi-signal matching algorithm combining normalized phone numbers (canonical E.164 digits and country code tolerance), Jaro-Winkler string similarity, email address matches, and confidence scoring.
   - **Intelligent Contact Merging with Safe Merge Preview**: Side-by-side preview bottom sheet displaying preserved phone numbers, merged email addresses, companies, and unified notes before confirming destructive merges.

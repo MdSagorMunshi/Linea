@@ -114,3 +114,4 @@ data class UndoRecord(
     val modifiedContactIds: List<Long> = emptyList(),
     val deletedContactIds: List<Long> = emptyList()
 )
+

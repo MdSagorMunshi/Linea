@@ -259,27 +259,34 @@ fun SmartFilterScreen(
                         OverviewTabContent(
                             uiState = uiState,
                             onCleanAllNames = { viewModel.cleanAllNames() },
-                            onMergeAllDuplicates = { viewModel.bulkMergeAllHighConfidence() },
+                            onMergeAllDuplicates = { viewModel.bulkMergeAll() },
                             onGoToDuplicates = { viewModel.setTab(SmartFilterTab.DUPLICATES) },
-                            onGoToCleanup = { viewModel.setTab(SmartFilterTab.CLEANUP) }
+                            onGoToCleanup = { viewModel.setTab(SmartFilterTab.CLEANUP) },
+                            onGoToIncomplete = { viewModel.setTab(SmartFilterTab.INCOMPLETE) },
+                            onGoToDuplicateNumbers = { viewModel.setTab(SmartFilterTab.DUPLICATE_NUMBERS) }
                         )
                     }
                     SmartFilterTab.DUPLICATES -> {
                         DuplicatesTabContent(
                             matches = uiState.duplicateMatches,
                             onPreviewMerge = { viewModel.openMergePreview(it) },
-                            onBulkMerge = { viewModel.bulkMergeAllHighConfidence() }
+                            onDismissDuplicate = { viewModel.dismissDuplicate(it) },
+                            onBulkMerge = { viewModel.bulkMergeAll() }
                         )
                     }
                     SmartFilterTab.CLEANUP -> {
                         CleanupTabContent(
                             items = uiState.nameCleanups,
                             onCleanName = { viewModel.cleanContactName(it) },
+                            onDismissCleanup = { viewModel.dismissCleanup(it) },
                             onCleanAll = { viewModel.cleanAllNames() }
                         )
                     }
                     SmartFilterTab.INCOMPLETE -> {
-                        IncompleteTabContent(items = uiState.incompleteContacts)
+                        IncompleteTabContent(
+                            items = uiState.incompleteContacts,
+                            onDismissIncomplete = { viewModel.dismissIncomplete(it) }
+                        )
                     }
                     SmartFilterTab.DUPLICATE_NUMBERS -> {
                         DuplicateNumbersTabContent(groups = uiState.duplicateNumbers)
@@ -369,7 +376,9 @@ private fun OverviewTabContent(
     onCleanAllNames: () -> Unit,
     onMergeAllDuplicates: () -> Unit,
     onGoToDuplicates: () -> Unit,
-    onGoToCleanup: () -> Unit
+    onGoToCleanup: () -> Unit,
+    onGoToIncomplete: () -> Unit,
+    onGoToDuplicateNumbers: () -> Unit
 ) {
     val report = uiState.qualityReport
 
@@ -494,8 +503,180 @@ private fun OverviewTabContent(
                     count = uiState.incompleteContacts.size,
                     color = LineaColors.TextSecondary,
                     modifier = Modifier.weight(1f),
-                    onClick = {}
+                    onClick = onGoToIncomplete
                 )
+            }
+        }
+
+        // Google Contacts-style "Merge duplicates" actionable card
+        if (uiState.duplicateMatches.isNotEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .neumorphic(
+                            shape = RoundedCornerShape(18.dp),
+                            elevation = 3.dp,
+                            surfaceColor = LineaColors.NeuSurfaceRaised
+                        )
+                        .padding(18.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.Merge,
+                                    contentDescription = null,
+                                    tint = LineaColors.Warning,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Merge duplicates",
+                                    style = LineaTypography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LineaColors.TextPrimary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(LineaColors.Warning.copy(alpha = 0.2f))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = uiState.duplicateMatches.size.toString(),
+                                        style = LineaTypography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = LineaColors.Warning,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Multiple entries detected for the same person across numbers, emails, or name variations.",
+                            style = LineaTypography.bodySmall,
+                            color = LineaColors.TextSecondary
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onGoToDuplicates,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = LineaColors.TextPrimary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, LineaColors.GlassBorder)
+                            ) {
+                                Text("Review (${uiState.duplicateMatches.size})", fontSize = 12.sp)
+                            }
+                            Button(
+                                onClick = onMergeAllDuplicates,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = LineaColors.MutedSageGreen)
+                            ) {
+                                Text("Merge all", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Google Contacts-style "Clean up names" actionable card
+        if (uiState.nameCleanups.isNotEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .neumorphic(
+                            shape = RoundedCornerShape(18.dp),
+                            elevation = 3.dp,
+                            surfaceColor = LineaColors.NeuSurfaceRaised
+                        )
+                        .padding(18.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.AutoFixHigh,
+                                    contentDescription = null,
+                                    tint = LineaColors.TitaniumBlue,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Clean up names",
+                                    style = LineaTypography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LineaColors.TextPrimary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(LineaColors.TitaniumBlue.copy(alpha = 0.2f))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = uiState.nameCleanups.size.toString(),
+                                        style = LineaTypography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = LineaColors.TitaniumBlue,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Inconsistent capitalization, extra whitespace, or formatting issues found.",
+                            style = LineaTypography.bodySmall,
+                            color = LineaColors.TextSecondary
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onGoToCleanup,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = LineaColors.TextPrimary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, LineaColors.GlassBorder)
+                            ) {
+                                Text("Review (${uiState.nameCleanups.size})", fontSize = 12.sp)
+                            }
+                            Button(
+                                onClick = onCleanAllNames,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue)
+                            ) {
+                                Text("Clean all", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -546,34 +727,6 @@ private fun OverviewTabContent(
                                 style = LineaTypography.bodyMedium,
                                 color = LineaColors.TextPrimary
                             )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (uiState.nameCleanups.isNotEmpty()) {
-                            Button(
-                                onClick = onCleanAllNames,
-                                colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue),
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Clean All Names (${uiState.nameCleanups.size})", fontSize = 12.sp)
-                            }
-                        }
-                        if (uiState.duplicateMatches.any { it.confidence >= 90 }) {
-                            Button(
-                                onClick = onMergeAllDuplicates,
-                                colors = ButtonDefaults.buttonColors(containerColor = LineaColors.MutedSageGreen),
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Merge All Duplicates", fontSize = 12.sp)
-                            }
                         }
                     }
                 }
@@ -656,6 +809,7 @@ private fun StatCard(
 private fun DuplicatesTabContent(
     matches: List<DuplicateMatch>,
     onPreviewMerge: (DuplicateMatch) -> Unit,
+    onDismissDuplicate: (DuplicateMatch) -> Unit,
     onBulkMerge: () -> Unit
 ) {
     if (matches.isEmpty()) {
@@ -687,7 +841,9 @@ private fun DuplicatesTabContent(
                     colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Merge High-Confidence", fontSize = 11.sp)
+                    Icon(Icons.Filled.Merge, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Merge all (${matches.size})", fontSize = 11.sp)
                 }
             }
         }
@@ -727,15 +883,29 @@ private fun DuplicatesTabContent(
                             )
                         }
 
-                        Button(
-                            onClick = { onPreviewMerge(match) },
-                            colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Icon(Icons.Filled.Merge, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Preview & Merge", fontSize = 11.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedButton(
+                                onClick = { onDismissDuplicate(match) },
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = LineaColors.TextSecondary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, LineaColors.GlassBorder),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Filled.Close, contentDescription = "Dismiss", modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Dismiss", fontSize = 11.sp)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = { onPreviewMerge(match) },
+                                colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Filled.Merge, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Preview & Merge", fontSize = 11.sp)
+                            }
                         }
                     }
 
@@ -787,6 +957,7 @@ private fun DuplicatesTabContent(
 private fun CleanupTabContent(
     items: List<NameCleanupItem>,
     onCleanName: (NameCleanupItem) -> Unit,
+    onDismissCleanup: (NameCleanupItem) -> Unit,
     onCleanAll: () -> Unit
 ) {
     if (items.isEmpty()) {
@@ -869,13 +1040,27 @@ private fun CleanupTabContent(
                         )
                     }
 
-                    Button(
-                        onClick = { onCleanName(item) },
-                        colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text("Fix", fontSize = 11.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedButton(
+                            onClick = { onDismissCleanup(item) },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = LineaColors.TextSecondary),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, LineaColors.GlassBorder),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = "Dismiss", modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Dismiss", fontSize = 11.sp)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = { onCleanName(item) },
+                            colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text("Fix", fontSize = 11.sp)
+                        }
                     }
                 }
             }
@@ -884,7 +1069,10 @@ private fun CleanupTabContent(
 }
 
 @Composable
-private fun IncompleteTabContent(items: List<IncompleteContactItem>) {
+private fun IncompleteTabContent(
+    items: List<IncompleteContactItem>,
+    onDismissIncomplete: (IncompleteContactItem) -> Unit
+) {
     if (items.isEmpty()) {
         EmptyPlaceholder(
             title = "All Contacts Complete!",
@@ -908,41 +1096,59 @@ private fun IncompleteTabContent(items: List<IncompleteContactItem>) {
                     )
                     .padding(14.dp)
             ) {
-                Column {
-                    Text(
-                        text = item.contact.displayName.ifBlank { "Unnamed Contact" },
-                        style = LineaTypography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = LineaColors.TextPrimary
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.contact.displayName.ifBlank { "Unnamed Contact" },
+                            style = LineaTypography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = LineaColors.TextPrimary
+                        )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        item.missingAttributes.forEach { missing ->
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(LineaColors.Warning.copy(alpha = 0.15f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = missing,
-                                    style = LineaTypography.labelSmall,
-                                    fontSize = 10.sp,
-                                    color = LineaColors.Warning,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            item.missingAttributes.forEach { missing ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(LineaColors.Warning.copy(alpha = 0.15f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = missing,
+                                        style = LineaTypography.labelSmall,
+                                        fontSize = 10.sp,
+                                        color = LineaColors.Warning,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = item.suggestions.joinToString(" • "),
+                            style = LineaTypography.bodySmall,
+                            color = LineaColors.TextSecondary
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = item.suggestions.joinToString(" • "),
-                        style = LineaTypography.bodySmall,
-                        color = LineaColors.TextSecondary
-                    )
+                    OutlinedButton(
+                        onClick = { onDismissIncomplete(item) },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = LineaColors.TextSecondary),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, LineaColors.GlassBorder),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Filled.Close, contentDescription = "Dismiss", modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Dismiss", fontSize = 11.sp)
+                    }
                 }
             }
         }

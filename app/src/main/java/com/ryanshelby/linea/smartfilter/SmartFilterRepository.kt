@@ -25,6 +25,41 @@ class SmartFilterRepository @Inject constructor(
     val undoManager: SmartFilterUndoManager
 ) {
 
+    private val _duplicateContactIds = kotlinx.coroutines.flow.MutableStateFlow<Set<Long>>(emptySet())
+    val duplicateContactIds: kotlinx.coroutines.flow.StateFlow<Set<Long>> = _duplicateContactIds
+
+    private val _dismissedDuplicatePairIds = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(emptySet())
+    val dismissedDuplicatePairIds: kotlinx.coroutines.flow.StateFlow<Set<String>> = _dismissedDuplicatePairIds
+
+    private val _dismissedCleanupContactIds = kotlinx.coroutines.flow.MutableStateFlow<Set<Long>>(emptySet())
+    val dismissedCleanupContactIds: kotlinx.coroutines.flow.StateFlow<Set<Long>> = _dismissedCleanupContactIds
+
+    private val _dismissedIncompleteContactIds = kotlinx.coroutines.flow.MutableStateFlow<Set<Long>>(emptySet())
+    val dismissedIncompleteContactIds: kotlinx.coroutines.flow.StateFlow<Set<Long>> = _dismissedIncompleteContactIds
+
+    fun dismissDuplicate(matchId: String) {
+        _dismissedDuplicatePairIds.value = _dismissedDuplicatePairIds.value + matchId
+    }
+
+    fun dismissCleanup(contactId: Long) {
+        _dismissedCleanupContactIds.value = _dismissedCleanupContactIds.value + contactId
+    }
+
+    fun dismissIncomplete(contactId: Long) {
+        _dismissedIncompleteContactIds.value = _dismissedIncompleteContactIds.value + contactId
+    }
+
+    fun setDuplicateContactIds(ids: Set<Long>) {
+        _duplicateContactIds.value = ids
+    }
+
+    suspend fun refreshDuplicateIds(config: SmartFilterConfig = SmartFilterConfig()) = withContext(Dispatchers.IO) {
+        val profiles = loadAllProfiles()
+        val matches = SmartFilterEngine.findDuplicateMatches(profiles, config)
+        val ids = matches.flatMap { listOf(it.contactA.contact.id, it.contactB.contact.id) }.toSet()
+        _duplicateContactIds.value = ids
+    }
+
     suspend fun loadAllProfiles(): List<ContactProfile> = withContext(Dispatchers.IO) {
         val contacts = contactDao.getAllPublicContactsOnce()
         contacts.map { contact ->
