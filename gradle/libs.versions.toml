@@ -21,6 +21,7 @@ ksp = "2.3.6"
 hilt = "2.60"
 junit = "4.13.2"
 libphonenumber = "8.13.55"
+bouncycastle = "1.79"
 
 work-runtime = "2.10.1"
 datastore = "1.1.7"
@@ -77,6 +78,7 @@ androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-com
 
 junit = { module = "junit:junit", version.ref = "junit" }
 libphonenumber = { module = "com.googlecode.libphonenumber:libphonenumber", version.ref = "libphonenumber" }
+bouncycastle-prov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

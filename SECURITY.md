@@ -24,10 +24,13 @@ LINEA is engineered from the ground up with defensive security principles:
 - **Zero Third-Party SDKs**: No Google Firebase, Crashlytics, Mixpanel, Segment, or ad networks are bundled.
 - All algorithms (T9 search, caller ID, availability insights, call screening, and DTMF tones) are 100% deterministic and execute purely on-device.
 
-### 2.2. Hardware-Backed Encryption (AES-256-GCM)
-- **Private Contacts Vault**: Sensitive contacts marked as "Private" are protected with 4-digit PIN authentication and AES-256-GCM encryption.
-- Master cryptographic keys are generated and stored within Android's hardware-backed **AndroidKeyStore** (Secure Element / StrongBox when available).
-- Private contacts are purged from the public contact index and isolated from third-party apps requesting `READ_CONTACTS`.
+### 2.2. Hardware-Backed & Quantum-Resistant Encryption (AES-256-GCM & Argon2id)
+- **Private Contacts Safe & Vault**: Sensitive contacts marked as "Private" are protected with 6-digit PIN authentication, Argon2id memory-hard hashing, and AES-256-GCM enveloped master key encryption.
+- **Symmetric Quantum Resistance**: 256-bit symmetric keys provide 128 bits of post-quantum security against Grover's algorithm, satisfying NIST Post-Quantum Cryptography Level 5 requirements.
+- **Argon2id Password & Recovery Hashing (RFC 9106)**: PIN and security recovery credentials utilize memory-hard Argon2id hashing (19 MiB RAM matrix, 3 iterations, 32-byte cryptographically secure random salt) protecting against GPU, ASIC, and quantum-circuit brute force.
+- **Hardened Recovery Architecture**: Security answers strictly require a minimum of 9 characters and are never stored in plaintext or reversible formats. PIN resets require cryptographically bound, ephemeral single-use recovery sessions, preventing client-side bypasses and unauthorized resets.
+- **Multi-Tier Anti-Brute-Force Lockout**: Enforces progressive exponential lockouts (30s at 5 attempts, 2m at 8 attempts, 10m at 10+ attempts) and constant-time comparisons (`MessageDigest.isEqual`) across both PIN unlock and recovery verification.
+- **Local Isolation & Memory Protection**: Master keys are zeroized from RAM upon vault lock. Private contacts are completely isolated to local encrypted app storage and removed from the public contact provider.
 
 ### 2.3. Native Telecom Boundary
 - Calling operations strictly leverage Android’s native `TelecomManager`, `InCallService`, and `ConnectionService`.

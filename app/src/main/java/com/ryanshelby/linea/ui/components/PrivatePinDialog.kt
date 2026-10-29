@@ -36,6 +36,8 @@ enum class PrivatePinDialogMode {
     SETUP_CONFIRM_PIN,
     SETUP_RECOVERY_QUESTION,
     RECOVER_FORGOT_PIN,
+    RECOVER_ENTER_NEW_PIN,
+    RECOVER_CONFIRM_NEW_PIN,
     CHANGE_OLD_PIN,
     CHANGE_NEW_PIN,
     CHANGE_CONFIRM_PIN
@@ -77,6 +79,15 @@ fun PrivatePinDialog(
 
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var lockoutSecondsRemaining by remember { mutableLongStateOf(0L) }
+    var recoverySession by remember { mutableStateOf<com.ryanshelby.linea.security.RecoverySession?>(null) }
+
+    val handleDismiss: () -> Unit = {
+        if (recoverySession != null) {
+            vaultSecurityManager.cancelRecoverySession()
+            recoverySession = null
+        }
+        onDismiss()
+    }
 
     // Initial check: is PIN configured?
     LaunchedEffect(Unit) {
@@ -141,6 +152,39 @@ fun PrivatePinDialog(
                     currentMode = PrivatePinDialogMode.SETUP_ENTER_PIN
                 }
             }
+            PrivatePinDialogMode.RECOVER_ENTER_NEW_PIN -> {
+                tempNewPin = pin
+                enteredPin = ""
+                errorMessage = null
+                currentMode = PrivatePinDialogMode.RECOVER_CONFIRM_NEW_PIN
+            }
+            PrivatePinDialogMode.RECOVER_CONFIRM_NEW_PIN -> {
+                if (pin == tempNewPin) {
+                    val session = recoverySession
+                    if (session == null || session.isExpired()) {
+                        errorMessage = "Recovery session expired. Please verify answer again."
+                        recoverySession = null
+                        enteredPin = ""
+                        currentMode = PrivatePinDialogMode.RECOVER_FORGOT_PIN
+                        return
+                    }
+                    coroutineScope.launch {
+                        val result = vaultSecurityManager.resetPinWithRecoverySession(session, pin)
+                        if (result.isSuccess) {
+                            recoverySession = null
+                            onSuccess()
+                        } else {
+                            errorMessage = "Failed to reset PIN: ${result.exceptionOrNull()?.message}"
+                            enteredPin = ""
+                        }
+                    }
+                } else {
+                    errorMessage = "PINs do not match. Re-enter new PIN."
+                    tempNewPin = ""
+                    enteredPin = ""
+                    currentMode = PrivatePinDialogMode.RECOVER_ENTER_NEW_PIN
+                }
+            }
             PrivatePinDialogMode.CHANGE_OLD_PIN -> {
                 coroutineScope.launch {
                     val result = vaultSecurityManager.unlockWithPin(pin)
@@ -183,7 +227,7 @@ fun PrivatePinDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = handleDismiss) {
         FrostedGlassBox(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
@@ -208,7 +252,7 @@ fun PrivatePinDialog(
                     Icon(
                         imageVector = if (currentMode == PrivatePinDialogMode.SETUP_RECOVERY_QUESTION || currentMode == PrivatePinDialogMode.RECOVER_FORGOT_PIN) {
                             Icons.Filled.Security
-                        } else if (currentMode == PrivatePinDialogMode.SETUP_ENTER_PIN || currentMode == PrivatePinDialogMode.CHANGE_NEW_PIN) {
+                        } else if (currentMode == PrivatePinDialogMode.SETUP_ENTER_PIN || currentMode == PrivatePinDialogMode.CHANGE_NEW_PIN || currentMode == PrivatePinDialogMode.RECOVER_ENTER_NEW_PIN) {
                             Icons.Filled.LockOpen
                         } else {
                             Icons.Filled.Lock
@@ -228,7 +272,9 @@ fun PrivatePinDialog(
                         PrivatePinDialogMode.SETUP_ENTER_PIN -> "Create 6-Digit PIN"
                         PrivatePinDialogMode.SETUP_CONFIRM_PIN -> "Confirm 6-Digit PIN"
                         PrivatePinDialogMode.SETUP_RECOVERY_QUESTION -> "Recovery Question"
-                        PrivatePinDialogMode.RECOVER_FORGOT_PIN -> "Reset Forgotten PIN"
+                        PrivatePinDialogMode.RECOVER_FORGOT_PIN -> "Verify Security Answer"
+                        PrivatePinDialogMode.RECOVER_ENTER_NEW_PIN -> "Enter New 6-Digit PIN"
+                        PrivatePinDialogMode.RECOVER_CONFIRM_NEW_PIN -> "Confirm New PIN"
                         PrivatePinDialogMode.CHANGE_OLD_PIN -> "Verify Current PIN"
                         PrivatePinDialogMode.CHANGE_NEW_PIN -> "Enter New 6-Digit PIN"
                         PrivatePinDialogMode.CHANGE_CONFIRM_PIN -> "Confirm New PIN"
@@ -249,8 +295,10 @@ fun PrivatePinDialog(
                         PrivatePinDialogMode.UNLOCK -> "Enter 6-digit security PIN to unlock"
                         PrivatePinDialogMode.SETUP_ENTER_PIN -> "Set a secure 6-digit PIN for private contacts"
                         PrivatePinDialogMode.SETUP_CONFIRM_PIN -> "Re-enter your 6-digit PIN to confirm"
-                        PrivatePinDialogMode.SETUP_RECOVERY_QUESTION -> "Used to recover your vault if PIN is forgotten"
-                        PrivatePinDialogMode.RECOVER_FORGOT_PIN -> storedQuestion ?: "Answer your security question"
+                        PrivatePinDialogMode.SETUP_RECOVERY_QUESTION -> "Used to recover your vault if PIN is forgotten (min 9 chars)"
+                        PrivatePinDialogMode.RECOVER_FORGOT_PIN -> storedQuestion ?: "Answer your security question (min 9 chars)"
+                        PrivatePinDialogMode.RECOVER_ENTER_NEW_PIN -> "Choose a new 6-digit security PIN for your vault"
+                        PrivatePinDialogMode.RECOVER_CONFIRM_NEW_PIN -> "Re-enter your new 6-digit PIN to confirm"
                         PrivatePinDialogMode.CHANGE_OLD_PIN -> "Enter your current 6-digit PIN to proceed"
                         PrivatePinDialogMode.CHANGE_NEW_PIN -> "Choose a new 6-digit security PIN"
                         PrivatePinDialogMode.CHANGE_CONFIRM_PIN -> "Re-enter your new 6-digit PIN"
@@ -267,7 +315,7 @@ fun PrivatePinDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Post-Quantum Security Badge
+                // Hardened Post-Quantum Security Badge
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -284,7 +332,7 @@ fun PrivatePinDialog(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "AES-256-GCM • Post-Quantum Vault",
+                        text = "AES-256-GCM • Argon2id Hardened Vault",
                         style = LineaTypography.labelSmall.copy(fontSize = 10.sp),
                         color = LineaColors.MutedSageGreen
                     )
@@ -349,8 +397,11 @@ fun PrivatePinDialog(
 
                     OutlinedTextField(
                         value = recoveryAnswerText,
-                        onValueChange = { recoveryAnswerText = it },
-                        placeholder = { Text("Your Secret Answer", color = LineaColors.TextTertiary) },
+                        onValueChange = {
+                            recoveryAnswerText = it
+                            errorMessage = null
+                        },
+                        placeholder = { Text("Your Secret Answer (min 9 chars)", color = LineaColors.TextTertiary) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth(),
@@ -360,20 +411,34 @@ fun PrivatePinDialog(
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "${recoveryAnswerText.trim().length}/${PrivateVaultSecurityManager.MIN_SECURITY_ANSWER_LENGTH} characters minimum",
+                        style = LineaTypography.labelSmall,
+                        color = if (recoveryAnswerText.trim().length >= PrivateVaultSecurityManager.MIN_SECURITY_ANSWER_LENGTH) LineaColors.MutedSageGreen else LineaColors.TextTertiary,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Button(
                         onClick = {
                             val finalQuestion = if (selectedQuestion == "Custom Question") customQuestionText.trim() else selectedQuestion
-                            if (finalQuestion.isBlank() || recoveryAnswerText.isBlank()) {
+                            val trimmedAnswer = recoveryAnswerText.trim()
+                            if (finalQuestion.isBlank() || trimmedAnswer.isBlank()) {
                                 errorMessage = "Please enter question and answer."
+                                return@Button
+                            }
+                            if (trimmedAnswer.length < PrivateVaultSecurityManager.MIN_SECURITY_ANSWER_LENGTH) {
+                                errorMessage = "Security answer must be at least ${PrivateVaultSecurityManager.MIN_SECURITY_ANSWER_LENGTH} characters."
                                 return@Button
                             }
                             coroutineScope.launch {
                                 val result = vaultSecurityManager.setupInitialPin(
                                     pin = tempNewPin,
                                     recoveryQuestion = finalQuestion,
-                                    recoveryAnswer = recoveryAnswerText
+                                    recoveryAnswer = trimmedAnswer
                                 )
                                 if (result.isSuccess) {
                                     onSuccess()
@@ -392,8 +457,11 @@ fun PrivatePinDialog(
                     // Forgot PIN Recovery Answer
                     OutlinedTextField(
                         value = recoveryAnswerText,
-                        onValueChange = { recoveryAnswerText = it },
-                        placeholder = { Text("Your Answer", color = LineaColors.TextTertiary) },
+                        onValueChange = {
+                            recoveryAnswerText = it
+                            errorMessage = null
+                        },
+                        placeholder = { Text("Your Answer (min 9 chars)", color = LineaColors.TextTertiary) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth(),
@@ -403,22 +471,53 @@ fun PrivatePinDialog(
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "${recoveryAnswerText.trim().length}/${PrivateVaultSecurityManager.MIN_SECURITY_ANSWER_LENGTH} characters minimum",
+                        style = LineaTypography.labelSmall,
+                        color = if (recoveryAnswerText.trim().length >= PrivateVaultSecurityManager.MIN_SECURITY_ANSWER_LENGTH) LineaColors.MutedSageGreen else LineaColors.TextTertiary,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Button(
                         onClick = {
-                            if (recoveryAnswerText.isBlank()) {
+                            val trimmed = recoveryAnswerText.trim()
+                            if (trimmed.isBlank()) {
                                 errorMessage = "Please enter your recovery answer."
                                 return@Button
                             }
-                            // Move to entering new PIN
-                            currentMode = PrivatePinDialogMode.SETUP_ENTER_PIN
+                            if (trimmed.length < PrivateVaultSecurityManager.MIN_SECURITY_ANSWER_LENGTH) {
+                                errorMessage = "Security answer must be at least ${PrivateVaultSecurityManager.MIN_SECURITY_ANSWER_LENGTH} characters."
+                                return@Button
+                            }
+                            coroutineScope.launch {
+                                val result = vaultSecurityManager.verifyRecoveryAnswer(trimmed)
+                                if (result.isSuccess) {
+                                    recoverySession = result.getOrNull()
+                                    errorMessage = null
+                                    enteredPin = ""
+                                    tempNewPin = ""
+                                    currentMode = PrivatePinDialogMode.RECOVER_ENTER_NEW_PIN
+                                } else {
+                                    val lockout = vaultSecurityManager.getLockoutRemainingSeconds()
+                                    if (lockout > 0) {
+                                        lockoutSecondsRemaining = lockout
+                                        errorMessage = "Too many failed attempts. Locked out for ${lockout}s."
+                                    } else {
+                                        val attempts = vaultSecurityManager.getFailedAttempts()
+                                        errorMessage = "Incorrect recovery answer. (Attempt $attempts/5)"
+                                    }
+                                }
+                            }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue)
                     ) {
-                        Text("Verify & Set New PIN", fontWeight = FontWeight.SemiBold)
+                        Text("Verify Answer", fontWeight = FontWeight.SemiBold)
                     }
                 } else {
                     // PIN Dots (6 digits)
@@ -533,6 +632,8 @@ fun PrivatePinDialog(
                                     storedQuestion = vaultSecurityManager.getRecoveryQuestion()
                                     currentMode = PrivatePinDialogMode.RECOVER_FORGOT_PIN
                                     errorMessage = null
+                                    recoveryAnswerText = ""
+                                    recoverySession = null
                                 }
                             }
                         ) {
@@ -547,7 +648,7 @@ fun PrivatePinDialog(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                TextButton(onClick = onDismiss) {
+                TextButton(onClick = handleDismiss) {
                     Text(
                         text = "Cancel",
                         style = LineaTypography.bodyMedium,

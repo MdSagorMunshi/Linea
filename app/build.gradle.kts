@@ -147,6 +147,9 @@ dependencies {
     // Libphonenumber for accurate international phone number parsing
     implementation(libs.libphonenumber)
 
+    // Bouncy Castle for Argon2id post-quantum resistant memory-hard password hashing
+    implementation(libs.bouncycastle.prov)
+
     testImplementation(libs.junit)
 }
 

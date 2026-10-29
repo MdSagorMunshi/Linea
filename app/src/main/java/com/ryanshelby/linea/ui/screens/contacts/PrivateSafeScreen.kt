@@ -527,7 +527,7 @@ fun PrivateSafeScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text("Security Specifications", style = LineaTypography.titleSmall, color = LineaColors.TextPrimary)
-                                Text("AES-256-GCM, PBKDF2 & Post-Quantum", style = LineaTypography.bodySmall, color = LineaColors.TextSecondary)
+                                Text("AES-256-GCM, Argon2id & Post-Quantum", style = LineaTypography.bodySmall, color = LineaColors.TextSecondary)
                             }
                         }
                     }
@@ -961,27 +961,32 @@ fun PrivateSafeScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "• Algorithm: AES-256-GCM (Galois/Counter Mode with 128-bit authentication tag).",
+                        text = "• Symmetric Encryption: AES-256-GCM (Galois/Counter Mode with 128-bit authentication tag and 12-byte IV).",
                         style = LineaTypography.bodySmall,
                         color = LineaColors.TextPrimary
                     )
                     Text(
-                        text = "• Quantum Resistance: 256-bit symmetric security provides 128 bits of security against Grover's quantum search algorithm (NIST Level 5).",
+                        text = "• Quantum Resistance: 256-bit symmetric keys provide 128 bits of security against Grover's quantum search algorithm (NIST Level 5).",
                         style = LineaTypography.bodySmall,
                         color = LineaColors.TextSecondary
                     )
                     Text(
-                        text = "• Key Derivation: PBKDF2WithHmacSHA512 with 100,000 rounds and 32-byte cryptographic salt.",
+                        text = "• Password & Recovery Hashing: Argon2id (RFC 9106) with 19 MiB memory hardness, 3 iterations, and 32-byte salt protecting PIN and recovery credentials against GPU/ASIC/quantum acceleration.",
                         style = LineaTypography.bodySmall,
                         color = LineaColors.TextSecondary
                     )
                     Text(
-                        text = "• Anti-Brute-Force: Progressive exponential lockout (30s, 2m, 10m) and constant-time equality comparisons.",
+                        text = "• Recovery Hardening: Enforces minimum 9-character answers and cryptographically bound single-use recovery sessions.",
                         style = LineaTypography.bodySmall,
                         color = LineaColors.TextSecondary
                     )
                     Text(
-                        text = "• Local Storage Only: Private Safe contacts are saved only in local app data and deleted from Google/Phone contacts.",
+                        text = "• Anti-Brute-Force: Progressive exponential lockout (30s, 2m, 10m) and constant-time equality comparisons across PIN and recovery flows.",
+                        style = LineaTypography.bodySmall,
+                        color = LineaColors.TextSecondary
+                    )
+                    Text(
+                        text = "• Local Storage Only: Private Safe contacts are saved only in local app data and isolated from external contact providers.",
                         style = LineaTypography.bodySmall,
                         color = LineaColors.MutedSageGreen
                     )

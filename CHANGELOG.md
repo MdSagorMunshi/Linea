@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Hardware Detection & QR Fallback**: Clean visual fallback for devices lacking NFC hardware displaying `"Your phone doesn't have NFC."`, and an inline prompt to enable NFC in Android Settings when hardware is turned off.
 
 ### Fixed & Optimized
+- **Private Vault Security Hardening & Password Recovery Vulnerability Remediation**:
+  - **Cryptographic Recovery Answer Validation**: Fixed critical vulnerability where entering any recovery answer allowed users to reset the vault PIN without answer verification. PIN resets now strictly require valid answer verification before authorizing a new PIN.
+  - **Memory-Hard Password & Recovery Hashing (Argon2id)**: Replaced legacy key derivation with Argon2id (RFC 9106) utilizing a 19 MiB memory matrix, 3 iterations, and 32-byte cryptographically random salts for all PIN and security recovery hashes. Security answers are never stored in plaintext or with reversible encryption.
+  - **Minimum 9-Character Answer Policy**: Enforced a strict minimum 9-character complexity requirement across initial vault setup, recovery question modification, answer verification, and atomic recovery APIs.
+  - **Ephemeral Recovery Sessions & Bypass Prevention**: Implemented cryptographically bound, single-use, 5-minute `RecoverySession` tokens. Direct API calls and client-side state manipulation cannot reset the vault PIN without a valid unexpired recovery session.
+  - **Multi-Tier Anti-Brute-Force Lockout**: Applied shared progressive exponential lockout (30s at 5 attempts, 2m at 8 attempts, 10m at 10+ attempts) and constant-time comparisons (`MessageDigest.isEqual`) across both PIN unlock and recovery verification.
+  - **Zero Data Loss & Backwards-Compatible Migration**: Existing vaults configured with legacy PBKDF2 hashes continue to decrypt seamlessly and are automatically upgraded to Argon2id at rest upon successful unlock.
 - **Contact Sharing Priority Override & Restoration**: Fixed issue where contact sharing fell back to transmitting sender's Digital Card or failed if no Digital Card was configured. Contact Sharing now strictly overrides Digital Card mode while active and automatically restores Digital Card mode upon dismissal.
 - **Singleton Lifecycle & Event Bus Integrity**: Removed ephemeral `remember { NfcBeamManager() }` instantiations across contact sheets that severed HCE incoming contact listeners, ensuring incoming beamed contacts reliably trigger `BeamedContactSheet`.
 - **Pure-NFC Legacy Fallback**: Preserved standard NFC Forum Type 4 Tag NDEF Application (`D2760000850101`) and chunked APDU exchange for non-BLE readers and physical NFC smart cards/tags.
