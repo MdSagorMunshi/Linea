@@ -57,6 +57,10 @@ import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
 import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.offset
+import com.ryanshelby.linea.ui.theme.LocalThemeMotion
+import com.ryanshelby.linea.ui.theme.resolveDialpadKeyShape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
@@ -73,7 +77,9 @@ fun DialpadKey(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val crystal = LocalDesignStyle.current == DesignStyle.CRYSTAL
+    val style = LocalDesignStyle.current
+    val crystal = style == DesignStyle.CRYSTAL
+    val motion = LocalThemeMotion.current
     val reduceAnimations = LocalReduceAnimations.current
     val haptic = LocalHapticFeedback.current
     var isPressed by remember { mutableStateOf(false) }
@@ -105,56 +111,42 @@ fun DialpadKey(
     }
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && !reduceAnimations) 0.91f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
+        targetValue = if (isPressed) motion.pressScale else 1.0f,
+        animationSpec = motion.pressAnimationSpec,
         label = "KeyScale"
     )
 
-    val bgBrush = if (isPressed) {
-        Brush.verticalGradient(
-            colors = listOf(
-                LineaColors.TitaniumBlue.copy(alpha = 0.36f),
-                LineaColors.TitaniumBlue.copy(alpha = 0.18f)
-            )
-        )
-    } else {
-        Brush.verticalGradient(
-            colors = listOf(
-                Color.White.copy(alpha = 0.08f),
-                Color.White.copy(alpha = 0.03f)
-            )
-        )
-    }
+    val offsetX by animateDpAsState(
+        targetValue = if (isPressed) motion.pressOffsetX else 0.dp,
+        animationSpec = motion.pressOffsetAnimationSpec,
+        label = "KeyOffsetX"
+    )
+    val offsetY by animateDpAsState(
+        targetValue = if (isPressed) motion.pressOffsetY else 0.dp,
+        animationSpec = motion.pressOffsetAnimationSpec,
+        label = "KeyOffsetY"
+    )
+    val rotationZ by animateFloatAsState(
+        targetValue = if (isPressed) motion.pressRotationZ else 0f,
+        animationSpec = motion.pressAnimationSpec,
+        label = "KeyRotationZ"
+    )
 
-    val borderBrush = if (isPressed) {
-        Brush.verticalGradient(
-            colors = listOf(
-                LineaColors.TitaniumBlue,
-                LineaColors.TitaniumBlue.copy(alpha = 0.45f)
-            )
-        )
-    } else {
-        Brush.verticalGradient(
-            colors = listOf(
-                Color.White.copy(alpha = 0.18f),
-                Color.White.copy(alpha = 0.06f)
-            )
-        )
-    }
+    val keyShape = resolveDialpadKeyShape(style)
 
     Box(
         modifier = modifier
+            .offset(x = offsetX, y = offsetY)
             .size(size)
-            .scale(scale)
             .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.rotationZ = rotationZ
                 rotationX = if (crystal && !reduceAnimations) (1f - scale) * 65f else 0f
                 cameraDistance = 12f * density
             }
             .neumorphic(
-                shape = if (crystal) RoundedCornerShape(24.dp) else CircleShape,
+                shape = keyShape,
                 elevation = if (isPressed) 1.dp else 5.dp,
                 isPressed = isPressed
             )
@@ -228,7 +220,7 @@ fun DialpadKey(
                     fontWeight = FontWeight.SemiBold,
                     fontFeatureSettings = "tnum"
                 ),
-                color = if (isPressed && !crystal) Color.White else LineaColors.TextPrimary,
+                color = if (isPressed && !crystal && style != DesignStyle.NEO_BRUTALISM && !LineaColors.isLight) Color.White else LineaColors.TextPrimary,
                 fontSize = if (digit in listOf('*', '#')) 24.sp else 26.sp
             )
 

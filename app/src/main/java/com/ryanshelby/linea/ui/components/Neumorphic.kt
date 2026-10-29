@@ -3,6 +3,7 @@ package com.ryanshelby.linea.ui.components
 import android.graphics.Paint
 import android.graphics.RectF
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -29,28 +31,33 @@ import com.ryanshelby.linea.ui.theme.LocalDesignStyle
 import com.ryanshelby.linea.data.preferences.DesignStyle
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
-import com.ryanshelby.linea.ui.theme.LineaMotion
 import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
+import com.ryanshelby.linea.ui.theme.LocalThemeMotion
 
 /**
- * High-performance Neumorphic Dual Shadow Modifier.
- * Draws opposing directional light highlight (top-left) and ambient shadow (bottom-right).
+ * High-performance Theme-Aware Surface Modifier.
+ * Dynamically switches between the 6 distinct UI/UX design systems:
+ * 1. Neumorphism: Dual-shadow tactile extruded & sunken surfaces.
+ * 2. Organic / Biophilic: Ambient diffuse natural lighting, botanical curves, and earthy tones.
+ * 3. Fintech Minimal: Razor-sharp 1dp hairline precision, flat architectural planes.
+ * 4. Material 3 Expressive: Dynamic tonal containers, pill geometry, expressive outline.
+ * 5. Neo-Brutalism: Chunky 2.5dp black borders and solid non-blurred block drop shadows.
+ * 6. Handwritten Art: Artisanal sketchbook parchment with hand-drawn pencil/ink borders.
  */
 fun Modifier.neumorphic(
     shape: Shape = RoundedCornerShape(LineaDimensions.CardCornerRadius),
@@ -64,26 +71,53 @@ fun Modifier.neumorphic(
     borderHighlightColor: Color? = null,
     borderShadowColor: Color? = null
 ): Modifier = composed {
-    if (LocalDesignStyle.current == DesignStyle.CRYSTAL) {
-        val neutral = surfaceColor == LineaColors.NeuSurfaceRaised || surfaceColor == LineaColors.NeuSurfaceSunken || surfaceColor == LineaColors.GlassFill
-        crystalSurface(shape, elevation, isPressed || isSunken, if (neutral) null else surfaceColor)
-    } else {
-        classicNeumorphic(shape, elevation, isPressed, isSunken, surfaceColor, surfaceBrush,
-            lightShadowColor, darkShadowColor, borderHighlightColor, borderShadowColor)
+    when (LocalDesignStyle.current) {
+        DesignStyle.CRYSTAL -> {
+            val neutral = surfaceColor == LineaColors.NeuSurfaceRaised || surfaceColor == LineaColors.NeuSurfaceSunken || surfaceColor == LineaColors.GlassFill
+            crystalSurface(shape, elevation, isPressed || isSunken, if (neutral) null else surfaceColor)
+        }
+        DesignStyle.ORGANIC -> {
+            organicSurface(shape, elevation, isPressed, isSunken, surfaceColor, surfaceBrush,
+                borderHighlightColor)
+        }
+        DesignStyle.FINTECH -> {
+            fintechSurface(shape, elevation, isPressed, isSunken, surfaceColor, surfaceBrush,
+                borderHighlightColor)
+        }
+        DesignStyle.MATERIAL3 -> {
+            material3Surface(shape, elevation, isPressed, isSunken, surfaceColor, surfaceBrush,
+                borderHighlightColor)
+        }
+        DesignStyle.NEO_BRUTALISM -> {
+            neoBrutalismSurface(shape, elevation, isPressed, isSunken, surfaceColor, surfaceBrush,
+                borderHighlightColor)
+        }
+        DesignStyle.HANDWRITTEN -> {
+            handwrittenSurface(shape, elevation, isPressed, isSunken, surfaceColor, surfaceBrush,
+                borderHighlightColor)
+        }
+        DesignStyle.NEUMORPHISM, DesignStyle.CLASSIC -> {
+            classicNeumorphic(shape, elevation, isPressed, isSunken, surfaceColor, surfaceBrush,
+                lightShadowColor, darkShadowColor, borderHighlightColor, borderShadowColor)
+        }
     }
 }
 
+// =============================================================================
+// 1. NEUMORPHISM SURFACE
+// =============================================================================
+
 private fun Modifier.classicNeumorphic(
-    shape: Shape = RoundedCornerShape(LineaDimensions.CardCornerRadius),
-    elevation: Dp = 5.dp,
-    isPressed: Boolean = false,
-    isSunken: Boolean = false,
-    surfaceColor: Color? = null,
-    surfaceBrush: Brush? = null,
-    lightShadowColor: Color? = null,
-    darkShadowColor: Color? = null,
-    borderHighlightColor: Color? = null,
-    borderShadowColor: Color? = null
+    shape: Shape,
+    elevation: Dp,
+    isPressed: Boolean,
+    isSunken: Boolean,
+    surfaceColor: Color?,
+    surfaceBrush: Brush?,
+    lightShadowColor: Color?,
+    darkShadowColor: Color?,
+    borderHighlightColor: Color?,
+    borderShadowColor: Color?
 ): Modifier = this.drawBehind {
     val light = lightShadowColor ?: LineaColors.NeuLightShadow
     val dark = darkShadowColor ?: LineaColors.NeuDarkShadow
@@ -131,7 +165,6 @@ private fun Modifier.classicNeumorphic(
     }
 }.then(
     run {
-        // Surface Background & Rim-lit Specular Border
         val effectiveModifier = Modifier.clip(shape)
         val bgModifier = when {
             surfaceBrush != null -> effectiveModifier.background(surfaceBrush)
@@ -192,8 +225,254 @@ private fun Modifier.classicNeumorphic(
     }
 )
 
+// =============================================================================
+// 2. ORGANIC / BIOPHILIC SURFACE
+// =============================================================================
+
+private fun Modifier.organicSurface(
+    shape: Shape,
+    elevation: Dp,
+    isPressed: Boolean,
+    isSunken: Boolean,
+    surfaceColor: Color?,
+    surfaceBrush: Brush?,
+    borderHighlightColor: Color?
+): Modifier = this.drawBehind {
+    val effectivePressed = isPressed || isSunken
+    if (!effectivePressed && elevation > 0.dp) {
+        val elevationPx = elevation.toPx()
+        drawIntoCanvas { canvas ->
+            val native = canvas.nativeCanvas
+            val shadowColor = LineaColors.NeuDarkShadow.copy(alpha = if (LineaColors.isLight) 0.18f else 0.45f)
+            val shadowPaint = Paint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.TRANSPARENT
+                setShadowLayer(elevationPx * 1.6f, 0f, elevationPx * 0.7f, shadowColor.toArgb())
+            }
+            val rect = RectF(0f, 0f, size.width, size.height)
+            val cornerRadiusPx = if (shape is CornerBasedShape) {
+                shape.topStart.toPx(size, this)
+            } else if (shape == CircleShape) {
+                size.minDimension / 2f
+            } else {
+                20f * density
+            }
+            native.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, shadowPaint)
+        }
+    }
+}.then(
+    run {
+        val effectiveModifier = Modifier.clip(shape)
+        val baseColor = surfaceColor ?: (if (isPressed || isSunken) LineaColors.NeuSurfaceSunken else LineaColors.NeuSurfaceRaised)
+        val bgModifier = when {
+            surfaceBrush != null -> effectiveModifier.background(surfaceBrush)
+            else -> effectiveModifier.background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        baseColor,
+                        baseColor.copy(alpha = 0.92f)
+                    )
+                )
+            )
+        }
+        val borderColor = borderHighlightColor ?: LineaColors.GlassBorder
+        bgModifier.border(1.dp, borderColor, shape)
+    }
+)
+
+// =============================================================================
+// 3. FINTECH MINIMAL SURFACE
+// =============================================================================
+
+private fun Modifier.fintechSurface(
+    shape: Shape,
+    elevation: Dp,
+    isPressed: Boolean,
+    isSunken: Boolean,
+    surfaceColor: Color?,
+    surfaceBrush: Brush?,
+    borderHighlightColor: Color?
+): Modifier = this.drawBehind {
+    val effectivePressed = isPressed || isSunken
+    if (!effectivePressed && elevation >= 4.dp) {
+        // Crisp 1.5dp micro-shadow
+        drawIntoCanvas { canvas ->
+            val native = canvas.nativeCanvas
+            val shadowPaint = Paint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.TRANSPARENT
+                setShadowLayer(2f * density, 0f, 1.5f * density, Color.Black.copy(alpha = if (LineaColors.isLight) 0.12f else 0.50f).toArgb())
+            }
+            val rect = RectF(0f, 0f, size.width, size.height)
+            val cornerRadiusPx = if (shape is CornerBasedShape) {
+                shape.topStart.toPx(size, this)
+            } else if (shape == CircleShape) {
+                size.minDimension / 2f
+            } else 4f * density
+            native.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, shadowPaint)
+        }
+    }
+}.then(
+    run {
+        val effectiveModifier = Modifier.clip(shape)
+        val baseColor = surfaceColor ?: (if (isPressed || isSunken) LineaColors.NeuSurfaceSunken else LineaColors.NeuSurfaceRaised)
+        val bgModifier = when {
+            surfaceBrush != null -> effectiveModifier.background(surfaceBrush)
+            else -> effectiveModifier.background(baseColor)
+        }
+        val borderColor = borderHighlightColor ?: (if (isPressed || isSunken) LineaColors.GlassBorderFocused else LineaColors.GlassBorder)
+        bgModifier.border(1.dp, borderColor, shape)
+    }
+)
+
+// =============================================================================
+// 4. MATERIAL 3 EXPRESSIVE SURFACE
+// =============================================================================
+
+private fun Modifier.material3Surface(
+    shape: Shape,
+    elevation: Dp,
+    isPressed: Boolean,
+    isSunken: Boolean,
+    surfaceColor: Color?,
+    surfaceBrush: Brush?,
+    borderHighlightColor: Color?
+): Modifier = this.drawBehind {
+    val effectivePressed = isPressed || isSunken
+    if (!effectivePressed && elevation > 0.dp) {
+        val elevationPx = elevation.toPx()
+        drawIntoCanvas { canvas ->
+            val native = canvas.nativeCanvas
+            val shadowPaint = Paint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.TRANSPARENT
+                setShadowLayer(elevationPx * 1.5f, 0f, elevationPx * 0.7f, Color.Black.copy(alpha = if (LineaColors.isLight) 0.10f else 0.40f).toArgb())
+            }
+            val rect = RectF(0f, 0f, size.width, size.height)
+            val cornerRadiusPx = if (shape is CornerBasedShape) {
+                shape.topStart.toPx(size, this)
+            } else if (shape == CircleShape) {
+                size.minDimension / 2f
+            } else 20f * density
+            native.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, shadowPaint)
+        }
+    }
+}.then(
+    run {
+        val effectiveModifier = Modifier.clip(shape)
+        val baseColor = surfaceColor ?: (if (isPressed || isSunken) LineaColors.NeuSurfaceSunken else LineaColors.NeuSurfaceRaised)
+        val bgModifier = when {
+            surfaceBrush != null -> effectiveModifier.background(surfaceBrush)
+            else -> effectiveModifier.background(baseColor)
+        }
+        val borderColor = borderHighlightColor ?: LineaColors.GlassBorder
+        bgModifier.border(1.dp, borderColor, shape)
+    }
+)
+
+// =============================================================================
+// 5. NEO-BRUTALISM SURFACE (Solid Block Shadow & Chunky 2.5dp Border)
+// =============================================================================
+
+private fun Modifier.neoBrutalismSurface(
+    shape: Shape,
+    elevation: Dp,
+    isPressed: Boolean,
+    isSunken: Boolean,
+    surfaceColor: Color?,
+    surfaceBrush: Brush?,
+    borderHighlightColor: Color?
+): Modifier = this.drawBehind {
+    val effectivePressed = isPressed || isSunken
+    if (elevation > 0.dp) {
+        val shadowOffset = if (effectivePressed) 1f * density else 3.5f * density
+        drawIntoCanvas { canvas ->
+            val native = canvas.nativeCanvas
+            val blockPaint = Paint().apply {
+                isAntiAlias = true
+                color = Color.Black.toArgb()
+                style = Paint.Style.FILL
+            }
+            val cornerRadiusPx = if (shape is CornerBasedShape) {
+                shape.topStart.toPx(size, this)
+            } else if (shape == CircleShape) {
+                size.minDimension / 2f
+            } else 8f * density
+            val shadowRect = RectF(shadowOffset, shadowOffset, size.width + shadowOffset, size.height + shadowOffset)
+            native.drawRoundRect(shadowRect, cornerRadiusPx, cornerRadiusPx, blockPaint)
+        }
+    }
+}.then(
+    run {
+        val effectiveModifier = Modifier.clip(shape)
+        val baseColor = surfaceColor ?: (if (isPressed || isSunken) LineaColors.NeuSurfaceSunken else LineaColors.NeuSurfaceRaised)
+        val bgModifier = when {
+            surfaceBrush != null -> effectiveModifier.background(surfaceBrush)
+            else -> effectiveModifier.background(baseColor)
+        }
+        val strokeColor = borderHighlightColor ?: (if (LineaColors.isLight) Color.Black else if (baseColor == Color.Black) Color.White else Color.Black)
+        bgModifier.border(2.5.dp, strokeColor, shape)
+    }
+)
+
+// =============================================================================
+// 6. HANDWRITTEN ART SURFACE (Sketchbook Parchment & Hand-Drawn Stroke)
+// =============================================================================
+
+private fun Modifier.handwrittenSurface(
+    shape: Shape,
+    elevation: Dp,
+    isPressed: Boolean,
+    isSunken: Boolean,
+    surfaceColor: Color?,
+    surfaceBrush: Brush?,
+    borderHighlightColor: Color?
+): Modifier = this.drawBehind {
+    val effectivePressed = isPressed || isSunken
+    if (!effectivePressed && elevation > 0.dp) {
+        val elevationPx = elevation.toPx()
+        drawIntoCanvas { canvas ->
+            val native = canvas.nativeCanvas
+            val shadowPaint = Paint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.TRANSPARENT
+                setShadowLayer(elevationPx * 1.3f, 1f * density, elevationPx * 0.7f, Color(0xFF2C241D).copy(alpha = if (LineaColors.isLight) 0.16f else 0.42f).toArgb())
+            }
+            val rect = RectF(0f, 0f, size.width, size.height)
+            val cornerRadiusPx = if (shape is CornerBasedShape) {
+                shape.topStart.toPx(size, this)
+            } else if (shape == CircleShape) {
+                size.minDimension / 2f
+            } else 16f * density
+            native.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, shadowPaint)
+        }
+    }
+}.then(
+    run {
+        val effectiveModifier = Modifier.clip(shape)
+        val baseColor = surfaceColor ?: (if (isPressed || isSunken) LineaColors.NeuSurfaceSunken else LineaColors.NeuSurfaceRaised)
+        val bgModifier = when {
+            surfaceBrush != null -> effectiveModifier.background(surfaceBrush)
+            else -> effectiveModifier.background(
+                Brush.verticalGradient(
+                    listOf(
+                        baseColor,
+                        baseColor.copy(alpha = 0.94f)
+                    )
+                )
+            )
+        }
+        val inkBorder = borderHighlightColor ?: LineaColors.GlassBorder
+        bgModifier.border(1.5.dp, inkBorder, shape)
+    }
+)
+
+// =============================================================================
+// Reusable Themed Containers
+// =============================================================================
+
 /**
- * Neumorphic Card container for elevated panels, cards, and list groups.
+ * Reusable Card container for elevated panels, cards, and list groups.
  */
 @Composable
 fun NeumorphicCard(
@@ -218,7 +497,7 @@ fun NeumorphicCard(
 }
 
 /**
- * Neumorphic Sunken Well for search inputs, text entry fields, and slider troughs.
+ * Reusable Sunken Well for search inputs, text entry fields, and slider troughs.
  */
 @Composable
 fun NeumorphicWell(
@@ -242,7 +521,7 @@ fun NeumorphicWell(
 }
 
 /**
- * Tactile Neumorphic Button that physically depresses from raised to sunken on tap.
+ * Tactile Button with theme-specific physical motion (squish, snap, tilt, block translate).
  */
 @Composable
 fun NeumorphicButton(
@@ -255,6 +534,8 @@ fun NeumorphicButton(
     activeAccentColor: Color? = null,
     content: @Composable RowScope.() -> Unit
 ) {
+    val style = LocalDesignStyle.current
+    val motion = LocalThemeMotion.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val reduceAnimations = LocalReduceAnimations.current
@@ -263,20 +544,41 @@ fun NeumorphicButton(
     val effectivePressed = (isPressed && enabled) || isActive
 
     val scale by animateFloatAsState(
-        targetValue = if (effectivePressed && !reduceAnimations) 0.95f else 1.0f,
-        animationSpec = LineaMotion.ScaleCompressSpring,
-        label = "NeuButtonScale"
+        targetValue = if (effectivePressed) motion.pressScale else 1.0f,
+        animationSpec = motion.pressAnimationSpec,
+        label = "ThemeButtonScale"
+    )
+
+    val offsetX by animateDpAsState(
+        targetValue = if (effectivePressed) motion.pressOffsetX else 0.dp,
+        animationSpec = motion.pressOffsetAnimationSpec,
+        label = "ThemeButtonOffsetX"
+    )
+    val offsetY by animateDpAsState(
+        targetValue = if (effectivePressed) motion.pressOffsetY else 0.dp,
+        animationSpec = motion.pressOffsetAnimationSpec,
+        label = "ThemeButtonOffsetY"
+    )
+    val rotationZ by animateFloatAsState(
+        targetValue = if (effectivePressed) motion.pressRotationZ else 0f,
+        animationSpec = motion.pressAnimationSpec,
+        label = "ThemeButtonRotationZ"
     )
 
     val activeGlowColor = activeAccentColor ?: LineaColors.TitaniumBlue
     val activeBorderColor by animateColorAsState(
-        targetValue = if (isActive) activeGlowColor.copy(alpha = 0.8f) else Color.Transparent,
-        label = "NeuButtonActiveBorder"
+        targetValue = if (isActive) activeGlowColor.copy(alpha = 0.85f) else Color.Transparent,
+        label = "ThemeButtonActiveBorder"
     )
 
     Box(
         modifier = modifier
-            .scale(scale)
+            .offset(x = offsetX, y = offsetY)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.rotationZ = rotationZ
+            }
             .neumorphic(
                 shape = shape,
                 elevation = if (effectivePressed) 1.dp else elevation,
@@ -284,7 +586,11 @@ fun NeumorphicButton(
             )
             .then(
                 if (isActive) {
-                    Modifier.border(1.5.dp, activeBorderColor, shape)
+                    Modifier.border(
+                        if (style == DesignStyle.NEO_BRUTALISM) 2.5.dp else 1.5.dp,
+                        activeBorderColor,
+                        shape
+                    )
                 } else Modifier
             )
             .then(
@@ -310,7 +616,7 @@ fun NeumorphicButton(
 }
 
 /**
- * Tactile Neumorphic Icon Button (e.g. for dialer actions, call buttons, navigation).
+ * Tactile Icon Button with theme-specific motion (dialer actions, call buttons, navigation).
  */
 @Composable
 fun NeumorphicIconButton(
@@ -327,6 +633,8 @@ fun NeumorphicIconButton(
     tint: Color = LineaColors.TextPrimary,
     activeColor: Color = LineaColors.TitaniumBlue
 ) {
+    val style = LocalDesignStyle.current
+    val motion = LocalThemeMotion.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val reduceAnimations = LocalReduceAnimations.current
@@ -335,19 +643,40 @@ fun NeumorphicIconButton(
     val effectivePressed = (isPressed && enabled) || isActive
 
     val scale by animateFloatAsState(
-        targetValue = if (effectivePressed && !reduceAnimations) 0.92f else 1.0f,
-        animationSpec = LineaMotion.ScaleCompressSpring,
-        label = "NeuIconScale"
+        targetValue = if (effectivePressed) motion.pressScale else 1.0f,
+        animationSpec = motion.pressAnimationSpec,
+        label = "ThemeIconScale"
+    )
+
+    val offsetX by animateDpAsState(
+        targetValue = if (effectivePressed) motion.pressOffsetX else 0.dp,
+        animationSpec = motion.pressOffsetAnimationSpec,
+        label = "ThemeIconOffsetX"
+    )
+    val offsetY by animateDpAsState(
+        targetValue = if (effectivePressed) motion.pressOffsetY else 0.dp,
+        animationSpec = motion.pressOffsetAnimationSpec,
+        label = "ThemeIconOffsetY"
+    )
+    val rotationZ by animateFloatAsState(
+        targetValue = if (effectivePressed) motion.pressRotationZ else 0f,
+        animationSpec = motion.pressAnimationSpec,
+        label = "ThemeIconRotationZ"
     )
 
     val currentTint by animateColorAsState(
         targetValue = if (isActive) activeColor else if (!enabled) tint.copy(alpha = 0.35f) else tint,
-        label = "NeuIconTint"
+        label = "ThemeIconTint"
     )
 
     Box(
         modifier = modifier
-            .scale(scale)
+            .offset(x = offsetX, y = offsetY)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.rotationZ = rotationZ
+            }
             .size(size)
             .neumorphic(
                 shape = shape,
@@ -356,7 +685,11 @@ fun NeumorphicIconButton(
             )
             .then(
                 if (isActive) {
-                    Modifier.border(1.5.dp, activeColor.copy(alpha = 0.85f), shape)
+                    Modifier.border(
+                        if (style == DesignStyle.NEO_BRUTALISM) 2.5.dp else 1.5.dp,
+                        activeColor.copy(alpha = 0.85f),
+                        shape
+                    )
                 } else Modifier
             )
             .then(

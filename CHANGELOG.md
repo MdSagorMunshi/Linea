@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Multi-Theme UI/UX Design System Suite (6 Distinct Design Systems + Preserved Classic & Crystal)**:
+  - **Six New Production UI/UX Themes**:
+    - **Neumorphism (`NEUMORPHISM`)**: Physical extruded surfaces, debossed wells, dual ambient light and shadow bevels, pill call button, and cushioned tactile spring motion.
+    - **Organic / Biophilic (`ORGANIC`)**: Earthy botanical aesthetic with sage, forest emerald, warm clay terracotta, asymmetrical pebble geometry, fluid spring curves, and living motion.
+    - **Fintech Minimal (`FINTECH`)**: High-precision ultra-clean financial interface with monospace tabular typography, hairline geometric borders, crisp electric cobalt accents, and snappy instant feedback.
+    - **Material 3 Expressive (`MATERIAL3`)**: Expressive dynamic pill and super-ellipse shapes, tonal containers, high-contrast dynamic pastel accents, and fluid bouncy spring physics.
+    - **Neo-Brutalism (`NEO_BRUTALISM`)**: High-contrast graphic punch with thick solid black borders (2.5dp–3.5dp), offset hard drop shadows (3dp/3dp), electric cyber-lime / punchy yellow accents, bold black type, and mechanical physical press displacement.
+    - **Handwritten Art (`HANDWRITTEN`)**: Artisanal sketchbook journal feel with textured warm parchment surfaces, wobbly hand-drawn doodle borders, playful scribbles, calligraphic typography, and sketch-style press tilt.
+  - **Preserved Classic & Crystal Themes**:
+    - Retained original `CLASSIC` (Soft Sculpted Neumorphism) as the default fallback for backwards compatibility and first-time users.
+    - Retained `CRYSTAL` (Glass & Titanium) with GPU AGSL runtime refraction shaders, live background diffusion, and floating glass dock.
+  - **Centralized Design Token & Motion Architecture**:
+    - `ThemePalettes.kt`: Complete Light, Dark, and AMOLED palettes across all 8 themes with strict WCAG AA/AAA contrast compliance (>= 4.5:1 text contrast).
+    - `ThemeTypography.kt`: Distinct typography scale per theme (Inter, Humanist Sans, Monospace Tabular, M3 Expressive, Punchy Black, Artisanal Serif/Cursive).
+    - `ThemeShapes.kt`: Dedicated shape scales, dialpad key shapes, and call button geometry.
+    - `ThemeMotion.kt`: Motion languages configuring compression scale, offset translation, tilt rotation, and transition specs per theme with reduced-motion fallback.
+  - **Universal Appearance Collapse Panel in Settings**:
+    - Interactive collapsible Appearance card across all 8 themes with animated expansion/collapse, dynamic title and subtitle (`{Theme} · {Mode}`), and search deep-linking (`theme`, `design`, `appearance`).
+    - High-fidelity theme miniature previews in `DesignPicker` allowing instant switching across all 8 themes without restarting the app.
+  - **Full App Component Integration & Test Suite**:
+    - Applied theme tokens, shapes, and motion consistently across Dialpad, Call Button, Navigation Bar, Banners, and Settings.
+    - Comprehensive unit test suite `SixThemesSystemTest` validating token registration, contrast ratios, shape scales, typography, and motion configurations across all 8 themes.
 - **NFC-Triggered BLE Contact Sharing & Digital Card Handover**:
   - **Sub-100ms Out-of-Band Touch Discovery**: Tapping two devices together now uses NFC purely for instant proximity intent and 32-byte ephemeral session key negotiation (`HANDOVER_INIT` / `0xB1`), immediately freeing users to pull devices apart without dropping transfer sessions.
   - **High-Speed Encrypted BLE Data Transfer (`BleHandoverManager`)**: Complete contact and Digital Card data exchange runs over an AES-GCM-256 encrypted Bluetooth Low Energy (BLE) channel using negotiated MTU 512 and LE 2M/1M PHY.

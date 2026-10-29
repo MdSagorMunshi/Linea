@@ -29,4 +29,4 @@ private val CrystalShapes = Shapes(
     small = RoundedCornerShape(16.dp), medium = RoundedCornerShape(24.dp),
     large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(36.dp)
 )
-val LineaShapes: Shapes get() = if (LineaColors.isCrystal) CrystalShapes else ClassicShapes
+val LineaShapes: Shapes get() = resolveThemeShapes(LineaColors.currentDesignStyle)

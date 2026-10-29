@@ -51,24 +51,21 @@ private fun buildLightColorScheme(palette: LineaColorPalette, onAccent: androidx
 fun LineaTheme(
     theme: String = "DARK",
     reduceAnimations: Boolean = false,
-    designStyle: DesignStyle = DesignStyle.CLASSIC,
+    designStyle: DesignStyle = DesignStyle.NEUMORPHISM,
     content: @Composable () -> Unit
 ) {
     val systemInDark = isSystemInDarkTheme()
 
-    val basePalette = when (theme.uppercase()) {
-        "LIGHT" -> LightPalette
-        "AMOLED" -> AmoledPalette
-        "SYSTEM" -> if (systemInDark) DarkPalette else LightPalette
-        else -> DarkPalette
-    }
-
-    val activePalette = remember(basePalette, designStyle) {
-        if (designStyle == DesignStyle.CRYSTAL) crystalPalette(basePalette) else basePalette
+    val activePalette = remember(theme, designStyle, systemInDark) {
+        resolveThemePalette(designStyle, theme, systemInDark)
     }
     val backdrop = rememberCrystalBackdropSource()
+    val themeMotion = remember(designStyle, reduceAnimations) {
+        resolveThemeMotion(designStyle, reduceAnimations)
+    }
 
-    LineaColors.isCrystal = designStyle == DesignStyle.CRYSTAL
+    LineaColors.currentDesignStyle = designStyle
+    LineaColors.isCrystal = (designStyle == DesignStyle.CRYSTAL)
     // Reactively update LineaColors snapshot state so all composables recompose instantly
     LineaColors.updatePalette(activePalette)
 
@@ -87,22 +84,30 @@ fun LineaTheme(
         }
     }
 
-    val onAccent = if (designStyle == DesignStyle.CRYSTAL) LineaColors.OnAccent else activePalette.TextPrimary
+    val onAccent = if (designStyle == DesignStyle.CRYSTAL) LineaColors.OnAccent
+        else if (designStyle == DesignStyle.NEO_BRUTALISM && activePalette.isLight) androidx.compose.ui.graphics.Color.Black
+        else if (designStyle == DesignStyle.FINTECH || designStyle == DesignStyle.MATERIAL3) androidx.compose.ui.graphics.Color.White
+        else activePalette.TextPrimary
+
     val colorScheme = if (activePalette.isLight) {
         buildLightColorScheme(activePalette, onAccent)
     } else {
         buildDarkColorScheme(activePalette, onAccent)
     }
 
+    val currentTypography = LineaTypography
+    val currentShapes = LineaShapes
+
     CompositionLocalProvider(
         LocalReduceAnimations provides reduceAnimations,
         LocalDesignStyle provides designStyle,
+        LocalThemeMotion provides themeMotion,
         LocalCrystalBackdrop provides backdrop
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = LineaTypography,
-            shapes = LineaShapes
+            typography = currentTypography,
+            shapes = currentShapes
         ) {
             Box(
                 modifier = Modifier

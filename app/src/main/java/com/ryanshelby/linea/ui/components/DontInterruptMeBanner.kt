@@ -74,7 +74,7 @@ fun DontInterruptMeBanner(
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .clip(RoundedCornerShape(LineaDimensions.CardCornerRadius))
-                    .background(Color(0xE614181D))
+                    .background(LineaColors.SurfaceElevated.copy(alpha = 0.95f))
                     .border(
                         width = 1.dp,
                         color = LineaColors.TitaniumBlue.copy(alpha = 0.4f),

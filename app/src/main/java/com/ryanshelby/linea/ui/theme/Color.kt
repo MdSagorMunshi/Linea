@@ -177,6 +177,9 @@ val LightPalette = LineaColorPalette(
 )
 
 object LineaColors {
+    var currentDesignStyle by mutableStateOf(com.ryanshelby.linea.data.preferences.DesignStyle.NEUMORPHISM)
+        internal set
+
     var isCrystal by mutableStateOf(false)
         internal set
 

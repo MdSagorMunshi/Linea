@@ -92,6 +92,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -223,7 +224,7 @@ fun SettingsScreen(
             onScrollToSection = { section ->
                 viewModel.setSearchQuery("")
                 focusManager.clearFocus()
-                if (section == "theme" || section == "design") {
+                if (section == "theme" || section == "design" || section == "appearance") {
                     appearanceExpanded = true
                     appearanceScope.launch { scrollState.animateScrollTo(0) }
                 }
@@ -448,22 +449,43 @@ fun SettingsScreen(
             // Appearance & Motion Panel
             FrostedGlassBox(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(LineaDimensions.PanelPadding)) {
-                    if (LineaColors.isCrystal) {
-                        Row(Modifier.fillMaxWidth().clickable { appearanceExpanded = !appearanceExpanded }
-                            .heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Appearance", style = LineaTypography.titleMedium, color = LineaColors.TextPrimary)
-                                Text("Crystal · ${uiState.theme.lowercase().replaceFirstChar { it.uppercase() }}",
-                                    style = LineaTypography.bodySmall, color = LineaColors.TextSecondary)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { appearanceExpanded = !appearanceExpanded }
+                            .heightIn(min = 56.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Appearance",
+                                style = LineaTypography.titleMedium,
+                                color = LineaColors.TextPrimary
+                            )
+                            val themeModeLabel = when (uiState.theme.uppercase()) {
+                                "AMOLED" -> "OLED"
+                                "LIGHT" -> "Light"
+                                "DARK" -> "Dark"
+                                "SYSTEM" -> "System"
+                                else -> uiState.theme.lowercase().replaceFirstChar { it.uppercase() }
                             }
-                            Icon(if (appearanceExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                                contentDescription = if (appearanceExpanded) "Collapse appearance" else "Expand appearance",
-                                tint = LineaColors.TextSecondary)
+                            Text(
+                                text = "${uiState.designStyle.displayName} · $themeModeLabel",
+                                style = LineaTypography.bodySmall,
+                                color = LineaColors.TextSecondary
+                            )
                         }
-                    } else SettingsSectionHeader(icon = Icons.Filled.Palette, title = "Appearance & Motion")
-                    AnimatedVisibility(visible = !LineaColors.isCrystal || appearanceExpanded,
+                        Icon(
+                            imageVector = if (appearanceExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = if (appearanceExpanded) "Collapse appearance" else "Expand appearance",
+                            tint = LineaColors.TextSecondary
+                        )
+                    }
+                    AnimatedVisibility(
+                        visible = appearanceExpanded,
                         enter = if (uiState.reduceAnimations) EnterTransition.None else fadeIn() + expandVertically(),
-                        exit = if (uiState.reduceAnimations) ExitTransition.None else fadeOut() + shrinkVertically()) {
+                        exit = if (uiState.reduceAnimations) ExitTransition.None else fadeOut() + shrinkVertically()
+                    ) {
                     Column {
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1557,10 +1579,11 @@ private fun SelectionPill(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
+        val onAccentText = if (LineaColors.currentDesignStyle == com.ryanshelby.linea.data.preferences.DesignStyle.NEO_BRUTALISM && LineaColors.isLight) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White
         Text(
             text = label,
             fontSize = 12.sp,
-            color = if (isSelected && LineaColors.isCrystal) LineaColors.OnAccent else if (isSelected) LineaColors.TextPrimary else LineaColors.TextSecondary
+            color = if (isSelected) onAccentText else LineaColors.TextSecondary
         )
     }
 }

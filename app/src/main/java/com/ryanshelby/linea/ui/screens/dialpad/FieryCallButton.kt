@@ -46,6 +46,11 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.offset
+import com.ryanshelby.linea.ui.theme.LocalThemeMotion
+import com.ryanshelby.linea.ui.theme.resolveCallButtonShape
+import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.components.neumorphic
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -271,24 +276,41 @@ fun CallButton(
     val currentOnClick by rememberUpdatedState(onClick)
     val currentTriggerEasterEgg by rememberUpdatedState(triggerEasterEgg)
 
+    val style = com.ryanshelby.linea.ui.theme.LocalDesignStyle.current
+    val motion = LocalThemeMotion.current
+    val buttonShape = resolveCallButtonShape(style)
+
     // Standard scale compression on normal tap press
     val scale by animateFloatAsState(
         targetValue = when {
             blastPhase != BlastPhase.IDLE -> 1.0f
-            isPressed -> 0.92f
+            isPressed -> motion.pressScale
             else -> 1.0f
         },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
+        animationSpec = motion.pressAnimationSpec,
         label = "CallButtonScale"
+    )
+
+    val offsetX by animateDpAsState(
+        targetValue = if (isPressed && blastPhase == BlastPhase.IDLE) motion.pressOffsetX else 0.dp,
+        animationSpec = motion.pressOffsetAnimationSpec,
+        label = "CallButtonOffsetX"
+    )
+    val offsetY by animateDpAsState(
+        targetValue = if (isPressed && blastPhase == BlastPhase.IDLE) motion.pressOffsetY else 0.dp,
+        animationSpec = motion.pressOffsetAnimationSpec,
+        label = "CallButtonOffsetY"
+    )
+    val rotationZ by animateFloatAsState(
+        targetValue = if (isPressed && blastPhase == BlastPhase.IDLE) motion.pressRotationZ else 0f,
+        animationSpec = motion.pressAnimationSpec,
+        label = "CallButtonRotationZ"
     )
 
     val currentElevation = if (isPressed) 1.5.dp else 6.5.dp
 
     // Color definitions
-    val defaultButtonColor = if (isPressed) Color(0xFF3B566E) else Color(0xFF4A6B88)
+    val defaultButtonColor = if (isPressed) LineaColors.TitaniumBlue.copy(alpha = 0.82f) else LineaColors.TitaniumBlue
     val fieryColorPressed = Color(0xFFBF360C)
 
     val isAnimating = blastPhase != BlastPhase.IDLE
@@ -347,23 +369,25 @@ fun CallButton(
         if (buttonVisible) {
             Box(
                 modifier = Modifier
+                    .offset(x = offsetX, y = offsetY)
                     .graphicsLayer {
                         this.alpha = buttonAlpha
                         this.scaleX = scale
                         this.scaleY = scale
+                        this.rotationZ = rotationZ
                     }
                     .size(68.dp)
                     .then(
                         if (isFiery) {
                             Modifier.neumorphic(
-                                shape = CircleShape,
+                                shape = buttonShape,
                                 elevation = currentElevation,
                                 isSunken = isPressed,
                                 surfaceColor = if (isPressed) fieryColorPressed else Color(0xFFE64A19)
                             )
                         } else {
                             Modifier.neumorphic(
-                                shape = CircleShape,
+                                shape = buttonShape,
                                 elevation = currentElevation,
                                 isSunken = isPressed,
                                 surfaceColor = defaultButtonColor

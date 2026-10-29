@@ -164,6 +164,7 @@ fun LineaNavGraph(
         currentDestination = LineaDestination.DIALPAD
     }
 
+    val themeMotion = com.ryanshelby.linea.ui.theme.LocalThemeMotion.current
     val baseCovered = activeContactDashboardId != null || settingsSubScreen != null || isPrivateSafeOpen
     Box(modifier = modifier.fillMaxSize()) {
         // Base screens (kept in composition so scroll position and UI states are preserved smoothly)
@@ -173,13 +174,7 @@ fun LineaNavGraph(
                 .then(if (baseCovered) Modifier.clearAndSetSemantics {} else Modifier),
             targetState = currentDestination,
             transitionSpec = {
-                if (reduceAnim || !LineaColors.isCrystal) {
-                    fadeIn(tween(if (reduceAnim) 100 else 220)) togetherWith fadeOut(tween(if (reduceAnim) 100 else 220))
-                } else {
-                    val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
-                    (fadeIn(tween(260)) + slideInHorizontally(tween(300)) { it / 22 * direction } + scaleIn(tween(300), initialScale = .985f)) togetherWith
-                        (fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { -it / 28 * direction } + scaleOut(tween(220), targetScale = .99f))
-                }
+                themeMotion.transitionSpec(this)
             },
             label = "screen_transition"
         ) { destination ->

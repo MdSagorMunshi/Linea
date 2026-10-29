@@ -111,7 +111,7 @@ private val CrystalTypography = ClassicTypography.copy(
 )
 
 val LineaTypography: Typography
-    get() = if (LineaColors.isCrystal) CrystalTypography else ClassicTypography
+    get() = resolveThemeTypography(LineaColors.currentDesignStyle)
 
 val Typography.captionBold: TextStyle
     get() = TextStyle(
