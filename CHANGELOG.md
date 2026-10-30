@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Interactive Merge Result Preview & User Name Selection (`Fix & Manage`)**:
+  - **Live Merge Result Preview Dialog**: When tapping "Review & Merge" on duplicate contacts sharing the same phone number or email under different names, a tactile dialog displays a live card preview of the resulting merged record before anything is committed to the database.
+  - **User-Chosen Display Name**: When the same phone number exists under different names (e.g. "Mohammad" vs "Muhammed Ali"), users can choose which name to keep via interactive RadioButtons, or type a custom display name directly.
+  - **Surviving Fields Inspection**: The preview explicitly lists all unioned phone numbers (with labels `Mobile`, `Work`, etc.), emails, notes, and favorite star status that will be preserved.
+- **Strict Identifier-Based Duplicate Matching & Name Similarity Elimination**:
+  - **Eliminated False Positive Name-Similarity Filter**: Contacts sharing NO phone number and NO email are strictly never flagged or suggested as duplicate candidates, eliminating annoying false positives between different individuals sharing common names or nicknames.
+  - **Concrete Anchor Requirement**: Duplicate detection now requires at least one concrete identifier (a normalized E.164 phone number or normalized email address). Same phone number with differing names produces a `MEDIUM` confidence suggested merge requiring user confirmation; same phone with identical names produces `HIGH` confidence.
 - **Sovereign 6-Phase Contact Merge & Fix Architecture (`Fix & Manage`)**:
   - **Complete Clean Replacement**: Entirely eliminated the legacy smartfilter implementation and built a sovereign, zero-cloud contact cleanup and merge engine from scratch with strict privacy, deterministic survivorship, and full rollback capability.
   - **Strict Multi-Stage Normalization (`ContactNormalizer`)**: Converts all phone numbers to standard E.164 (stripping whitespace, hyphens, parentheses; dynamically resolving domestic trunk numbers via on-device `SimCountryDetector` hardware inspection across 250+ countries, preserving international numbers, and converting exit code `00`); display names lowercased, trimmed, and stripped of international honorific prefixes across Western, European, Islamic, and South Asian traditions; emails trimmed and lowercased.

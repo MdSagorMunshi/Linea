@@ -141,11 +141,19 @@ class ContactMergeFixRepository @Inject constructor(
 
     /**
      * Executes merge for a group (user tap or background).
+     * Optionally accepts a chosen display name.
      */
-    suspend fun mergeGroup(group: MergeGroup): Long = withContext(Dispatchers.IO) {
-        val mergedId = mergeExecutor.executeMerge(group)
+    suspend fun mergeGroup(group: MergeGroup, chosenDisplayName: String? = null): Long = withContext(Dispatchers.IO) {
+        val mergedId = mergeExecutor.executeMerge(group, chosenDisplayName)
         scanAll()
         mergedId
+    }
+
+    /**
+     * Computes a preview of the merge result before executing.
+     */
+    fun computeMergePreview(group: MergeGroup, chosenDisplayName: String? = null): MergePreview {
+        return mergeExecutor.computePreview(group, chosenDisplayName)
     }
 
     /**

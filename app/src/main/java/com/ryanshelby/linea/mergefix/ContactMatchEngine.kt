@@ -140,97 +140,54 @@ object ContactMatchEngine {
         val isFuzzyName = isLevenshteinMatch || isTokenAbbreviation || isPhoneticMatch || isNickname
 
         // --- TIER EVALUATION ---
+        // Duplicates must share a concrete identifier (normalized phone number or email).
+        // Name-only similarity without a shared phone or email is strictly excluded.
 
         if (hasSharedPhone) {
             val phoneDesc = sharedNumbers.first()
-            if (isExactName) {
+            if (isExactName || !bothNamesPresent) {
                 return MergeCandidatePair(
                     contactA = contactA,
                     contactB = contactB,
                     confidence = ConfidenceTier.HIGH,
-                    reason = "Identical normalized phone number ($phoneDesc) and exact name"
+                    reason = "Identical phone number ($phoneDesc) and name"
                 )
             }
 
-            if (!bothNamesPresent) {
-                // Nameless duplicates sharing exact phone number
-                return MergeCandidatePair(
-                    contactA = contactA,
-                    contactB = contactB,
-                    confidence = ConfidenceTier.HIGH,
-                    reason = "Identical normalized phone number ($phoneDesc) with matching or missing name"
-                )
-            }
-
-            // Name extension / containment (e.g. "Rahim" and "Rahim Uddin" sharing +8801712345678)
-            if (isNameExtensionOrPrefix(nameA, nameB)) {
-                return MergeCandidatePair(
-                    contactA = contactA,
-                    contactB = contactB,
-                    confidence = ConfidenceTier.HIGH,
-                    reason = "Identical phone number ($phoneDesc) and name extension ('$nameA' & '$nameB')"
-                )
-            }
-
-            // Phonetic match or slight name difference with shared phone -> MEDIUM suggested merge
-            val matchType = when {
-                isPhoneticMatch -> "Phonetically equivalent name ('$nameA' & '$nameB')"
-                isNickname -> "Recognized nickname ('$nameA' & '$nameB')"
-                isLevenshteinMatch -> "Similar name variation ('$nameA' & '$nameB')"
-                else -> "Different names ('$nameA' & '$nameB')"
+            // Same number stored under different names -> user chooses which name to keep
+            val matchNote = when {
+                isNameExtensionOrPrefix(nameA, nameB) -> "name variation ('${contactA.displayName}' & '${contactB.displayName}')"
+                isPhoneticMatch -> "phonetic match ('${contactA.displayName}' & '${contactB.displayName}')"
+                isNickname -> "nickname match ('${contactA.displayName}' & '${contactB.displayName}')"
+                else -> "different names ('${contactA.displayName}' vs '${contactB.displayName}')"
             }
             return MergeCandidatePair(
                 contactA = contactA,
                 contactB = contactB,
                 confidence = ConfidenceTier.MEDIUM,
-                reason = "Shared phone ($phoneDesc) with $matchType"
+                reason = "Same number ($phoneDesc) with $matchNote"
             )
         }
 
-        // NO shared phone number:
-        if (isExactName) {
-            return if (hasSharedEmail) {
-                MergeCandidatePair(
-                    contactA = contactA,
-                    contactB = contactB,
-                    confidence = ConfidenceTier.HIGH,
-                    reason = "Identical name ('$nameA') and shared email (${sharedEmails.first()})"
-                )
-            } else {
-                MergeCandidatePair(
-                    contactA = contactA,
-                    contactB = contactB,
-                    confidence = ConfidenceTier.HIGH,
-                    reason = "Identical name ('$nameA')"
-                )
-            }
-        }
-
-        if (isFuzzyName) {
-            if (hasSharedEmail) {
+        if (hasSharedEmail) {
+            val emailDesc = sharedEmails.first()
+            if (isExactName || !bothNamesPresent) {
                 return MergeCandidatePair(
                     contactA = contactA,
                     contactB = contactB,
-                    confidence = ConfidenceTier.MEDIUM,
-                    reason = "Similar name ('$nameA' & '$nameB') with shared email (${sharedEmails.first()})"
-                )
-            } else {
-                // Tier 3: Weak signal (names fuzzy-match but share NO phone and NO email, e.g. "Mom" & "Ammu")
-                val reasonDetail = when {
-                    isNickname -> "Recognized family/nickname match ('$nameA' & '$nameB') with no shared fields"
-                    isPhoneticMatch -> "Phonetically similar name ('$nameA' & '$nameB') with no shared fields"
-                    isTokenAbbreviation -> "Name abbreviation ('$nameA' & '$nameB') with no shared fields"
-                    else -> "Name similarity ('$nameA' & '$nameB') with no shared fields"
-                }
-                return MergeCandidatePair(
-                    contactA = contactA,
-                    contactB = contactB,
-                    confidence = ConfidenceTier.LOW,
-                    reason = reasonDetail
+                    confidence = ConfidenceTier.HIGH,
+                    reason = "Identical email ($emailDesc) and name"
                 )
             }
+            return MergeCandidatePair(
+                contactA = contactA,
+                contactB = contactB,
+                confidence = ConfidenceTier.MEDIUM,
+                reason = "Same email ($emailDesc) with different names ('${contactA.displayName}' vs '${contactB.displayName}')"
+            )
         }
 
+        // No shared phone and no shared email -> strictly NOT a duplicate
         return null
     }
 

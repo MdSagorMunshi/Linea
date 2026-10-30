@@ -71,7 +71,7 @@ class ContactMergeFixTest {
     // =====================================================================
 
     @Test
-    fun testTierOne_exactPhoneMatch_producesHighConfidence() {
+    fun testTierOne_exactPhoneAndNameMatch_producesHighConfidence() {
         val c1 = createNormalizedContact(
             id = 1,
             name = "Rahim",
@@ -79,7 +79,7 @@ class ContactMergeFixTest {
         )
         val c2 = createNormalizedContact(
             id = 2,
-            name = "Rahim",
+            name = "rahim",
             numbers = listOf("01712-345-678")
         )
 
@@ -89,7 +89,26 @@ class ContactMergeFixTest {
     }
 
     @Test
-    fun testTierOne_exactNameMatch_producesHighConfidence() {
+    fun testTierOne_exactPhoneNamelessMatch_producesHighConfidence() {
+        val c1 = createNormalizedContact(
+            id = 1,
+            name = "",
+            numbers = listOf("01712345678")
+        )
+        val c2 = createNormalizedContact(
+            id = 2,
+            name = "",
+            numbers = listOf("+8801712345678")
+        )
+
+        val pair = ContactMatchEngine.evaluatePair(c1, c2)
+        assertNotNull(pair)
+        assertEquals(ConfidenceTier.HIGH, pair?.confidence)
+    }
+
+    @Test
+    fun testNoSharedPhoneOrEmail_neverMatchesRegardlessOfName() {
+        // Identical names but different phone numbers and no shared email must NEVER match
         val c1 = createNormalizedContact(
             id = 1,
             name = "Rahim",
@@ -100,14 +119,24 @@ class ContactMergeFixTest {
             name = "rahim",
             numbers = listOf("01722222222")
         )
+        val pair1 = ContactMatchEngine.evaluatePair(c1, c2)
+        assertNull(pair1)
 
-        val pair = ContactMatchEngine.evaluatePair(c1, c2)
-        assertNotNull(pair)
-        assertEquals(ConfidenceTier.HIGH, pair?.confidence)
+        // Nicknames / fuzzy names with different numbers must NEVER match
+        val c3 = createNormalizedContact(id = 3, name = "Bob", numbers = listOf("01711111111"))
+        val c4 = createNormalizedContact(id = 4, name = "Robert", numbers = listOf("01722222222"))
+        val pair2 = ContactMatchEngine.evaluatePair(c3, c4)
+        assertNull(pair2)
+
+        // Weak signal "Mom" vs "Ammu" with different numbers must NEVER match
+        val c5 = createNormalizedContact(id = 5, name = "Mom", numbers = listOf("01711111111"))
+        val c6 = createNormalizedContact(id = 6, name = "Ammu", numbers = listOf("01722222222"))
+        val pair3 = ContactMatchEngine.evaluatePair(c5, c6)
+        assertNull(pair3)
     }
 
     @Test
-    fun testTierTwo_fuzzyLevenshteinMatch_producesMediumConfidence() {
+    fun testTierTwo_sameNumberDifferentNames_producesMediumConfidence() {
         val c1 = createNormalizedContact(
             id = 1,
             name = "Rayan Shelby",
@@ -125,7 +154,7 @@ class ContactMergeFixTest {
     }
 
     @Test
-    fun testTierTwo_tokenAbbreviationMatch_producesMediumConfidence() {
+    fun testTierTwo_sameNumberFullNameAndAbbreviation_producesMediumConfidence() {
         val c1 = createNormalizedContact(
             id = 1,
             name = "Rahim Uddin",
@@ -143,25 +172,22 @@ class ContactMergeFixTest {
     }
 
     @Test
-    fun testTierTwo_phoneticSoundexMatch_producesMediumConfidence() {
-        // "Jon" vs "John"
-        assertEquals(ContactMatchEngine.soundex("Jon"), ContactMatchEngine.soundex("John"))
+    fun testTierTwo_sameNumberPhoneticVariation_producesMediumConfidence() {
+        // "Jon" vs "John" with same number
         val c1 = createNormalizedContact(id = 1, name = "Jon", numbers = listOf("01711111111"))
         val c2 = createNormalizedContact(id = 2, name = "John", numbers = listOf("01711111111"))
         val pair1 = ContactMatchEngine.evaluatePair(c1, c2)
         assertNotNull(pair1)
         assertEquals(ConfidenceTier.MEDIUM, pair1?.confidence)
 
-        // "Mohammad" vs "Muhammed"
-        assertEquals(ContactMatchEngine.soundex("Mohammad"), ContactMatchEngine.soundex("Muhammed"))
+        // "Mohammad" vs "Muhammed" with same number
         val c3 = createNormalizedContact(id = 3, name = "Mohammad", numbers = listOf("01722222222"))
         val c4 = createNormalizedContact(id = 4, name = "Muhammed", numbers = listOf("01722222222"))
         val pair2 = ContactMatchEngine.evaluatePair(c3, c4)
         assertNotNull(pair2)
         assertEquals(ConfidenceTier.MEDIUM, pair2?.confidence)
 
-        // "Shuvo" vs "Shouvo"
-        assertEquals(ContactMatchEngine.soundex("Shuvo"), ContactMatchEngine.soundex("Shouvo"))
+        // "Shuvo" vs "Shouvo" with same number
         val c5 = createNormalizedContact(id = 5, name = "Shuvo", numbers = listOf("01733333333"))
         val c6 = createNormalizedContact(id = 6, name = "Shouvo", numbers = listOf("01733333333"))
         val pair3 = ContactMatchEngine.evaluatePair(c5, c6)
@@ -170,31 +196,20 @@ class ContactMergeFixTest {
     }
 
     @Test
-    fun testTierTwo_hardcodedNicknameTable_producesMediumConfidence() {
-        // "Bob" vs "Robert"
+    fun testTierTwo_sameNumberNicknameTable_producesMediumConfidence() {
+        // "Bob" vs "Robert" with same number
         val c1 = createNormalizedContact(id = 1, name = "Bob", numbers = listOf("01711111111"))
         val c2 = createNormalizedContact(id = 2, name = "Robert", numbers = listOf("01711111111"))
         val pair1 = ContactMatchEngine.evaluatePair(c1, c2)
         assertNotNull(pair1)
         assertEquals(ConfidenceTier.MEDIUM, pair1?.confidence)
 
-        // "Mike" vs "Michael"
+        // "Mike" vs "Michael" with same number
         val c3 = createNormalizedContact(id = 3, name = "Mike", numbers = listOf("01722222222"))
         val c4 = createNormalizedContact(id = 4, name = "Michael", numbers = listOf("01722222222"))
         val pair2 = ContactMatchEngine.evaluatePair(c3, c4)
         assertNotNull(pair2)
         assertEquals(ConfidenceTier.MEDIUM, pair2?.confidence)
-    }
-
-    @Test
-    fun testTierThree_weakSignalNoSharedFields_producesLowConfidence() {
-        // "Mom" and "Ammu" sharing NO phone number and NO email
-        val c1 = createNormalizedContact(id = 1, name = "Mom", numbers = listOf("01711111111"))
-        val c2 = createNormalizedContact(id = 2, name = "Ammu", numbers = listOf("01722222222"))
-
-        val pair = ContactMatchEngine.evaluatePair(c1, c2)
-        assertNotNull(pair)
-        assertEquals(ConfidenceTier.LOW, pair?.confidence)
     }
 
     // =====================================================================
@@ -244,7 +259,7 @@ class ContactMergeFixTest {
     // =====================================================================
 
     @Test
-    fun testCandidateGrouping_threeWayHighGroup() {
+    fun testCandidateGrouping_sameNumberDifferentNames_formsMediumGroup() {
         val c1 = createNormalizedContact(id = 1, name = "Rahim", numbers = listOf("01712345678"))
         val c2 = createNormalizedContact(id = 2, name = "Rahim Uddin", numbers = listOf("01712-345-678"))
         val c3 = createNormalizedContact(id = 3, name = "Rahim U.", numbers = listOf("+8801712345678"))
@@ -252,8 +267,42 @@ class ContactMergeFixTest {
         val groups = ContactGroupingEngine.findMergeGroups(listOf(c1, c2, c3))
         assertEquals(1, groups.size)
         assertEquals(3, groups[0].contacts.size)
-        // Group confidence carries HIGH for exact phone match
+        // Group confidence is MEDIUM because names differ on the same phone number (requires user choice)
+        assertEquals(ConfidenceTier.MEDIUM, groups[0].confidence)
+    }
+
+    @Test
+    fun testCandidateGrouping_exactPhoneAndName_formsHighGroup() {
+        val c1 = createNormalizedContact(id = 1, name = "Rahim", numbers = listOf("01712345678"))
+        val c2 = createNormalizedContact(id = 2, name = "Rahim", numbers = listOf("01712-345-678"))
+        val c3 = createNormalizedContact(id = 3, name = "rahim", numbers = listOf("+8801712345678"))
+
+        val groups = ContactGroupingEngine.findMergeGroups(listOf(c1, c2, c3))
+        assertEquals(1, groups.size)
+        assertEquals(3, groups[0].contacts.size)
         assertEquals(ConfidenceTier.HIGH, groups[0].confidence)
+    }
+
+    @Test
+    fun testMergePreview_allowsUserToChooseName() {
+        val c1 = createNormalizedContact(id = 1, name = "Rahim", numbers = listOf("01712345678"))
+        val c2 = createNormalizedContact(id = 2, name = "Rahim Uddin", numbers = listOf("01712345678"))
+        val groups = ContactGroupingEngine.findMergeGroups(listOf(c1, c2))
+        assertEquals(1, groups.size)
+
+        val group = groups[0]
+        // Default preview picks the longest name
+        val defaultPreview = ContactMergeExecutor.computePreview(group)
+        assertEquals("Rahim Uddin", defaultPreview.selectedDisplayName)
+        assertEquals(listOf("Rahim", "Rahim Uddin"), defaultPreview.candidateNames)
+
+        // User chooses the first name ("Rahim")
+        val rahimPreview = ContactMergeExecutor.computePreview(group, chosenDisplayName = "Rahim")
+        assertEquals("Rahim", rahimPreview.selectedDisplayName)
+
+        // User enters a custom name
+        val customPreview = ContactMergeExecutor.computePreview(group, chosenDisplayName = "Rahim Bhai")
+        assertEquals("Rahim Bhai", customPreview.selectedDisplayName)
     }
 
     @Test

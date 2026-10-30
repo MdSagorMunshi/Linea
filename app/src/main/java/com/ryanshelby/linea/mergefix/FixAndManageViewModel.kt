@@ -49,6 +49,9 @@ class FixAndManageViewModel @Inject constructor(
     private val _userMessage = MutableStateFlow<String?>(null)
     val userMessage: StateFlow<String?> = _userMessage.asStateFlow()
 
+    private val _activeMergePreview = MutableStateFlow<MergePreview?>(null)
+    val activeMergePreview: StateFlow<MergePreview?> = _activeMergePreview.asStateFlow()
+
     private val _lastMergedHistoryId = MutableStateFlow<Long?>(null)
     val lastMergedHistoryId: StateFlow<Long?> = _lastMergedHistoryId.asStateFlow()
 
@@ -78,10 +81,25 @@ class FixAndManageViewModel @Inject constructor(
         }
     }
 
-    fun mergeGroup(group: MergeGroup) {
+    fun openMergePreview(group: MergeGroup) {
+        val preview = repository.computeMergePreview(group)
+        _activeMergePreview.value = preview
+    }
+
+    fun selectPreviewName(name: String) {
+        val current = _activeMergePreview.value ?: return
+        _activeMergePreview.value = repository.computeMergePreview(current.group, name)
+    }
+
+    fun closeMergePreview() {
+        _activeMergePreview.value = null
+    }
+
+    fun mergeGroup(group: MergeGroup, chosenDisplayName: String? = null) {
         viewModelScope.launch {
+            _activeMergePreview.value = null
             val contactNames = group.contacts.joinToString(", ") { it.displayName }
-            repository.mergeGroup(group)
+            repository.mergeGroup(group, chosenDisplayName)
             val latestHistory = repository.mergeHistoryDaoLatest()
             if (latestHistory != null) {
                 _lastMergedHistoryId.value = latestHistory.id

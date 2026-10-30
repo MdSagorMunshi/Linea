@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
@@ -30,11 +32,14 @@ import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,6 +51,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -98,6 +105,7 @@ fun FixAndManageScreen(
     val isScanning by viewModel.isScanning.collectAsState()
     val userMessage by viewModel.userMessage.collectAsState()
     val undoCountdown by viewModel.undoCountdownSeconds.collectAsState()
+    val activeMergePreview by viewModel.activeMergePreview.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -201,7 +209,7 @@ fun FixAndManageScreen(
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val dupCount = mediumGroups.size + lowGroups.size
+                val dupCount = mediumGroups.size
                 val fixCount = unnamedContacts.size + malformedNames.size + unnormalizedNumbers.size + emptyContacts.size
                 val historyCount = mergeHistory.size
 
@@ -308,11 +316,9 @@ fun FixAndManageScreen(
                         MergeDuplicatesSection(
                             highGroups = highGroups,
                             mediumGroups = mediumGroups,
-                            lowGroups = lowGroups,
                             undoCountdown = undoCountdown,
-                            onMergeGroup = { viewModel.mergeGroup(it) },
+                            onReviewMerge = { viewModel.openMergePreview(it) },
                             onDismissMedium = { viewModel.dismissMedium(it) },
-                            onDismissLow = { viewModel.dismissLow(it) },
                             onUndoMerge = { viewModel.undoLastMerge() }
                         )
                     }
@@ -398,6 +404,18 @@ fun FixAndManageScreen(
             containerColor = LineaColors.NeuSurfaceRaised
         )
     }
+
+    // Merge Preview & Result Customization Dialog
+    activeMergePreview?.let { preview ->
+        MergePreviewDialog(
+            preview = preview,
+            onSelectName = { viewModel.selectPreviewName(it) },
+            onConfirm = { chosenName ->
+                viewModel.mergeGroup(preview.group, chosenName)
+            },
+            onDismiss = { viewModel.closeMergePreview() }
+        )
+    }
 }
 
 // =========================================================================
@@ -408,17 +426,15 @@ fun FixAndManageScreen(
 private fun MergeDuplicatesSection(
     highGroups: List<MergeGroup>,
     mediumGroups: List<MergeGroup>,
-    lowGroups: List<MergeGroup>,
     undoCountdown: Int,
-    onMergeGroup: (MergeGroup) -> Unit,
+    onReviewMerge: (MergeGroup) -> Unit,
     onDismissMedium: (MergeGroup) -> Unit,
-    onDismissLow: (MergeGroup) -> Unit,
     onUndoMerge: () -> Unit
 ) {
-    if (highGroups.isEmpty() && mediumGroups.isEmpty() && lowGroups.isEmpty()) {
+    if (highGroups.isEmpty() && mediumGroups.isEmpty()) {
         EmptySectionPlaceholder(
             title = "No Duplicates Found",
-            message = "Every contact in your address book is unique across normalized phone numbers and names."
+            message = "Every contact in your address book is unique across phone numbers and email addresses."
         )
         return
     }
@@ -502,7 +518,7 @@ private fun MergeDuplicatesSection(
                     color = LineaColors.TitaniumBlue
                 )
                 Text(
-                    text = "Fuzzy name match with shared phone or close phonetic match (User Confirmation Required)",
+                    text = "Contacts sharing the same phone number or email under different names (User Confirmation Required)",
                     style = LineaTypography.bodySmall,
                     color = LineaColors.TextSecondary
                 )
@@ -511,34 +527,8 @@ private fun MergeDuplicatesSection(
             items(mediumGroups, key = { it.id }) { group ->
                 MediumConfidenceCardPair(
                     group = group,
-                    onMerge = { onMergeGroup(group) },
+                    onReviewMerge = { onReviewMerge(group) },
                     onNotTheSame = { onDismissMedium(group) }
-                )
-            }
-        }
-
-        // LOW Confidence Review Flags
-        if (lowGroups.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Review Only (${lowGroups.size})",
-                    style = LineaTypography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = LineaColors.Warning
-                )
-                Text(
-                    text = "Names fuzzy-match but share no phone and no email. Never auto-merged.",
-                    style = LineaTypography.bodySmall,
-                    color = LineaColors.TextSecondary
-                )
-            }
-
-            items(lowGroups, key = { it.id }) { group ->
-                LowConfidenceReviewCard(
-                    group = group,
-                    onMerge = { onMergeGroup(group) },
-                    onDismiss = { onDismissLow(group) }
                 )
             }
         }
@@ -551,7 +541,7 @@ private fun MergeDuplicatesSection(
 @Composable
 private fun MediumConfidenceCardPair(
     group: MergeGroup,
-    onMerge: () -> Unit,
+    onReviewMerge: () -> Unit,
     onNotTheSame: () -> Unit
 ) {
     Box(
@@ -633,7 +623,7 @@ private fun MediumConfidenceCardPair(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action Buttons: "Not the same" and "Merge"
+            // Action Buttons: "Not the same" and "Review & Merge"
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -651,14 +641,14 @@ private fun MediumConfidenceCardPair(
                 }
 
                 Button(
-                    onClick = onMerge,
+                    onClick = onReviewMerge,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue)
                 ) {
                     Icon(Icons.Filled.Merge, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Merge", fontSize = 11.sp)
+                    Text("Review & Merge", fontSize = 11.sp)
                 }
             }
         }
@@ -731,80 +721,268 @@ private fun MiniContactProfileCard(
 }
 
 @Composable
-private fun LowConfidenceReviewCard(
-    group: MergeGroup,
-    onMerge: () -> Unit,
+private fun MergePreviewDialog(
+    preview: MergePreview,
+    onSelectName: (String) -> Unit,
+    onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .neumorphic(
-                shape = RoundedCornerShape(16.dp),
-                elevation = 2.dp,
-                surfaceColor = LineaColors.NeuSurfaceRaised
-            )
-            .padding(14.dp)
-    ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    var customName by remember(preview.selectedDisplayName) {
+        mutableStateOf(preview.selectedDisplayName)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.Merge,
+                    contentDescription = null,
+                    tint = LineaColors.TitaniumBlue,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Merge Result Preview",
+                    style = LineaTypography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = LineaColors.TextPrimary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                Text(
+                    text = "Choose which name to keep and preview the final merged contact record below.",
+                    style = LineaTypography.bodySmall,
+                    color = LineaColors.TextSecondary
+                )
+
+                // 1. Live Preview of Resulting Contact Card
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(LineaColors.Warning.copy(alpha = 0.15f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(LineaColors.GlassFill)
+                        .border(1.dp, LineaColors.TitaniumBlue.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                        .padding(14.dp)
                 ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            ContactAvatar(
+                                displayName = customName.ifBlank { "?" },
+                                photoUri = preview.group.contacts.firstOrNull { it.contact.photoUri != null }?.contact?.photoUri,
+                                size = 42.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = customName.ifBlank { "Unnamed" },
+                                        style = LineaTypography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = LineaColors.TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (preview.isFavorite) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Icon(
+                                            imageVector = Icons.Filled.Star,
+                                            contentDescription = "Starred",
+                                            tint = LineaColors.Warning,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "Result of merging ${preview.group.contacts.size} records",
+                                    style = LineaTypography.labelSmall,
+                                    color = LineaColors.TitaniumBlue,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = LineaColors.GlassBorder.copy(alpha = 0.4f))
+
+                        // Numbers to keep
+                        Text(
+                            text = "Phone Numbers (${preview.numbersToKeep.size}):",
+                            style = LineaTypography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = LineaColors.TextSecondary
+                        )
+                        preview.numbersToKeep.forEach { p ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(start = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Phone,
+                                    contentDescription = null,
+                                    tint = LineaColors.TextTertiary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = p.number,
+                                    style = LineaTypography.bodySmall,
+                                    color = LineaColors.TextPrimary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                if (p.label.isNotBlank()) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "(${p.label})",
+                                        style = LineaTypography.labelSmall,
+                                        color = LineaColors.TextTertiary,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        // Emails to keep (if any)
+                        if (preview.emailsToKeep.isNotEmpty()) {
+                            Text(
+                                text = "Emails (${preview.emailsToKeep.size}):",
+                                style = LineaTypography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = LineaColors.TextSecondary
+                            )
+                            preview.emailsToKeep.forEach { e ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Email,
+                                        contentDescription = null,
+                                        tint = LineaColors.TextTertiary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = e.email,
+                                        style = LineaTypography.bodySmall,
+                                        color = LineaColors.TextPrimary
+                                    )
+                                }
+                            }
+                        }
+
+                        // Notes to keep (if any)
+                        if (!preview.notesToKeep.isNullOrBlank()) {
+                            Text(
+                                text = "Notes:",
+                                style = LineaTypography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = LineaColors.TextSecondary
+                            )
+                            Text(
+                                text = preview.notesToKeep,
+                                style = LineaTypography.bodySmall,
+                                color = LineaColors.TextSecondary,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                // 2. Select Which Name to Keep (Radio Options)
+                if (preview.candidateNames.size > 1) {
                     Text(
-                        text = "LOW CONFIDENCE · REVIEW ONLY",
-                        style = LineaTypography.labelSmall,
-                        color = LineaColors.Warning,
+                        text = "Which name do you want to keep?",
+                        style = LineaTypography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 9.sp
+                        color = LineaColors.TextPrimary
                     )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        preview.candidateNames.forEach { candidateName ->
+                            val isSelected = candidateName.equals(customName.trim(), ignoreCase = true)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        customName = candidateName
+                                        onSelectName(candidateName)
+                                    }
+                                    .padding(vertical = 4.dp, horizontal = 4.dp)
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = {
+                                        customName = candidateName
+                                        onSelectName(candidateName)
+                                    },
+                                    colors = RadioButtonDefaults.colors(
+                                        selectedColor = LineaColors.TitaniumBlue,
+                                        unselectedColor = LineaColors.TextSecondary
+                                    )
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = candidateName,
+                                    style = LineaTypography.bodyMedium,
+                                    color = if (isSelected) LineaColors.TitaniumBlue else LineaColors.TextPrimary,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = LineaColors.TextSecondary),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, LineaColors.GlassBorder),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text("Dismiss", fontSize = 11.sp)
-                    }
-
-                    Button(
-                        onClick = onMerge,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Text("Merge", fontSize = 11.sp)
-                    }
-                }
+                // 3. Custom Name Input
+                Text(
+                    text = "Or enter a custom display name:",
+                    style = LineaTypography.labelSmall,
+                    color = LineaColors.TextSecondary
+                )
+                OutlinedTextField(
+                    value = customName,
+                    onValueChange = { customName = it },
+                    label = { Text("Display Name") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = LineaColors.TitaniumBlue,
+                        unfocusedBorderColor = LineaColors.GlassBorder,
+                        focusedTextColor = LineaColors.TextPrimary,
+                        unfocusedTextColor = LineaColors.TextPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val names = group.contacts.joinToString(" vs ") { it.displayName }
-            Text(
-                text = names,
-                style = LineaTypography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = LineaColors.TextPrimary
-            )
-            Text(
-                text = group.explanation,
-                style = LineaTypography.bodySmall,
-                color = LineaColors.TextSecondary
-            )
-        }
-    }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(customName.trim()) },
+                colors = ButtonDefaults.buttonColors(containerColor = LineaColors.TitaniumBlue),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(Icons.Filled.Merge, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Confirm Merge")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = LineaColors.TextSecondary)
+            }
+        },
+        containerColor = LineaColors.NeuSurfaceRaised
+    )
 }
 
 // =========================================================================

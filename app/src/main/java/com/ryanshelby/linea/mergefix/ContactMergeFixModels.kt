@@ -63,6 +63,20 @@ data class MergeGroup(
 )
 
 /**
+ * Detailed preview of a merge operation before execution, allowing user selection
+ * of the final display name and inspection of surviving fields.
+ */
+data class MergePreview(
+    val group: MergeGroup,
+    val selectedDisplayName: String,
+    val candidateNames: List<String>,
+    val numbersToKeep: List<ContactNumberEntity>,
+    val emailsToKeep: List<ContactEmailEntity>,
+    val notesToKeep: String?,
+    val isFavorite: Boolean
+)
+
+/**
  * Non-duplicate issues detected on contacts.
  */
 sealed class FixIssue {

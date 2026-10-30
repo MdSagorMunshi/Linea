@@ -85,13 +85,6 @@ object ContactGroupingEngine {
 
             val groupConfidence = when {
                 confidences.all { it == ConfidenceTier.HIGH } -> ConfidenceTier.HIGH
-                sharedNumbersAcrossGroup.isNotEmpty() && confidences.none { it == ConfidenceTier.LOW } &&
-                    memberList.all { c ->
-                        val n = c.normalizedDisplayName
-                        n.isBlank() || memberList.any { other -> other.id != c.id && ContactMatchEngine.isNameExtensionOrPrefix(n, other.normalizedDisplayName) }
-                    } -> ConfidenceTier.HIGH
-                confidences.any { it == ConfidenceTier.LOW } && confidences.none { it == ConfidenceTier.HIGH } -> ConfidenceTier.LOW
-                confidences.any { it == ConfidenceTier.LOW } -> ConfidenceTier.MEDIUM // conservative downgrade
                 else -> ConfidenceTier.MEDIUM
             }
 

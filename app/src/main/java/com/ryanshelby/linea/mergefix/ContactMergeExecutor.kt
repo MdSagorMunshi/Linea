@@ -24,9 +24,10 @@ class ContactMergeExecutor @Inject constructor(
     /**
      * Executes a merge of a MergeGroup according to field survivorship rules.
      * Before executing, records the full raw data of all source contacts in the merge_history table.
+     * Allows user-chosen display name to override the default longest name.
      * Returns the ID of the surviving merged contact.
      */
-    suspend fun executeMerge(group: MergeGroup): Long = withContext(Dispatchers.IO) {
+    suspend fun executeMerge(group: MergeGroup, chosenDisplayName: String? = null): Long = withContext(Dispatchers.IO) {
         val contacts = group.contacts
         require(contacts.size >= 2) { "MergeGroup must contain at least 2 contacts" }
 
@@ -43,9 +44,13 @@ class ContactMergeExecutor @Inject constructor(
         val sourceNames = contacts.map { it.displayName.ifBlank { "Unnamed" } }.joinToString(", ")
 
         // 2. Field Survivorship computation:
-        // - Display name: keeps the longer or more complete value
-        val survivingDisplayName = sortedByCompleteness.first().displayName.ifBlank {
-            contacts.map { it.displayName }.firstOrNull { it.isNotBlank() } ?: "Unnamed Contact"
+        // - Display name: user's chosen display name, or default longer/more complete value
+        val survivingDisplayName = if (!chosenDisplayName.isNullOrBlank()) {
+            chosenDisplayName.trim()
+        } else {
+            sortedByCompleteness.first().displayName.ifBlank {
+                contacts.map { it.displayName }.firstOrNull { it.isNotBlank() } ?: "Unnamed Contact"
+            }
         }
 
         // - Phone numbers: union all unique normalized numbers
@@ -368,6 +373,69 @@ class ContactMergeExecutor @Inject constructor(
             e.printStackTrace()
         }
         return list
+    }
+
+    fun computePreview(group: MergeGroup, chosenDisplayName: String? = null): MergePreview =
+        Companion.computePreview(group, chosenDisplayName)
+
+    companion object {
+        /**
+         * Computes a preview of the merged contact without mutating the database.
+         * Lets the user inspect the resulting fields and select which name to keep.
+         */
+        fun computePreview(group: MergeGroup, chosenDisplayName: String? = null): MergePreview {
+            val contacts = group.contacts
+            val candidateNames = contacts
+                .map { it.displayName.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+            val defaultName = if (!chosenDisplayName.isNullOrBlank()) {
+                chosenDisplayName.trim()
+            } else {
+                candidateNames.maxByOrNull { it.length } ?: "Unnamed Contact"
+            }
+
+            val seenNormalizedNumbers = mutableSetOf<String>()
+            val numbersToKeep = mutableListOf<ContactNumberEntity>()
+            for (c in contacts) {
+                for (num in c.numbers) {
+                    val norm = if (num.normalizedNumber.isNotBlank()) num.normalizedNumber else ContactNormalizer.normalizePhoneNumber(num.number)
+                    if (norm.isNotBlank() && seenNormalizedNumbers.add(norm)) {
+                        numbersToKeep.add(num.copy(label = num.label.ifBlank { "Mobile" }))
+                    }
+                }
+            }
+
+            val seenEmails = mutableSetOf<String>()
+            val emailsToKeep = mutableListOf<ContactEmailEntity>()
+            for (c in contacts) {
+                for (em in c.emails) {
+                    val normEmail = ContactNormalizer.normalizeEmail(em.email)
+                    if (normEmail.isNotBlank() && seenEmails.add(normEmail)) {
+                        emailsToKeep.add(em.copy(label = em.label.ifBlank { "Work" }))
+                    }
+                }
+            }
+
+            val notesToKeep = contacts
+                .mapNotNull { it.contact.notes?.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .joinToString("\n")
+                .ifBlank { null }
+
+            val isFavorite = contacts.any { it.contact.isFavorite }
+
+            return MergePreview(
+                group = group,
+                selectedDisplayName = defaultName,
+                candidateNames = candidateNames,
+                numbersToKeep = numbersToKeep,
+                emailsToKeep = emailsToKeep,
+                notesToKeep = notesToKeep,
+                isFavorite = isFavorite
+            )
+        }
     }
 }
 
