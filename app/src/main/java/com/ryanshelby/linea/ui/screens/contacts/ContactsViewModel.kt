@@ -59,7 +59,7 @@ class ContactsViewModel @Inject constructor(
     private val preferences: LineaPreferences,
     val vaultSecurityManager: com.ryanshelby.linea.security.PrivateVaultSecurityManager,
     private val vaultExportImportManager: com.ryanshelby.linea.security.PrivateVaultExportImportManager,
-    val smartFilterRepository: com.ryanshelby.linea.smartfilter.SmartFilterRepository
+    val mergeFixRepository: com.ryanshelby.linea.mergefix.ContactMergeFixRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -68,7 +68,7 @@ class ContactsViewModel @Inject constructor(
     private val _selectedFilter = MutableStateFlow(ContactFilter.ALL)
     val selectedFilter: StateFlow<ContactFilter> = _selectedFilter.asStateFlow()
 
-    val duplicateContactIds: StateFlow<Set<Long>> = smartFilterRepository.duplicateContactIds
+    val duplicateContactIds: StateFlow<Set<Long>> = mergeFixRepository.duplicateContactIds
 
     fun setFilter(filter: ContactFilter) {
         _selectedFilter.value = filter
@@ -318,7 +318,7 @@ class ContactsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             contactSyncRepository.syncWithLocalDb()
-            smartFilterRepository.refreshDuplicateIds()
+            mergeFixRepository.refreshDuplicateIds()
         }
         loadAccounts()
     }

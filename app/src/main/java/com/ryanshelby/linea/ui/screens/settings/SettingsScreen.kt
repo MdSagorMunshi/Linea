@@ -625,12 +625,12 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // LiNEA SF: Smart Contact Management
+        // Fix & Manage: Smart Contact Management
         SettingsNavCard(
             icon = Icons.Filled.AutoFixHigh,
-            title = "LiNEA SF",
-            subtitle = "Smart contact cleanup, duplicate detector & quality scoring",
-            badge = "SMART",
+            title = "Fix & Manage",
+            subtitle = "Merge duplicates, contact cleanup & merge history",
+            badge = "SOVEREIGN",
             onClick = onNavigateToSmartFilter
         )
 

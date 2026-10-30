@@ -63,4 +63,7 @@ object DatabaseModule {
 
     @Provides
     fun provideCallbackReminderDao(db: LineaDatabase): CallbackReminderDao = db.callbackReminderDao()
+
+    @Provides
+    fun provideMergeHistoryDao(db: LineaDatabase): com.ryanshelby.linea.data.local.dao.MergeHistoryDao = db.mergeHistoryDao()
 }

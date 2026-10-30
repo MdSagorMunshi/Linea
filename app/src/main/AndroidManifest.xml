@@ -176,6 +176,11 @@
             android:name=".notifications.CallbackReminderReceiver"
             android:exported="false" />
 
+        <!-- Merge Undo Receiver for 30s auto-merge undo -->
+        <receiver
+            android:name=".mergefix.MergeUndoReceiver"
+            android:exported="false" />
+
         <!-- Floating Heads-Up / DIM Call Action Receiver -->
         <receiver
             android:name=".notifications.CallActionReceiver"

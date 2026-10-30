@@ -881,7 +881,7 @@ private fun DuplicateContactsBanner(
                         color = LineaColors.TextPrimary
                     )
                     Text(
-                        text = "Review and merge with LiNEA SF",
+                        text = "Review and merge with Fix & Manage",
                         style = LineaTypography.bodySmall,
                         color = LineaColors.TextSecondary
                     )

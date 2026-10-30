@@ -54,18 +54,18 @@ object SettingsSearchEngine {
             )
         )
 
-        // LiNEA SF: Smart Filter & Contact Management
+        // Fix & Manage: Smart Contact Management
         list.add(
             SettingsSearchItem(
-                id = "linea_sf",
-                title = "LiNEA SF (Smart Contact Management)",
-                subtitle = "Detect duplicate contacts, fix name casing, merge records & evaluate quality",
+                id = "linea_fix_manage",
+                title = "Fix & Manage (Duplicate Merge & Contact Cleanup)",
+                subtitle = "Detect duplicate contacts, merge records, fix numbers & merge history",
                 category = SettingsCategory.GENERAL,
                 icon = Icons.Filled.AutoFixHigh,
                 keywords = listOf(
-                    "sf", "linea sf", "smart filter", "duplicates", "merge", "duplicate contacts",
-                    "cleanup", "clean names", "quality score", "contact score", "incomplete contacts",
-                    "organize contacts", "google contacts", "undo merge"
+                    "fix", "manage", "fix and manage", "duplicates", "merge", "duplicate contacts",
+                    "cleanup", "normalize", "unnamed contacts", "malformed", "merge history", "unlink merge",
+                    "smart filter", "linea sf"
                 ),
                 action = SettingsSearchAction.Navigate(callbacks.onNavigateToSmartFilter)
             )

@@ -8,26 +8,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Sovereign 6-Phase Contact Merge & Fix Architecture (`Fix & Manage`)**:
+  - **Complete Clean Replacement**: Entirely eliminated the legacy smartfilter implementation and built a sovereign, zero-cloud contact cleanup and merge engine from scratch with strict privacy, deterministic survivorship, and full rollback capability.
+  - **Strict Multi-Stage Normalization (`ContactNormalizer`)**: Converts all phone numbers to standard E.164 (stripping whitespace, hyphens, parentheses; converting BD prefixes `017...` &rarr; `+88017...` and international numbers); display names lowercased, trimmed, and stripped of honorific prefixes (`Dr.`, `Prof.`, `Mr.`, `Mrs.`, `Ms.`, `Md.`, `Engr.`, `Adv.`, `Haji`, etc.); emails trimmed and lowercased.
+  - **Phase 1 Three-Tier Duplicate Detection (`ContactMatchEngine`)**:
+    - **Tier 1 (HIGH Confidence)**: Exact normalized phone number match or exact normalized name match. Flags contacts for silent background auto-merging.
+    - **Tier 2 (MEDIUM Confidence)**: Fuzzy match requiring user confirmation. Employs Levenshtein distance ($\le 2$), phonetic equivalence via Soundex algorithm (`Jon`/`John`, `Mohammad`/`Muhammed`, `Shuvo`/`Shouvo`), hardcoded bidirectional nickname mapping (`Bob`/`Robert`, `Mike`/`Michael`, `Ammu`/`Mom`/`Mother`), or pairs sharing an identical phone with slight name variations.
+    - **Tier 3 (LOW Confidence)**: Weak signal requiring explicit manual review. Evaluates name-only fuzzy matches sharing no phone number or email; never acted upon automatically.
+  - **Phase 2 Candidate Grouping & DSU Clustering (`ContactGroupingEngine`)**:
+    - Uses Disjoint Set Union (DSU) graph clustering to organize candidate pairs into multi-contact merge groups ($\ge 2$ contacts) where every contact belongs to at most one group.
+    - Strictly prevents weak or non-transitive signals from inflating group confidence (HIGH requires uniform high signal across the cluster).
+  - **Phase 3 Intelligent Merge Decision & Execution (`FixAndManageScreen`, `AutoMergeWorker`)**:
+    - **HIGH Groups**: Merged automatically in background via WorkManager `AutoMergeWorker` with summary notification (`"X contacts merged"`) and 30-second undo capability.
+    - **MEDIUM Groups**: Displayed in Fix & Manage as tactile side-by-side comparison cards with "Merge" and "Not the same" (Dismiss) options.
+    - **LOW Groups**: Displayed in Review section with "Merge" and "Dismiss" options; never auto-merged.
+  - **Phase 4 Deterministic Field Survivorship (`ContactMergeExecutor`)**:
+    - Display name preserves the longer, most complete value (`Rahim Uddin` over `Rahim`).
+    - Phone numbers unioned across sources with original labels (`Mobile`, `Home`, `Work`) preserved.
+    - Emails and contact groups/labels unioned without loss.
+    - Starred / favorite flag preserved if any source contact was marked favorite.
+    - Contact photo prioritizes custom set photos over auto-assigned fallbacks; custom ringtones retained over system defaults; notes concatenated with newlines.
+  - **Phase 5 Non-Duplicate Issue Fixes (`ContactFixEngine`)**:
+    - **Unnamed Contacts**: Flags contacts lacking names that possess phone numbers, providing inline renaming dialogs.
+    - **Malformed Names**: Detects contacts where the name is purely phone digits, offering quick name cleanup.
+    - **Duplicate Numbers in Single Record**: Automatically identifies and strips identical numbers within the same contact.
+    - **Unnormalized Numbers**: Detects unformatted numbers and provides one-tap E.164 normalization per entry.
+    - **Empty Contacts**: Identifies records lacking names, numbers, and emails, allowing safe deletion.
+  - **Phase 6 Lossless Unlink & Merge History (`MergeHistoryDao`, `MergeHistoryEntity`)**:
+    - Prior to executing any merge, full raw contact JSON snapshots (numbers, emails, notes, favorites, labels) are committed to the local `merge_history` Room table.
+    - Fix & Manage exposes a dedicated "History" tab showing merge timestamp and source contact names.
+    - One-tap "Unlink" action deletes the merged contact and reconstructs original source contacts with 100% data fidelity across Room and Android `ContactsContract`.
+  - **Hard Sovereign Constraints & Privacy Isolation**:
+    - **Vault Isolation**: Private Vault contacts (`isPrivate == true`) are completely isolated—never scanned, suggested, or auto-merged.
+    - **Dual SIM Awareness**: Contacts sharing normalized phone numbers but assigned to differing preferred SIM slots (`0` vs `1`) are strictly preserved and excluded from duplicate detection.
+    - **Zero Cloud Processing**: 100% on-device local execution within Room and WorkManager; zero external network calls, zero telemetry, and zero unencrypted disk logs.
+  - **Tactile Neumorphic Design & Navigation Integration**:
+    - Modern dark graphite surfaces with titanium blue accents across three distinct tabs: `Merge Duplicates`, `Fix Issues`, and `Merge History`.
+    - Integrated with Contacts screen quick filter chips (`Duplicates` banner and `Fix & manage` shortcut chip) and indexed in Settings Search.
 - **Google Contacts-Style Smart Filter Chips & Live Filtering (Contacts Screen)**:
   - **Horizontal Filter Chips**: Added quick filter chips directly below the search bar: `All contacts`, `Phone contacts`, `Email contacts`, `Company`, `Duplicates` (with dynamic count badge), `Incomplete`, `Favorites`, and `Fix & manage`.
   - **Live Filter Synchronization**: Tapping any chip immediately filters the contact list in real time with zero latency, eliminating stale data and the need to restart the application.
-  - **Duplicate Contacts Banner**: Selecting the `Duplicates` filter displays an actionable frosted-glass banner (`"X duplicate contacts detected · Review and merge with LiNEA SF"`) with direct one-tap navigation into LiNEA SF.
-  - **"Fix & manage" Direct Entry**: One-click shortcut chip that opens LiNEA SF directly from the Contacts tab.
-- **Google Contacts-Style Merge & Fix Enhancements in LiNEA SF**:
-  - **Dismiss Capability Across All Recommendations**: Added per-card "Dismiss" actions across duplicate candidate pairs, name cleanup suggestions, and incomplete contact alerts so users can permanently or temporarily dismiss individual false positives.
-  - **Google Contacts Actionable Overview Cards**: Restructured the Overview tab into modular, actionable sections ("Merge duplicates", "Clean up names", "Add missing details") with dynamic counts, summary descriptions, and instant "Merge all" / "Clean all" / "Review" buttons.
-  - **Merge All Duplicate Candidates**: One-tap bulk merge workflow with live progress and automatic recalculation of duplicate counts and contact health score.
-  - **Safe Merge Preview Modal**: Full-fidelity comparison sheet before merging displaying retained names, combined numbers, email addresses, and notes.
-- **LiNEA SF: Smart Contact Management (Settings &rarr; LiNEA SF)**:
-  - **Smart Duplicate Detection Engine**: Multi-signal matching algorithm combining normalized phone numbers (canonical E.164 digits and country code tolerance), Jaro-Winkler string similarity, email address matches, and confidence scoring.
-  - **Intelligent Contact Merging with Safe Merge Preview**: Side-by-side preview bottom sheet displaying preserved phone numbers, merged email addresses, companies, and unified notes before confirming destructive merges.
-  - **Name Cleanup & Title-Casing System**: Automatically detects and repairs ALL CAPS, all lowercase, redundant spaces, stray punctuation, name particles (*van*, *von*, *de*, *del*, *di*), and uppercase suffixes/Roman numerals (*Jr.*, *Sr.*, *II*, *III*, *IV*, *VIII*, *MD*, *PhD*).
-  - **Duplicate Number Detection**: Identifies identical phone numbers saved across multiple distinct contact names or records.
-  - **Incomplete Contact Detection & Quality Scoring**: Calculates a real-time Address Book Quality Score (0–100%) with Completeness, Consistency, and Hygiene ratings, accompanied by letter grades (A+ to Needs Work) and actionable smart suggestions.
-  - **One-Tap Bulk Cleanup**: Provides batch operations including "Clean All Names" and "Merge High-Confidence Duplicates".
-  - **Transactional Undo & Recovery Stack**: Full LIFO undo manager supporting rollback of name cleanups and contact merges across both the local Room database and Android `ContactsContract`.
-  - **Customizable Sensitivity & Normalization Rules**: Configurable matching sensitivity (Strict 90%+, Balanced 75%+, Aggressive 60%+), toggleable auto-capitalization, and international number normalization rules.
-  - **Settings Search Deep-Linking**: Fully indexed in the Settings search engine with keywords `smart filter`, `linea sf`, `clean`, `merge`, `duplicate`, `quality score`.
+  - **Duplicate Contacts Banner**: Selecting the `Duplicates` filter displays an actionable frosted-glass banner (`"X duplicate contacts detected · Review and merge with Fix & Manage"`) with direct one-tap navigation into Fix & Manage.
+  - **"Fix & manage" Direct Entry**: One-click shortcut chip that opens Fix & Manage directly from the Contacts tab.
 - **Multi-Theme UI/UX Design System Suite (6 Distinct Design Systems + Preserved Classic & Crystal)**:
   - **Six New Production UI/UX Themes**:
     - **Neumorphism (`NEUMORPHISM`)**: Physical extruded surfaces, debossed wells, dual ambient light and shadow bevels, pill call button, and cushioned tactile spring motion.

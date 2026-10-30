@@ -424,7 +424,7 @@ fun LineaNavGraph(
                         )
                     }
                     SettingsSubScreen.SMART_FILTER -> {
-                        com.ryanshelby.linea.smartfilter.SmartFilterScreen(
+                        com.ryanshelby.linea.mergefix.FixAndManageScreen(
                             onNavigateBack = { settingsSubScreen = null }
                         )
                     }

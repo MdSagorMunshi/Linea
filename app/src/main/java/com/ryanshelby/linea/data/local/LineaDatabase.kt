@@ -13,6 +13,7 @@ import com.ryanshelby.linea.data.local.dao.CallbackReminderDao
 import com.ryanshelby.linea.data.local.dao.ContactDao
 import com.ryanshelby.linea.data.local.dao.CountryRuleDao
 import com.ryanshelby.linea.data.local.dao.DialerProfileDao
+import com.ryanshelby.linea.data.local.dao.MergeHistoryDao
 import com.ryanshelby.linea.data.local.dao.VoicemailDao
 import com.ryanshelby.linea.data.local.entities.BlockedCallLogEntity
 import com.ryanshelby.linea.data.local.entities.BlockedNumberEntity
@@ -28,6 +29,7 @@ import com.ryanshelby.linea.data.local.entities.ContactGroupEntity
 import com.ryanshelby.linea.data.local.entities.ContactGroupMemberEntity
 import com.ryanshelby.linea.data.local.entities.ContactNumberEntity
 import com.ryanshelby.linea.data.local.entities.DialerProfileEntity
+import com.ryanshelby.linea.data.local.entities.MergeHistoryEntity
 import com.ryanshelby.linea.data.local.entities.PinnedContactEntity
 import com.ryanshelby.linea.data.local.entities.VoicemailEntity
 
@@ -48,9 +50,10 @@ import com.ryanshelby.linea.data.local.entities.VoicemailEntity
         PinnedContactEntity::class,
         CallNoteEntity::class,
         CallbackReminderEntity::class,
-        CountryRuleEntity::class
+        CountryRuleEntity::class,
+        MergeHistoryEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -66,4 +69,5 @@ abstract class LineaDatabase : RoomDatabase() {
     abstract fun dialerProfileDao(): DialerProfileDao
     abstract fun callNoteDao(): CallNoteDao
     abstract fun callbackReminderDao(): CallbackReminderDao
+    abstract fun mergeHistoryDao(): MergeHistoryDao
 }
