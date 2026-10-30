@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import com.ryanshelby.linea.R
 import com.ryanshelby.linea.data.local.dao.ContactDao
 import com.ryanshelby.linea.data.local.dao.MergeHistoryDao
+import com.ryanshelby.linea.telecom.screening.SimCountryDetector
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -48,14 +49,20 @@ class AutoMergeWorker(
             val publicContacts = contactDao.getAllPublicContactsOnce()
             if (publicContacts.size < 2) return@withContext Result.success()
 
+            val defaultIso = SimCountryDetector.detectSimCountryIso(applicationContext)
             val normalizedList = publicContacts.map { entity ->
                 val numbers = contactDao.getNumbersForContact(entity.id).first()
                 val emails = contactDao.getEmailsForContact(entity.id).first()
+                val contactIso = if (entity.preferredSimSlot != null) {
+                    SimCountryDetector.getCountryIsoForSimSlot(applicationContext, entity.preferredSimSlot) ?: defaultIso
+                } else {
+                    defaultIso
+                }
                 NormalizedContact(
                     contact = entity,
                     normalizedDisplayName = ContactNormalizer.normalizeDisplayName(entity.displayName),
                     numbers = numbers,
-                    normalizedNumbers = numbers.map { ContactNormalizer.normalizePhoneNumber(it.number) },
+                    normalizedNumbers = numbers.map { ContactNormalizer.normalizePhoneNumber(it.number, contactIso) },
                     emails = emails,
                     normalizedEmails = emails.map { ContactNormalizer.normalizeEmail(it.email) }
                 )

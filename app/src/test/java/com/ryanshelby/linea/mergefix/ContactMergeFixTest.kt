@@ -24,6 +24,23 @@ class ContactMergeFixTest {
         assertEquals("+8801712345678", ContactNormalizer.normalizePhoneNumber("008801712345678"))
         assertEquals("+8801712345678", ContactNormalizer.normalizePhoneNumber("01712 345 678"))
         assertEquals("+8801712345678", ContactNormalizer.normalizePhoneNumber("(01712) 345-678"))
+
+        // Global country normalization
+        assertEquals("+447911123456", ContactNormalizer.normalizePhoneNumber("07911 123456", defaultCountryIso = "GB"))
+        assertEquals("+15552345678", ContactNormalizer.normalizePhoneNumber("(555) 234-5678", defaultCountryIso = "US"))
+        assertEquals("+61412345678", ContactNormalizer.normalizePhoneNumber("0412 345 678", defaultCountryIso = "AU"))
+        assertEquals("+491711234567", ContactNormalizer.normalizePhoneNumber("0171 1234567", defaultCountryIso = "DE"))
+        assertEquals("+33612345678", ContactNormalizer.normalizePhoneNumber("06 12 34 56 78", defaultCountryIso = "FR"))
+        assertEquals("+919876543210", ContactNormalizer.normalizePhoneNumber("098765 43210", defaultCountryIso = "IN"))
+
+        // Global numbers with explicit + are always preserved regardless of default country
+        assertEquals("+447911123456", ContactNormalizer.normalizePhoneNumber("+44 7911 123456", defaultCountryIso = "US"))
+        assertEquals("+819012345678", ContactNormalizer.normalizePhoneNumber("+81 90 1234 5678", defaultCountryIso = "BD"))
+        assertEquals("+33612345678", ContactNormalizer.normalizePhoneNumber("+33 6 12 34 56 78", defaultCountryIso = "GB"))
+
+        // Global 00 international prefix
+        assertEquals("+447911123456", ContactNormalizer.normalizePhoneNumber("0044 7911 123456"))
+        assertEquals("+15552345678", ContactNormalizer.normalizePhoneNumber("001 555 234 5678"))
     }
 
     @Test
@@ -34,6 +51,14 @@ class ContactMergeFixTest {
         assertEquals("rahim", ContactNormalizer.normalizeDisplayName("Md. Rahim"))
         assertEquals("alvee", ContactNormalizer.normalizeDisplayName("Engr. Alvee"))
         assertEquals("sarah connor", ContactNormalizer.normalizeDisplayName("  SARAH   CONNOR  "))
+
+        // Global international honorifics
+        assertEquals("schmidt", ContactNormalizer.normalizeDisplayName("Herr Schmidt"))
+        assertEquals("dupont", ContactNormalizer.normalizeDisplayName("Monsieur Dupont"))
+        assertEquals("gonzalez", ContactNormalizer.normalizeDisplayName("Señor Gonzalez"))
+        assertEquals("sharma", ContactNormalizer.normalizeDisplayName("Advocate Sharma"))
+        assertEquals("abdullah", ContactNormalizer.normalizeDisplayName("Sheikh Abdullah"))
+        assertEquals("miller", ContactNormalizer.normalizeDisplayName("Pastor Miller"))
     }
 
     @Test

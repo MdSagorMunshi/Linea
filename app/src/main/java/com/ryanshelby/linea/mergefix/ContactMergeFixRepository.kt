@@ -9,6 +9,7 @@ import com.ryanshelby.linea.data.local.dao.MergeHistoryDao
 import com.ryanshelby.linea.data.local.entities.ContactEntity
 import com.ryanshelby.linea.data.local.entities.MergeHistoryEntity
 import com.ryanshelby.linea.data.repository.ContactSyncRepository
+import com.ryanshelby.linea.telecom.screening.SimCountryDetector
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,14 +87,20 @@ class ContactMergeFixRepository @Inject constructor(
         _isScanning.value = true
         try {
             val publicContacts = contactDao.getAllPublicContactsOnce()
+            val defaultIso = SimCountryDetector.detectSimCountryIso(context)
             val normalizedList = publicContacts.map { entity ->
                 val numbers = contactDao.getNumbersForContact(entity.id).first()
                 val emails = contactDao.getEmailsForContact(entity.id).first()
+                val contactIso = if (entity.preferredSimSlot != null) {
+                    SimCountryDetector.getCountryIsoForSimSlot(context, entity.preferredSimSlot) ?: defaultIso
+                } else {
+                    defaultIso
+                }
                 NormalizedContact(
                     contact = entity,
                     normalizedDisplayName = ContactNormalizer.normalizeDisplayName(entity.displayName),
                     numbers = numbers,
-                    normalizedNumbers = numbers.map { ContactNormalizer.normalizePhoneNumber(it.number) },
+                    normalizedNumbers = numbers.map { ContactNormalizer.normalizePhoneNumber(it.number, contactIso) },
                     emails = emails,
                     normalizedEmails = emails.map { ContactNormalizer.normalizeEmail(it.email) }
                 )

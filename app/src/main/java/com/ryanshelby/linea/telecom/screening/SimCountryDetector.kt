@@ -146,6 +146,12 @@ class SimCountryDetector @Inject constructor(
             return "System Locale"
         }
 
+        fun getCountryIsoForSimSlot(context: Context?, simSlotIndex: Int): String? {
+            if (context == null) return null
+            val sub = activeSubscriptions(context).firstOrNull { it.simSlotIndex == simSlotIndex }
+            return sub?.countryIso?.trim()?.uppercase(Locale.ROOT)?.takeIf { it.length == 2 }
+        }
+
         private fun activeSubscriptions(context: Context): List<SubscriptionInfo> {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) return emptyList()
             return try {
