@@ -206,7 +206,7 @@ fun FixAndManageScreen(
                 val historyCount = mergeHistory.size
 
                 SectionChip(
-                    title = "Merge Duplicates",
+                    title = "Duplicates",
                     count = dupCount,
                     isSelected = currentSection == FixAndManageSection.MERGE_DUPLICATES,
                     onClick = { viewModel.setSection(FixAndManageSection.MERGE_DUPLICATES) },
@@ -239,14 +239,17 @@ fun FixAndManageScreen(
                         .clip(RoundedCornerShape(12.dp))
                         .background(LineaColors.MutedSageGreen.copy(alpha = 0.15f))
                         .border(1.dp, LineaColors.MutedSageGreen.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Undo,
                                 contentDescription = null,
@@ -255,18 +258,24 @@ fun FixAndManageScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Contacts merged successfully · ${undoCountdown}s undo window",
+                                text = "Merged · ${undoCountdown}s undo",
                                 style = LineaTypography.bodySmall,
                                 color = LineaColors.MutedSageGreen,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        TextButton(onClick = { viewModel.undoLastMerge() }) {
+                        TextButton(
+                            onClick = { viewModel.undoLastMerge() },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
                             Text(
                                 text = "Undo",
                                 style = LineaTypography.labelMedium,
                                 color = LineaColors.MutedSageGreen,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
                             )
                         }
                     }
@@ -1132,7 +1141,7 @@ private fun SectionChip(
                 RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .padding(horizontal = 6.dp, vertical = 8.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1151,9 +1160,9 @@ private fun SectionChip(
                 Spacer(modifier = Modifier.width(4.dp))
                 Box(
                     modifier = Modifier
-                        .clip(CircleShape)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(if (isSelected) Color.White.copy(alpha = 0.25f) else LineaColors.TitaniumBlue.copy(alpha = 0.15f))
-                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = count.toString(),
