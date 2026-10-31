@@ -64,6 +64,15 @@ android {
                 "proguard-rules.pro"
             )
         }
+        create("beta") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = "-beta"
+            matchingFallbacks += listOf("release")
+            if (signingConfigs.getByName("release").storeFile == null) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
+        }
         debug {
             applicationIdSuffix = ""
             isDebuggable = true
