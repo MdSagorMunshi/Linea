@@ -115,6 +115,7 @@ fun DialpadScreen(
 ) {
     val context = LocalContext.current
     val enteredNumber by viewModel.enteredNumber.collectAsState()
+    val cursorPosition by viewModel.cursorPosition.collectAsState()
     val t9Matches by viewModel.t9Matches.collectAsState()
     val selectedSimIndex by viewModel.selectedSimIndex.collectAsState()
     val activeSims by viewModel.simAccounts.collectAsState()
@@ -274,6 +275,8 @@ fun DialpadScreen(
             number = enteredNumber, profile = activeProfile, isFiery = isFieryCallButton,
             sound = soundEnabled, vibration = vibrationEnabled, hapticProfile = dialpadHapticProfile,
             clipboard = clipboardNumber,
+            cursorPosition = cursorPosition,
+            onCursorPositionChange = viewModel::setCursorPosition,
             onPaste = {
                 (clipboardNumber ?: readClipboardNumber())?.filter { it.isDigit() || it in "+*#" }
                     ?.takeIf { it.isNotEmpty() }?.let(viewModel::setNumber)
@@ -523,17 +526,17 @@ fun DialpadScreen(
                                 }
                             }
                         } else {
-                            Text(
-                                text = enteredNumber,
-                                style = LineaTypography.displayLarge.copy(
-                                    fontFeatureSettings = "tnum",
-                                    fontSize = if (enteredNumber.length > 12) 26.sp else 34.sp,
-                                    letterSpacing = 1.sp
-                                ),
-                                color = LineaColors.TextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
+                            EditableDialedNumberDisplay(
+                                number = enteredNumber,
+                                cursorPosition = cursorPosition,
+                                onCursorPositionChange = viewModel::setCursorPosition,
+                                fontSize = if (enteredNumber.length > 18) 22.sp else if (enteredNumber.length > 12) 26.sp else 34.sp,
+                                onCopy = { copyToClipboard(enteredNumber) },
+                                onPaste = {
+                                    (clipboardNumber ?: readClipboardNumber())?.filter { it.isDigit() || it in "+*#" }
+                                        ?.takeIf { it.isNotEmpty() }?.let(viewModel::setNumber)
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                             )
                         }
                     }

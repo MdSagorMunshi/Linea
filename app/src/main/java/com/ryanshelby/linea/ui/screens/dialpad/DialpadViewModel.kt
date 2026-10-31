@@ -43,6 +43,9 @@ class DialpadViewModel @Inject constructor(
     private val _enteredNumber = MutableStateFlow("")
     val enteredNumber: StateFlow<String> = _enteredNumber.asStateFlow()
 
+    private val _cursorPosition = MutableStateFlow(0)
+    val cursorPosition: StateFlow<Int> = _cursorPosition.asStateFlow()
+
     private val _simAccounts = MutableStateFlow<List<SimAccountInfo>>(emptyList())
     val simAccounts: StateFlow<List<SimAccountInfo>> = _simAccounts.asStateFlow()
 
@@ -191,14 +194,20 @@ class DialpadViewModel @Inject constructor(
     }
 
     fun appendDigit(digit: Char) {
-        val updated = _enteredNumber.value + digit
+        val current = _enteredNumber.value
+        val pos = _cursorPosition.value.coerceIn(0, current.length)
+        val updated = current.substring(0, pos) + digit + current.substring(pos)
         _enteredNumber.value = updated
+        _cursorPosition.value = pos + 1
         checkSecretEscapeCode(updated)
     }
 
     fun appendString(digits: String) {
-        val updated = _enteredNumber.value + digits
+        val current = _enteredNumber.value
+        val pos = _cursorPosition.value.coerceIn(0, current.length)
+        val updated = current.substring(0, pos) + digits + current.substring(pos)
         _enteredNumber.value = updated
+        _cursorPosition.value = pos + digits.length
         checkSecretEscapeCode(updated)
     }
 
@@ -216,17 +225,27 @@ class DialpadViewModel @Inject constructor(
     }
 
     fun deleteLastDigit() {
-        if (_enteredNumber.value.isNotEmpty()) {
-            _enteredNumber.value = _enteredNumber.value.dropLast(1)
+        val current = _enteredNumber.value
+        val pos = _cursorPosition.value.coerceIn(0, current.length)
+        if (pos > 0 && current.isNotEmpty()) {
+            val updated = current.substring(0, pos - 1) + current.substring(pos)
+            _enteredNumber.value = updated
+            _cursorPosition.value = pos - 1
         }
     }
 
     fun clearNumber() {
         _enteredNumber.value = ""
+        _cursorPosition.value = 0
     }
 
     fun setNumber(number: String) {
         _enteredNumber.value = number
+        _cursorPosition.value = number.length
+    }
+
+    fun setCursorPosition(position: Int) {
+        _cursorPosition.value = position.coerceIn(0, _enteredNumber.value.length)
     }
 
     fun selectSim(index: Int) {

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Tactile In-Place Dialed Number Editing & Cursor Positioning**:
+  - **Direct Tap & Drag Cursor Positioning (`EditableDialedNumberDisplay`)**: Tapping anywhere on the dialed phone number immediately places the cursor at that exact digit boundary, allowing instant typo corrections (e.g. converting `1234568` to `122345678`) without clearing and retyping the entire string.
+  - **Horizontal Cursor Scrubbing**: Dragging horizontally across the dialed digits smoothly scrubs the cursor position with subtle tactile haptic feedback (`HapticFeedbackType.TextHandleMove`).
+  - **In-Place Insertion & Deletion (`DialpadViewModel`)**: `appendDigit` and `appendString` insert directly at the active cursor position, advancing the cursor smoothly. `deleteLastDigit` deletes the character preceding the cursor rather than solely from the end.
+  - **Visual Cursor with Tactile Handle**: Renders a vertical accent-colored cursor bar with a rounded bottom teardrop handle in `LineaColors.TitaniumBlue`, complete with an interaction-aware blink cycle that resets immediately on any touch or keypress.
+  - **Cross-Theme Support**: Supported across both the Crystal Glass (`CrystalDialpadLayout`) and Tactile Neumorphic (`DialpadScreen`) dialer surfaces.
 - **Interactive Merge Result Preview & User Name Selection (`Fix & Manage`)**:
   - **Live Merge Result Preview Dialog**: When tapping "Review & Merge" on duplicate contacts sharing the same phone number or email under different names, a tactile dialog displays a live card preview of the resulting merged record before anything is committed to the database.
   - **User-Chosen Display Name**: When the same phone number exists under different names (e.g. "Mohammad" vs "Muhammed Ali"), users can choose which name to keep via interactive RadioButtons, or type a custom display name directly.

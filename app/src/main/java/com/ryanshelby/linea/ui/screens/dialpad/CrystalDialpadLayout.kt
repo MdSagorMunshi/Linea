@@ -38,6 +38,8 @@ fun CrystalDialpadLayout(
     onScan: () -> Unit, onSwitchProfile: () -> Unit,
     status: @Composable () -> Unit, suggestions: @Composable () -> Unit,
     simSelector: @Composable () -> Unit, timezone: @Composable () -> Unit,
+    cursorPosition: Int = number.length,
+    onCursorPositionChange: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -61,21 +63,46 @@ fun CrystalDialpadLayout(
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 status()
                 suggestions()
-                Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)
-                    .crystalSurface(RoundedCornerShape(30.dp), elevation = 8.dp)
-                    .combinedClickable(role = Role.Button, onClickLabel = if (number.isEmpty()) "Paste number" else "Copy number",
-                        onClick = { if (number.isEmpty()) onPaste() else onCopy() },
-                        onLongClickLabel = "Paste number", onLongClick = onPaste)
-                    .padding(horizontal = 14.dp, vertical = if (compact) 16.dp else 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(if (number.isEmpty()) "A conversation starts here" else "READY TO CONNECT",
-                        color = LineaColors.TextSecondary, style = LineaTypography.labelSmall,
-                        textAlign = TextAlign.Center)
+                Column(
+                    Modifier.fillMaxWidth().padding(vertical = 10.dp)
+                        .crystalSurface(RoundedCornerShape(30.dp), elevation = 8.dp)
+                        .then(
+                            if (number.isEmpty()) {
+                                Modifier.combinedClickable(
+                                    role = Role.Button,
+                                    onClickLabel = "Paste number",
+                                    onClick = onPaste,
+                                    onLongClick = onPaste
+                                )
+                            } else {
+                                Modifier.combinedClickable(
+                                    role = Role.Button,
+                                    onClickLabel = "Copy number",
+                                    onClick = { /* Tap handled by number or no-op so cursor tap works */ },
+                                    onLongClick = onCopy,
+                                    onLongClickLabel = "Copy number"
+                                )
+                            }
+                        )
+                        .padding(horizontal = 14.dp, vertical = if (compact) 16.dp else 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        if (number.isEmpty()) "A conversation starts here" else "READY TO CONNECT",
+                        color = LineaColors.TextSecondary,
+                        style = LineaTypography.labelSmall,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Text(if (number.isEmpty()) "Enter a number" else number,
-                        style = if (number.isEmpty()) LineaTypography.titleLarge else LineaTypography.displayLarge,
-                        fontSize = if (number.isEmpty()) 24.sp else if (number.length > 12) 28.sp else 38.sp,
-                        color = LineaColors.TextPrimary, textAlign = TextAlign.Center, maxLines = 2)
+                    EditableDialedNumberDisplay(
+                        number = number,
+                        cursorPosition = cursorPosition,
+                        onCursorPositionChange = onCursorPositionChange,
+                        fontSize = if (number.isEmpty()) 24.sp else if (number.length > 18) 22.sp else if (number.length > 12) 28.sp else 38.sp,
+                        onCopy = onCopy,
+                        onPaste = onPaste,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     if (number.isEmpty() && !clipboard.isNullOrBlank()) {
                         Spacer(Modifier.height(10.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
