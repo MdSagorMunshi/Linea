@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -84,8 +85,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.ryanshelby.linea.telecom.SimAccountInfo
+import com.ryanshelby.linea.data.preferences.DesignStyle
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.Material3Header
 import com.ryanshelby.linea.ui.components.NeumorphicCard
 import com.ryanshelby.linea.ui.components.NeumorphicWell
 import com.ryanshelby.linea.ui.components.RoleBanner
@@ -96,9 +100,11 @@ import com.ryanshelby.linea.ui.screens.contacts.QrCodeScannerSheet
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
+import com.ryanshelby.linea.ui.theme.LocalDesignStyle
 import com.ryanshelby.linea.ui.theme.LocalReduceAnimations
 import com.ryanshelby.linea.telecom.CallHandlingHealth
-import com.ryanshelby.linea.ui.components.NeumorphicWell
+import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.graphicsLayer
 
 @Composable
 fun DialpadScreen(
@@ -320,87 +326,163 @@ fun DialpadScreen(
             .padding(horizontal = LineaDimensions.ScreenPadding),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        val style = LocalDesignStyle.current
+        val isM3 = style == DesignStyle.MATERIAL3
+
         // Top Header
         Spacer(modifier = Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = if (LineaColors.isCrystal) "LiNEA" else "LINEA",
-                    style = LineaTypography.titleLarge,
-                    color = LineaColors.TextPrimary
-                )
-                Text(
-                    text = if (LineaColors.isCrystal) "Stay connected." else "Cellular Dial Pad",
-                    style = LineaTypography.bodySmall,
-                    color = LineaColors.TitaniumBlue
-                )
-            }
+        if (isM3) {
+            Material3Header(
+                modifier = Modifier.fillMaxWidth(),
+                title = "LiNEA",
+                subtitle = "Cellular Dial Pad",
+                actions = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // QR Scanner Button (M3 squircle)
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .neumorphic(
+                                    shape = RoundedCornerShape(14.dp),
+                                    elevation = 2.5.dp,
+                                    surfaceColor = LineaColors.NeuSurfaceRaised
+                                )
+                                .clickable { showQrScanner = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.QrCodeScanner,
+                                contentDescription = "Scan QR Code",
+                                tint = LineaColors.TitaniumBlue,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
 
+                        // Profile Switcher Pill (M3 tonal chip)
+                        Box(
+                            modifier = Modifier
+                                .neumorphic(
+                                    shape = RoundedCornerShape(14.dp),
+                                    elevation = 2.5.dp,
+                                    surfaceColor = LineaColors.NeuSurfaceRaised
+                                )
+                                .clickable { viewModel.switchProfile() }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(if (activeProfile == "WORK") LineaColors.TitaniumBlue else LineaColors.MutedSageGreen)
+                                )
+                                Text(
+                                    text = activeProfile.lowercase().replaceFirstChar { it.uppercase() },
+                                    style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = LineaColors.TextPrimary
+                                )
+                            }
+                        }
+
+                        // SIM Selector Pill: Render if multiple SIMs are detected, or if Always Ask mode is active
+                        if (displayedSims.size > 1 || (displayedSims.isNotEmpty() && (isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK))) {
+                            SimSelectorPill(
+                                sims = displayedSims,
+                                selectedIndex = selectedSimIndex,
+                                showAlwaysAsk = isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK,
+                                onSelectSim = { viewModel.selectSim(it) }
+                            )
+                        }
+                    }
+                }
+            )
+        } else {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // QR Scanner Button
-                Box(
-                    modifier = Modifier
-                        .size(if (LineaColors.isCrystal) 48.dp else 36.dp)
-                        .neumorphic(
-                            shape = CircleShape,
-                            elevation = 3.dp,
-                            surfaceColor = LineaColors.NeuSurfaceRaised
-                        )
-                        .clickable { showQrScanner = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.QrCodeScanner,
-                        contentDescription = "Scan QR Code",
-                        tint = LineaColors.TitaniumBlue,
-                        modifier = Modifier.size(18.dp)
+                Column {
+                    Text(
+                        text = if (LineaColors.isCrystal) "LiNEA" else "LINEA",
+                        style = LineaTypography.titleLarge,
+                        color = LineaColors.TextPrimary
+                    )
+                    Text(
+                        text = if (LineaColors.isCrystal) "Stay connected." else "Cellular Dial Pad",
+                        style = LineaTypography.bodySmall,
+                        color = LineaColors.TitaniumBlue
                     )
                 }
 
-                // Profile Switcher Pill
-                Box(
-                    modifier = Modifier
-                        .neumorphic(
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = 3.dp,
-                            surfaceColor = LineaColors.NeuSurfaceRaised
-                        )
-                        .clickable { viewModel.switchProfile() }
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    // QR Scanner Button
+                    Box(
+                        modifier = Modifier
+                            .size(if (LineaColors.isCrystal) 48.dp else 36.dp)
+                            .neumorphic(
+                                shape = CircleShape,
+                                elevation = 3.dp,
+                                surfaceColor = LineaColors.NeuSurfaceRaised
+                            )
+                            .clickable { showQrScanner = true },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
+                        Icon(
+                            imageVector = Icons.Filled.QrCodeScanner,
+                            contentDescription = "Scan QR Code",
+                            tint = LineaColors.TitaniumBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Profile Switcher Pill
+                    Box(
+                        modifier = Modifier
+                            .neumorphic(
+                                shape = RoundedCornerShape(16.dp),
+                                elevation = 3.dp,
+                                surfaceColor = LineaColors.NeuSurfaceRaised
+                            )
+                            .clickable { viewModel.switchProfile() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
                                 .size(6.dp)
                                 .clip(CircleShape)
                                 .background(if (activeProfile == "WORK") LineaColors.TitaniumBlue else LineaColors.MutedSageGreen)
-                        )
-                        Text(
-                            text = activeProfile.lowercase().replaceFirstChar { it.uppercase() },
-                            style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = LineaColors.TextPrimary
+                            )
+                            Text(
+                                text = activeProfile.lowercase().replaceFirstChar { it.uppercase() },
+                                style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = LineaColors.TextPrimary
+                            )
+                        }
+                    }
+
+                    // SIM Selector Pill: Render if multiple SIMs are detected, or if Always Ask mode is active
+                    if (displayedSims.size > 1 || (displayedSims.isNotEmpty() && (isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK))) {
+                        SimSelectorPill(
+                            sims = displayedSims,
+                            selectedIndex = selectedSimIndex,
+                            showAlwaysAsk = isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK,
+                            onSelectSim = { viewModel.selectSim(it) }
                         )
                     }
-                }
-
-                // SIM Selector Pill: Render if multiple SIMs are detected, or if Always Ask mode is active
-                if (displayedSims.size > 1 || (displayedSims.isNotEmpty() && (isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK))) {
-                    SimSelectorPill(
-                        sims = displayedSims,
-                        selectedIndex = selectedSimIndex,
-                        showAlwaysAsk = isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK,
-                        onSelectSim = { viewModel.selectSim(it) }
-                    )
                 }
             }
         }
@@ -474,15 +556,13 @@ fun DialpadScreen(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Number Display Area (tabular figures, debossed Neumorphic well, copy/paste support)
-                NeumorphicWell(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
-                        .padding(horizontal = 8.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    depth = 2.5.dp
-                ) {
+                // Number Display Area (tabular figures, M3 elevated tonal container or debossed Neumorphic well)
+                val numberBoxModifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .padding(horizontal = 8.dp)
+
+                val numberContent: @Composable () -> Unit = {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -539,6 +619,27 @@ fun DialpadScreen(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                             )
                         }
+                    }
+                }
+
+                if (isM3) {
+                    Box(
+                        modifier = numberBoxModifier.neumorphic(
+                            shape = RoundedCornerShape(22.dp),
+                            elevation = 2.dp,
+                            surfaceColor = LineaColors.SurfaceElevated,
+                            borderHighlightColor = LineaColors.TitaniumBlue.copy(alpha = 0.22f)
+                        )
+                    ) {
+                        numberContent()
+                    }
+                } else {
+                    NeumorphicWell(
+                        modifier = numberBoxModifier,
+                        shape = RoundedCornerShape(16.dp),
+                        depth = 2.5.dp
+                    ) {
+                        numberContent()
                     }
                 }
 
@@ -1002,26 +1103,45 @@ private fun SimSelectorPill(
 private fun AddContactButton(
     onClick: () -> Unit
 ) {
+    val style = LocalDesignStyle.current
+    val isM3 = style == DesignStyle.MATERIAL3
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val reduceAnimations = LocalReduceAnimations.current
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && !reduceAnimations) 0.90f else 1.0f,
+        targetValue = when {
+            isPressed && isM3 && !reduceAnimations -> 0.88f
+            isPressed && !reduceAnimations -> 0.90f
+            else -> 1.0f
+        },
+        animationSpec = spring(dampingRatio = 0.50f, stiffness = 340f),
         label = "AddContactScale"
     )
 
+    val rotationZ by animateFloatAsState(
+        targetValue = if (isPressed && isM3) 14f else 0f,
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = 320f),
+        label = "AddContactRot"
+    )
+
+    val shape = if (isM3) RoundedCornerShape(18.dp) else CircleShape
+    val surfaceColor = if (isM3 && isPressed) LineaColors.TitaniumBlue.copy(alpha = 0.22f) else LineaColors.NeuSurfaceRaised
     val currentElevation = if (isPressed) 1.dp else 4.5.dp
 
     Box(
         modifier = Modifier
-            .scale(scale)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.rotationZ = rotationZ
+            }
             .size(52.dp)
             .neumorphic(
-                shape = CircleShape,
+                shape = shape,
                 elevation = currentElevation,
                 isSunken = isPressed,
-                surfaceColor = LineaColors.NeuSurfaceRaised
+                surfaceColor = surfaceColor
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -1045,28 +1165,53 @@ private fun BackspaceButton(
     onTap: () -> Unit,
     onLongPress: () -> Unit
 ) {
+    val style = LocalDesignStyle.current
+    val isM3 = style == DesignStyle.MATERIAL3
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    val shakeOffset = remember { Animatable(0f) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val reduceAnimations = LocalReduceAnimations.current
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && !reduceAnimations) 0.90f else 1.0f,
+        targetValue = when {
+            isPressed && isM3 && !reduceAnimations -> 0.88f
+            isPressed && !reduceAnimations -> 0.90f
+            else -> 1.0f
+        },
+        animationSpec = spring(dampingRatio = 0.50f, stiffness = 340f),
         label = "BackspaceScale"
     )
 
     val currentElevation = if (isPressed) 1.dp else 4.5.dp
-    val surfaceColor = if (isPressed) {
-        LineaColors.MutedBrickRed.copy(alpha = 0.25f)
-    } else {
-        LineaColors.NeuSurfaceRaised
+    val shape = if (isM3) RoundedCornerShape(18.dp) else CircleShape
+    val surfaceColor = when {
+        isPressed -> LineaColors.MutedBrickRed.copy(alpha = 0.28f)
+        else -> LineaColors.NeuSurfaceRaised
+    }
+
+    fun handleTap() {
+        if (isM3 && !reduceAnimations) {
+            coroutineScope.launch {
+                shakeOffset.snapTo(0f)
+                shakeOffset.animateTo(-6f, spring(dampingRatio = 0.40f, stiffness = 600f))
+                shakeOffset.animateTo(3f, spring(dampingRatio = 0.45f, stiffness = 500f))
+                shakeOffset.animateTo(0f, spring(dampingRatio = 0.50f, stiffness = 400f))
+            }
+        }
+        onTap()
     }
 
     Box(
         modifier = Modifier
-            .scale(scale)
+            .offset(x = shakeOffset.value.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .size(52.dp)
             .neumorphic(
-                shape = CircleShape,
+                shape = shape,
                 elevation = currentElevation,
                 isSunken = isPressed,
                 surfaceColor = surfaceColor
@@ -1074,7 +1219,7 @@ private fun BackspaceButton(
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onTap,
+                onClick = { handleTap() },
                 onLongClick = onLongPress
             ),
         contentAlignment = Alignment.Center

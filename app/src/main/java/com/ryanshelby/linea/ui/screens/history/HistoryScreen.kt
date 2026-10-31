@@ -51,12 +51,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ryanshelby.linea.data.preferences.DesignStyle
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.Material3LogoBadge
 import com.ryanshelby.linea.ui.components.NeumorphicWell
 import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.theme.LineaColors
 import com.ryanshelby.linea.ui.theme.LineaDimensions
 import com.ryanshelby.linea.ui.theme.LineaTypography
+import com.ryanshelby.linea.ui.theme.LocalDesignStyle
 
 import android.widget.Toast
 import com.ryanshelby.linea.data.local.entities.CallRecordEntity
@@ -133,19 +136,28 @@ fun HistoryScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(
-                    text = if (LineaColors.isCrystal) "Recents" else "Recent",
-                    style = if (LineaColors.isCrystal) LineaTypography.headlineLarge else LineaTypography.titleLarge,
-                    color = LineaColors.TextPrimary
-                )
-                Text(
-                    text = if (LineaColors.isCrystal) "Your conversations, together." else if (historyViewMode == "SESSIONS") "Aggregated Contact Sessions" else "Cellular call logs & sessions",
-                    style = LineaTypography.bodySmall,
-                    color = LineaColors.TitaniumBlue,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
+            Row(
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (LocalDesignStyle.current == DesignStyle.MATERIAL3) {
+                    Material3LogoBadge(size = 38.dp)
+                }
+                Column {
+                    Text(
+                        text = if (LineaColors.isCrystal) "Recents" else "Recent",
+                        style = if (LineaColors.isCrystal) LineaTypography.headlineLarge else LineaTypography.titleLarge,
+                        color = LineaColors.TextPrimary
+                    )
+                    Text(
+                        text = if (LineaColors.isCrystal) "Your conversations, together." else if (historyViewMode == "SESSIONS") "Aggregated Contact Sessions" else "Cellular call logs & sessions",
+                        style = LineaTypography.bodySmall,
+                        color = LineaColors.TitaniumBlue,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
             }
 
             // View Mode Toggle Pill (Feed vs Sessions) - Neumorphic debossed slider

@@ -221,6 +221,15 @@ fun CallButton(
         ),
         label = "EmberLoopTime"
     )
+    val m3Pulse by infiniteTransition.animateFloat(
+        initialValue = 0.98f,
+        targetValue = 1.14f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "M3CallAuraPulse"
+    )
     val flameWobble by infiniteTransition.animateFloat(
         initialValue = -1f,
         targetValue = 1f,
@@ -277,18 +286,38 @@ fun CallButton(
     val currentTriggerEasterEgg by rememberUpdatedState(triggerEasterEgg)
 
     val style = com.ryanshelby.linea.ui.theme.LocalDesignStyle.current
+    val isM3 = style == com.ryanshelby.linea.data.preferences.DesignStyle.MATERIAL3
+    val reduceAnimations = com.ryanshelby.linea.ui.theme.LocalReduceAnimations.current
     val motion = LocalThemeMotion.current
     val buttonShape = resolveCallButtonShape(style)
 
-    // Standard scale compression on normal tap press
-    val scale by animateFloatAsState(
+    // Material 3 Expressive Squash & Stretch or standard compression
+    val scaleX by animateFloatAsState(
         targetValue = when {
             blastPhase != BlastPhase.IDLE -> 1.0f
+            isPressed && isM3 && !reduceAnimations -> 1.082f
             isPressed -> motion.pressScale
             else -> 1.0f
         },
         animationSpec = motion.pressAnimationSpec,
-        label = "CallButtonScale"
+        label = "CallButtonScaleX"
+    )
+
+    val scaleY by animateFloatAsState(
+        targetValue = when {
+            blastPhase != BlastPhase.IDLE -> 1.0f
+            isPressed && isM3 && !reduceAnimations -> 0.892f
+            isPressed -> motion.pressScale
+            else -> 1.0f
+        },
+        animationSpec = motion.pressAnimationSpec,
+        label = "CallButtonScaleY"
+    )
+
+    val m3PhoneTilt by animateFloatAsState(
+        targetValue = if (isPressed && isM3) 16f else 0f,
+        animationSpec = spring(dampingRatio = 0.50f, stiffness = 320f),
+        label = "M3PhoneTilt"
     )
 
     val offsetX by animateDpAsState(
@@ -321,6 +350,25 @@ fun CallButton(
             .graphicsLayer(clip = false),
         contentAlignment = Alignment.Center
     ) {
+        // --- AMBIENT MATERIAL 3 EXPRESSIVE AURA ---
+        if (isM3 && !isFiery && blastPhase == BlastPhase.IDLE) {
+            Box(
+                modifier = Modifier
+                    .size(86.dp)
+                    .scale(m3Pulse)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                LineaColors.TitaniumBlue.copy(alpha = 0.32f),
+                                LineaColors.DesaturatedTeal.copy(alpha = 0.12f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+        }
+
         // --- AMBIENT FIERY AURA (when isFiery == true and idle) ---
         if (isFiery && blastPhase == BlastPhase.IDLE) {
             Box(
@@ -372,8 +420,8 @@ fun CallButton(
                     .offset(x = offsetX, y = offsetY)
                     .graphicsLayer {
                         this.alpha = buttonAlpha
-                        this.scaleX = scale
-                        this.scaleY = scale
+                        this.scaleX = scaleX
+                        this.scaleY = scaleY
                         this.rotationZ = rotationZ
                     }
                     .size(68.dp)
@@ -459,7 +507,11 @@ fun CallButton(
                         imageVector = Icons.Filled.Call,
                         contentDescription = "Call",
                         tint = Color.White,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier
+                            .size(30.dp)
+                            .graphicsLayer {
+                                this.rotationZ = m3PhoneTilt
+                            }
                     )
                 }
             }

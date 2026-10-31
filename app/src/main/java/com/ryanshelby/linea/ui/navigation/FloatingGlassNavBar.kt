@@ -94,6 +94,8 @@ fun FloatingGlassNavBar(
         return
     }
     val reduceAnimations = LocalReduceAnimations.current
+    val style = com.ryanshelby.linea.ui.theme.LocalDesignStyle.current
+    val isM3 = style == com.ryanshelby.linea.data.preferences.DesignStyle.MATERIAL3
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -506,10 +508,10 @@ fun FloatingGlassNavBar(
                             val selected = destination == currentDestination
 
                             val iconScale by animateFloatAsState(
-                                targetValue = if (selected) 1.15f else 1.0f,
+                                targetValue = if (selected && isM3) 1.20f else if (selected) 1.15f else 1.0f,
                                 animationSpec = LineaMotion.springOrFade(
                                     reduceAnimations,
-                                    LineaMotion.ScaleCompressSpring
+                                    if (isM3) spring(dampingRatio = 0.52f, stiffness = 340f) else LineaMotion.ScaleCompressSpring
                                 ),
                                 label = "nav_icon_scale"
                             )
@@ -526,12 +528,22 @@ fun FloatingGlassNavBar(
                                 modifier = Modifier
                                     .then(
                                         if (selected) {
-                                            Modifier.neumorphic(
-                                                shape = RoundedCornerShape(14.dp),
-                                                elevation = 2.dp,
-                                                isSunken = true,
-                                                surfaceColor = LineaColors.NeuSurfaceSunken
-                                            )
+                                            if (isM3) {
+                                                Modifier.neumorphic(
+                                                    shape = RoundedCornerShape(16.dp),
+                                                    elevation = 1.dp,
+                                                    isSunken = false,
+                                                    surfaceColor = LineaColors.TitaniumBlue.copy(alpha = 0.22f),
+                                                    borderHighlightColor = LineaColors.TitaniumBlue.copy(alpha = 0.40f)
+                                                )
+                                            } else {
+                                                Modifier.neumorphic(
+                                                    shape = RoundedCornerShape(14.dp),
+                                                    elevation = 2.dp,
+                                                    isSunken = true,
+                                                    surfaceColor = LineaColors.NeuSurfaceSunken
+                                                )
+                                            }
                                         } else {
                                             Modifier
                                         }

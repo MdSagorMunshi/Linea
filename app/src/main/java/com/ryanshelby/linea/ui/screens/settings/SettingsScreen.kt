@@ -41,8 +41,11 @@ import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.VolumeUp
+import com.ryanshelby.linea.data.preferences.DesignStyle
 import com.ryanshelby.linea.data.preferences.LineaPreferences
 import com.ryanshelby.linea.ui.components.LiquidGlassPermissionDialog
+import com.ryanshelby.linea.ui.components.Material3LogoBadge
+import com.ryanshelby.linea.ui.theme.LocalDesignStyle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -277,18 +280,22 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f, fill = false)
             ) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = com.ryanshelby.linea.R.drawable.ic_linea_logo),
-                    contentDescription = "Linea Logo",
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(
-                            LineaDimensions.HairlineBorder,
-                            LineaColors.GlassBorder,
-                            RoundedCornerShape(12.dp)
-                        )
-                )
+                if (LocalDesignStyle.current == DesignStyle.MATERIAL3) {
+                    Material3LogoBadge(size = 44.dp)
+                } else {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = com.ryanshelby.linea.R.drawable.ic_linea_logo),
+                        contentDescription = "Linea Logo",
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(
+                                LineaDimensions.HairlineBorder,
+                                LineaColors.GlassBorder,
+                                RoundedCornerShape(12.dp)
+                            )
+                    )
+                }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(

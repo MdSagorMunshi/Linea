@@ -48,6 +48,8 @@ fun DialpadTimezonePill(
     ) {
         if (preview != null) {
             val isNight = preview.timeOfDay == TimeOfDayState.NIGHT
+            val style = com.ryanshelby.linea.ui.theme.LocalDesignStyle.current
+            val isM3 = style == com.ryanshelby.linea.data.preferences.DesignStyle.MATERIAL3
 
             val accentColor = when (preview.timeOfDay) {
                 TimeOfDayState.EARLY_MORNING -> Color(0xFFFFB74D) // Amber sunrise
@@ -60,24 +62,33 @@ fun DialpadTimezonePill(
 
             val borderBrush = Brush.horizontalGradient(
                 listOf(
-                    accentColor.copy(alpha = if (isNight) 0.55f else 0.40f),
+                    accentColor.copy(alpha = if (isM3) 0.65f else if (isNight) 0.55f else 0.40f),
                     LineaColors.GlassBorder
                 )
             )
 
-            val bgBrush = Brush.horizontalGradient(
-                listOf(
-                    accentColor.copy(alpha = if (isNight) 0.16f else 0.10f),
-                    Color.Black.copy(alpha = 0.45f)
+            val bgBrush = if (isM3) {
+                Brush.horizontalGradient(
+                    listOf(
+                        accentColor.copy(alpha = 0.22f),
+                        LineaColors.SurfaceElevated
+                    )
                 )
-            )
+            } else {
+                Brush.horizontalGradient(
+                    listOf(
+                        accentColor.copy(alpha = if (isNight) 0.16f else 0.10f),
+                        Color.Black.copy(alpha = 0.45f)
+                    )
+                )
+            }
 
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
                     .background(bgBrush)
-                    .border(1.dp, borderBrush, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                    .border(if (isM3) 1.2.dp else 1.dp, borderBrush, RoundedCornerShape(20.dp))
+                    .padding(horizontal = if (isM3) 12.dp else 10.dp, vertical = if (isM3) 6.dp else 5.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

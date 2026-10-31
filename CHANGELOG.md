@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Material 3 Expressive Motion, Dynamic Logos & Modern Icons (`DesignStyle.MATERIAL3`)**:
+  - **Dynamic Scalloped Brand Logo Badge (`Material3BrandLogo`, `Material3FlowerShape`)**: Added Google's signature Material 3 Expressive 4-lobed scalloped flower starburst badge with dynamic gradient fill, an inner stylized cellular dialer icon, and interactive multi-phase spring animation (scale overshoot to 1.25f, playful rotation wiggles $\pm 24^\circ$, and radial sparkle particle burst on tap).
+  - **Expressive Header & Tonal Chips (`Material3Header`)**: Replaced plain text headers with an expressive Material 3 brand header featuring bold typography, dynamic pill chip badge (`M3 EXPRESSIVE`), and quick-action tonal squircle pills for QR scanner and profile switcher.
+  - **Dialpad Key Squash-and-Stretch Physics (`DialpadKey`)**: Implemented authentic Material 3 Expressive elastic deformation: keys squash vertically (`scaleY = 0.912f`) and stretch horizontally (`scaleX = 1.058f`) while pressed, springing back with bouncy overshoot (`dampingRatio = 0.52f, stiffness = 340f`) on release.
+  - **Tonal Key Container Morphing & Radial Glow**: Keys smoothly transition into a vibrant Material 3 tonal container (`LineaColors.TitaniumBlue` tint) with an expanding radial glow ripple on every tap.
+  - **Living Breathing Call Button (`FieryCallButton`)**: In Material 3 mode, the Call Button features an ambient pulsating glow aura, bouncy squash-and-stretch physics, and a playful ringing tilt animation ($+16^\circ$ phone tilt on press).
+  - **Tactile Fling & Shake Deletion (`BackspaceButton`)**: Added an expressive horizontal fling spring animation (snappy $-6\text{dp} \to +3\text{dp} \to 0\text{dp}$ shake) and squircle shape when deleting digits, providing crisp physical feedback.
+  - **Spring Bouncy Add Contact Button (`AddContactButton`)**: Styled with an expressive M3 rounded squircle container, tonal tint, and spring rotation/scale bounce on tap.
+  - **Material 3 Expressive Pill Indicator (`FloatingGlassNavBar`)**: The active destination in the bottom navigation bar is enclosed within an animated Material 3 tonal pill (`RoundedCornerShape(16.dp)`), with bouncy icon scaling ($1.20\times$) and fluid sliding transitions.
+  - **Cross-Screen Brand Consistency**: Integrated the interactive Material 3 brand logo across `DialpadScreen`, `ContactsScreen`, `HistoryScreen`, and `SettingsScreen`.
 - **Tactile In-Place Dialed Number Editing & Cursor Positioning**:
   - **Direct Tap & Drag Cursor Positioning (`EditableDialedNumberDisplay`)**: Tapping anywhere on the dialed phone number immediately places the cursor at that exact digit boundary, allowing instant typo corrections (e.g. converting `1234568` to `122345678`) without clearing and retyping the entire string.
   - **Horizontal Cursor Scrubbing**: Dragging horizontally across the dialed digits smoothly scrubs the cursor position with subtle tactile haptic feedback (`HapticFeedbackType.TextHandleMove`).

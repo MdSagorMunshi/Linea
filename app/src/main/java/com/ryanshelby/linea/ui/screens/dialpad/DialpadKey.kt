@@ -8,9 +8,13 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -18,10 +22,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
@@ -110,10 +117,29 @@ fun DialpadKey(
         }
     }
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) motion.pressScale else 1.0f,
+    val isM3 = style == DesignStyle.MATERIAL3
+    val coroutineScope = rememberCoroutineScope()
+    val rippleProgress = remember { Animatable(0f) }
+
+    // Material 3 Expressive Squash & Stretch Physics
+    val scaleX by animateFloatAsState(
+        targetValue = when {
+            isPressed && isM3 && !reduceAnimations -> 1.058f
+            isPressed -> motion.pressScale
+            else -> 1.0f
+        },
         animationSpec = motion.pressAnimationSpec,
-        label = "KeyScale"
+        label = "KeyScaleX"
+    )
+
+    val scaleY by animateFloatAsState(
+        targetValue = when {
+            isPressed && isM3 && !reduceAnimations -> 0.912f
+            isPressed -> motion.pressScale
+            else -> 1.0f
+        },
+        animationSpec = motion.pressAnimationSpec,
+        label = "KeyScaleY"
     )
 
     val offsetX by animateDpAsState(
@@ -132,6 +158,27 @@ fun DialpadKey(
         label = "KeyRotationZ"
     )
 
+    // Dynamic M3 Tonal Surface Transition
+    val m3SurfaceColor by animateColorAsState(
+        targetValue = when {
+            isM3 && isPressed -> LineaColors.TitaniumBlue.copy(alpha = 0.28f)
+            isM3 -> LineaColors.NeuSurfaceRaised
+            else -> LineaColors.NeuSurfaceRaised
+        },
+        animationSpec = tween(durationMillis = 140),
+        label = "KeyM3SurfaceColor"
+    )
+
+    val digitColor by animateColorAsState(
+        targetValue = when {
+            isM3 && isPressed -> LineaColors.TitaniumBlue
+            isPressed && !crystal && style != DesignStyle.NEO_BRUTALISM && !LineaColors.isLight -> Color.White
+            else -> LineaColors.TextPrimary
+        },
+        animationSpec = tween(120),
+        label = "KeyDigitColor"
+    )
+
     val keyShape = resolveDialpadKeyShape(style)
 
     Box(
@@ -139,16 +186,17 @@ fun DialpadKey(
             .offset(x = offsetX, y = offsetY)
             .size(size)
             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
+                this.scaleX = scaleX
+                this.scaleY = scaleY
                 this.rotationZ = rotationZ
-                rotationX = if (crystal && !reduceAnimations) (1f - scale) * 65f else 0f
+                rotationX = if (crystal && !reduceAnimations) (1f - scaleY) * 65f else 0f
                 cameraDistance = 12f * density
             }
             .neumorphic(
                 shape = keyShape,
                 elevation = if (isPressed) 1.dp else 5.dp,
-                isPressed = isPressed
+                isPressed = isPressed,
+                surfaceColor = if (isM3) m3SurfaceColor else null
             )
             .semantics {
                 role = Role.Button
@@ -160,6 +208,12 @@ fun DialpadKey(
                 detectTapGestures(
                     onPress = {
                         isPressed = true
+                        if (isM3 && !reduceAnimations) {
+                            coroutineScope.launch {
+                                rippleProgress.snapTo(0f)
+                                rippleProgress.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
+                            }
+                        }
                         if (vibrationEnabled) {
                             if (vibrator != null && vibrator.hasVibrator()) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -210,6 +264,19 @@ fun DialpadKey(
             },
         contentAlignment = Alignment.Center
     ) {
+        // Material 3 Expressive Radial Tap Glow
+        if (isM3 && rippleProgress.value > 0f && rippleProgress.value < 1f) {
+            Canvas(modifier = Modifier.fillMaxSize().clip(keyShape)) {
+                val r = (size.toPx() / 1.7f) * rippleProgress.value
+                val alpha = (1f - rippleProgress.value) * 0.38f
+                drawCircle(
+                    color = LineaColors.TitaniumBlue.copy(alpha = alpha),
+                    radius = r,
+                    center = center
+                )
+            }
+        }
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -220,7 +287,7 @@ fun DialpadKey(
                     fontWeight = FontWeight.SemiBold,
                     fontFeatureSettings = "tnum"
                 ),
-                color = if (isPressed && !crystal && style != DesignStyle.NEO_BRUTALISM && !LineaColors.isLight) Color.White else LineaColors.TextPrimary,
+                color = digitColor,
                 fontSize = if (digit in listOf('*', '#')) 24.sp else 26.sp
             )
 
@@ -232,7 +299,7 @@ fun DialpadKey(
                         letterSpacing = 1.8.sp,
                         fontWeight = FontWeight.Medium
                     ),
-                    color = if (isPressed) LineaColors.TextPrimary else LineaColors.TextSecondary,
+                    color = if (isM3 && isPressed) LineaColors.TitaniumBlue else if (isPressed) LineaColors.TextPrimary else LineaColors.TextSecondary,
                     fontSize = 9.sp
                 )
             }

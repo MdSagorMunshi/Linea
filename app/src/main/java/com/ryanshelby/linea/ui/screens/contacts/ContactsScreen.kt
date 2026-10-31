@@ -76,8 +76,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ryanshelby.linea.data.local.entities.ContactEntity
+import com.ryanshelby.linea.data.preferences.DesignStyle
 import com.ryanshelby.linea.ui.components.FrostedGlassBox
+import com.ryanshelby.linea.ui.components.Material3LogoBadge
 import com.ryanshelby.linea.ui.components.NeumorphicWell
+import com.ryanshelby.linea.ui.theme.LocalDesignStyle
 import com.ryanshelby.linea.ui.components.PrivatePinDialog
 import com.ryanshelby.linea.ui.components.neumorphic
 import com.ryanshelby.linea.ui.screens.dialpad.CallCountdownDialog
@@ -140,18 +143,27 @@ fun ContactsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = if (LineaColors.isCrystal) "People" else "Contacts",
-                        style = if (LineaColors.isCrystal) LineaTypography.headlineLarge else LineaTypography.titleLarge,
-                        color = LineaColors.TextPrimary
-                    )
-                    Text(
-                        text = if (isPrivateModeUnlocked) "Unlocked: Showing all contacts" else if (LineaColors.isCrystal) "Keep your people close." else "Address book with SIM affinity",
-                        style = LineaTypography.bodySmall,
-                        color = if (isPrivateModeUnlocked) LineaColors.MutedSageGreen else LineaColors.TitaniumBlue,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
+                Row(
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (LocalDesignStyle.current == DesignStyle.MATERIAL3) {
+                        Material3LogoBadge(size = 38.dp)
+                    }
+                    Column {
+                        Text(
+                            text = if (LineaColors.isCrystal) "People" else "Contacts",
+                            style = if (LineaColors.isCrystal) LineaTypography.headlineLarge else LineaTypography.titleLarge,
+                            color = LineaColors.TextPrimary
+                        )
+                        Text(
+                            text = if (isPrivateModeUnlocked) "Unlocked: Showing all contacts" else if (LineaColors.isCrystal) "Keep your people close." else "Address book with SIM affinity",
+                            style = LineaTypography.bodySmall,
+                            color = if (isPrivateModeUnlocked) LineaColors.MutedSageGreen else LineaColors.TitaniumBlue,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
