@@ -42,6 +42,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Clear
@@ -122,6 +123,7 @@ fun ContactsScreen(
     var pendingSimSlot by remember { mutableStateOf<Int?>(null) }
     var showCountdownDialog by remember { mutableStateOf(false) }
     var isScannerSheetOpen by remember { mutableStateOf(false) }
+    var showImportExportSheet by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
@@ -263,6 +265,28 @@ fun ContactsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                IconButton(
+                    onClick = { showImportExportSheet = true },
+                    modifier = Modifier
+                        .size(if (LineaColors.isCrystal) 48.dp else 38.dp)
+                        .clip(CircleShape)
+                        .background(LineaColors.GlassFill)
+                        .border(
+                            LineaDimensions.HairlineBorder,
+                            LineaColors.GlassBorder,
+                            CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FileDownload,
+                        contentDescription = "Import & Export Contacts",
+                        tint = LineaColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
@@ -608,6 +632,14 @@ fun ContactsScreen(
             vaultSecurityManager = viewModel.vaultSecurityManager,
             onSuccess = { viewModel.unlockPrivateMode() },
             onDismiss = { viewModel.dismissPinDialog() }
+        )
+    }
+
+    // Contact Import & Export Bottom Sheet
+    if (showImportExportSheet) {
+        ContactImportExportSheet(
+            viewModel = viewModel,
+            onDismiss = { showImportExportSheet = false }
         )
     }
 }

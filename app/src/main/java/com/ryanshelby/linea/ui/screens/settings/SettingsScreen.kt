@@ -174,6 +174,8 @@ fun SettingsScreen(
     var escapeCallTab by remember { mutableStateOf(EscapeCallTab.SIMULATOR) }
     val escapeCallSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isEscapeArmed by viewModel.escapeCallManager.isArmed.collectAsState()
+    var showContactImportExportSheet by remember { mutableStateOf(false) }
+    val contactsViewModel: com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 
     val exportCsvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -872,6 +874,16 @@ fun SettingsScreen(
             onClick = onNavigateToBackup
         )
 
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Contact Import & Export
+        SettingsNavCard(
+            icon = Icons.Filled.FileDownload,
+            title = "Contact Import & Export",
+            subtitle = "Export or import contacts via vCard (.vcf), CSV, or JSON",
+            onClick = { showContactImportExportSheet = true }
+        )
+
         Spacer(modifier = Modifier.height(14.dp))
 
         // Calling Preferences Panel
@@ -1392,6 +1404,13 @@ fun SettingsScreen(
             escapeCallManager = viewModel.escapeCallManager,
             initialTab = escapeCallTab,
             onDismiss = { showEscapeCallSheet = false }
+        )
+    }
+
+    if (showContactImportExportSheet) {
+        com.ryanshelby.linea.ui.screens.contacts.ContactImportExportSheet(
+            viewModel = contactsViewModel,
+            onDismiss = { showContactImportExportSheet = false }
         )
     }
 

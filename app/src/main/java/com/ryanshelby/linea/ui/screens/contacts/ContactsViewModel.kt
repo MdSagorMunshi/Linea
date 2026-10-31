@@ -59,7 +59,8 @@ class ContactsViewModel @Inject constructor(
     private val preferences: LineaPreferences,
     val vaultSecurityManager: com.ryanshelby.linea.security.PrivateVaultSecurityManager,
     private val vaultExportImportManager: com.ryanshelby.linea.security.PrivateVaultExportImportManager,
-    val mergeFixRepository: com.ryanshelby.linea.mergefix.ContactMergeFixRepository
+    val mergeFixRepository: com.ryanshelby.linea.mergefix.ContactMergeFixRepository,
+    val importExportManager: com.ryanshelby.linea.data.contacts.ContactImportExportManager
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -215,6 +216,68 @@ class ContactsViewModel @Inject constructor(
             Result.success(count)
         } else {
             Result.failure(parseResult.exceptionOrNull() ?: Exception("Failed to decrypt .linea file"))
+        }
+    }
+
+    sealed class ImportExportState {
+        object Idle : ImportExportState()
+        object Loading : ImportExportState()
+        data class ExportSuccess(val count: Int, val format: com.ryanshelby.linea.data.contacts.ContactExportFormat) : ImportExportState()
+        data class ImportSuccess(val summary: com.ryanshelby.linea.data.contacts.ContactImportSummary) : ImportExportState()
+        data class Error(val message: String) : ImportExportState()
+    }
+
+    private val _importExportState = MutableStateFlow<ImportExportState>(ImportExportState.Idle)
+    val importExportState: StateFlow<ImportExportState> = _importExportState.asStateFlow()
+
+    fun resetImportExportState() {
+        _importExportState.value = ImportExportState.Idle
+    }
+
+    fun exportContacts(
+        uri: android.net.Uri,
+        format: com.ryanshelby.linea.data.contacts.ContactExportFormat,
+        scope: com.ryanshelby.linea.data.contacts.ExportScope,
+        contentResolver: android.content.ContentResolver
+    ) {
+        viewModelScope.launch {
+            _importExportState.value = ImportExportState.Loading
+            try {
+                val contacts = importExportManager.getExportableContacts(scope)
+                val result = importExportManager.exportContactsToUri(uri, format, contacts, contentResolver)
+                if (result.isSuccess) {
+                    _importExportState.value = ImportExportState.ExportSuccess(result.getOrNull() ?: contacts.size, format)
+                } else {
+                    _importExportState.value = ImportExportState.Error(result.exceptionOrNull()?.message ?: "Export failed")
+                }
+            } catch (e: Exception) {
+                _importExportState.value = ImportExportState.Error(e.message ?: "Export error")
+            }
+        }
+    }
+
+    fun importContacts(
+        uri: android.net.Uri,
+        format: com.ryanshelby.linea.data.contacts.ContactExportFormat?,
+        policy: com.ryanshelby.linea.data.contacts.DuplicatePolicy,
+        accountName: String?,
+        accountType: String?,
+        contentResolver: android.content.ContentResolver
+    ) {
+        viewModelScope.launch {
+            _importExportState.value = ImportExportState.Loading
+            try {
+                val readResult = importExportManager.readContactsFromUri(uri, format, contentResolver)
+                if (readResult.isFailure) {
+                    _importExportState.value = ImportExportState.Error(readResult.exceptionOrNull()?.message ?: "Failed to read file")
+                    return@launch
+                }
+                val contacts = readResult.getOrNull() ?: emptyList()
+                val summary = importExportManager.importContacts(contacts, policy, accountName, accountType)
+                _importExportState.value = ImportExportState.ImportSuccess(summary)
+            } catch (e: Exception) {
+                _importExportState.value = ImportExportState.Error(e.message ?: "Import error")
+            }
         }
     }
 

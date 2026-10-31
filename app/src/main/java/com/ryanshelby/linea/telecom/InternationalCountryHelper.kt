@@ -303,9 +303,13 @@ object InternationalCountryHelper {
         CountryInfo("IR", "+98", "Iran", "🇮🇷", "Asia/Tehran"),
         CountryInfo("KZ", "+7", "Kazakhstan", "🇰🇿", "Asia/Almaty"),
         CountryInfo("RU", "+7", "Russia", "🇷🇺", "Europe/Moscow"),
-        CountryInfo("CA", "+1", "Canada", "🇨🇦", "America/Toronto"),
         CountryInfo("US", "+1", "United States", "🇺🇸", "America/New_York"),
+        CountryInfo("CA", "+1", "Canada", "🇨🇦", "America/Toronto"),
     )
+
+    private val countryListSorted: List<CountryInfo> by lazy {
+        countryList.sortedByDescending { it.dialCode.length }
+    }
 
     private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
     private val zoneShortFormatter = DateTimeFormatter.ofPattern("z", Locale.US)
@@ -327,6 +331,13 @@ object InternationalCountryHelper {
         val clean = rawNumber.trim().replace(Regex("[^0-9+]"), "")
         if (clean.length < 2) return null
 
+        // 1. Short codes, carrier helplines, and emergency numbers are NEVER international calls
+        if (clean in com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.EMERGENCY_NUMBERS ||
+            com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.SERVICE_CODES.containsKey(clean) ||
+            (!clean.startsWith("+") && clean.length <= 4 && !countryList.any { it.dialCode.removePrefix("+") == clean })) {
+            return null
+        }
+
         val homeIso = userCountryIso?.trim()?.uppercase(Locale.ROOT)
             ?: com.ryanshelby.linea.telecom.screening.SimCountryDetector.currentCountryIso
 
@@ -340,10 +351,19 @@ object InternationalCountryHelper {
                     null
                 } else if (homeIso == "BD" && clean.startsWith("1") && clean.length in 2..10 && clean[1] in '3'..'9') {
                     // Local domestic Bangladesh mobile
-                    "+880" + clean
+                    null
+                } else if (clean.startsWith("1")) {
+                    // Smart detection without '+' for 1:
+                    // Must be at least 11 digits starting with 1 and have a valid NANP area code!
+                    // Short codes like '121' or '123' without '+' must NEVER match +1!
+                    if (clean.length >= 11 && com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.isNanpAreaCode(clean.substring(1, 4))) {
+                        "+$clean"
+                    } else {
+                        null
+                    }
                 } else {
-                    // Smart detection without '+': match longest country dial code
-                    val match = countryList.firstOrNull { clean.startsWith(it.dialCode.removePrefix("+")) }
+                    // Smart detection without '+': match longest country dial code (excluding +1)
+                    val match = countryListSorted.firstOrNull { it.dialCode != "+1" && clean.startsWith(it.dialCode.removePrefix("+")) }
                     if (match != null) {
                         "+" + clean
                     } else {
@@ -355,13 +375,23 @@ object InternationalCountryHelper {
 
         // Resolve matched country with precision for shared dial codes (+1 for US/CA, +7 for RU/KZ)
         val matchedCountry = when {
-            normalized.startsWith("+1") && normalized.length >= 5 -> {
-                val area = normalized.substring(2, 5)
-                if (com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.isCanadianAreaCode(area)) {
-                    countryList.firstOrNull { it.isoCode == "CA" } ?: countryList.firstOrNull { it.dialCode == "+1" }
+            normalized.startsWith("+1") -> {
+                if (normalized.length >= 5) {
+                    val area = normalized.substring(2, 5)
+                    if (com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.isCanadianAreaCode(area)) {
+                        countryList.firstOrNull { it.isoCode == "CA" } ?: countryList.firstOrNull { it.dialCode == "+1" }
+                    } else {
+                        val caribbean = countryList.firstOrNull { it.dialCode.length == 5 && normalized.startsWith(it.dialCode) }
+                        if (caribbean != null) {
+                            caribbean
+                        } else if (com.ryanshelby.linea.telecom.screening.OfflineCallerIdEngine.isNanpAreaCode(area)) {
+                            countryList.firstOrNull { it.isoCode == "US" } ?: countryList.firstOrNull { it.dialCode == "+1" }
+                        } else {
+                            null
+                        }
+                    }
                 } else {
-                    val caribbean = countryList.firstOrNull { it.dialCode.length == 5 && normalized.startsWith(it.dialCode) }
-                    caribbean ?: (countryList.firstOrNull { it.isoCode == "US" } ?: countryList.firstOrNull { it.dialCode == "+1" })
+                    null
                 }
             }
             normalized.startsWith("+7") && normalized.length >= 3 -> {
@@ -372,8 +402,13 @@ object InternationalCountryHelper {
                     countryList.firstOrNull { it.isoCode == "RU" } ?: countryList.firstOrNull { it.dialCode == "+7" }
                 }
             }
-            else -> countryList.firstOrNull { normalized.startsWith(it.dialCode) }
+            else -> countryListSorted.firstOrNull { normalized.startsWith(it.dialCode) }
         } ?: return null
+
+        // If matched country is the user's home country, do not show international preview
+        if (homeIso.isNotBlank() && matchedCountry.isoCode.equals(homeIso, ignoreCase = true)) {
+            return null
+        }
 
         // Only show if user has typed at least the dial code
         if (normalized.length < matchedCountry.dialCode.length) {

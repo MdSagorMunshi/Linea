@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -91,7 +92,8 @@ import java.util.Locale
 fun FixAndManageScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: FixAndManageViewModel = hiltViewModel()
+    viewModel: FixAndManageViewModel = hiltViewModel(),
+    contactsViewModel: com.ryanshelby.linea.ui.screens.contacts.ContactsViewModel = hiltViewModel()
 ) {
     val currentSection by viewModel.currentSection.collectAsState()
     val highGroups by viewModel.highConfidenceGroups.collectAsState()
@@ -112,6 +114,7 @@ fun FixAndManageScreen(
 
     var renamingContact by remember { mutableStateOf<NormalizedContact?>(null) }
     var renameInput by remember { mutableStateOf("") }
+    var showImportExportSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(userMessage) {
         userMessage?.let { msg ->
@@ -197,6 +200,13 @@ fun FixAndManageScreen(
                             imageVector = Icons.Filled.Refresh,
                             contentDescription = "Refresh Scan",
                             tint = LineaColors.TitaniumBlue
+                        )
+                    }
+                    IconButton(onClick = { showImportExportSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Default.FileDownload,
+                            contentDescription = "Import & Export Contacts",
+                            tint = LineaColors.TextPrimary
                         )
                     }
                 }
@@ -414,6 +424,13 @@ fun FixAndManageScreen(
                 viewModel.mergeGroup(preview.group, chosenName)
             },
             onDismiss = { viewModel.closeMergePreview() }
+        )
+    }
+
+    if (showImportExportSheet) {
+        com.ryanshelby.linea.ui.screens.contacts.ContactImportExportSheet(
+            viewModel = contactsViewModel,
+            onDismiss = { showImportExportSheet = false }
         )
     }
 }

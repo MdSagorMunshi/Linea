@@ -151,5 +151,6 @@ dependencies {
     implementation(libs.bouncycastle.prov)
 
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
 }
 

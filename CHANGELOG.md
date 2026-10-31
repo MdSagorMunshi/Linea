@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Universal Sovereign Contact Import & Export Subsystem (`ContactImportExportManager`)**:
+  - Full support for RFC 2426 vCard 3.0 (`.vcf`), RFC 4180 CSV (`.csv`), and structured JSON (`.json`) formats.
+  - Multi-policy duplicate resolution engine: `MERGE_EXISTING` (smart-merge imported fields with existing contacts), `SKIP_DUPLICATES` (preserve existing contacts without duplication), and `KEEP_BOTH` (import as separate distinct contacts).
+  - Selective Export Scope filtering: export All Contacts or Favorites Only.
+  - Target Account selection: assign imported contacts to device-local storage or registered Android contact accounts.
+  - Strict Sovereign Privacy Guarantee: private vault contacts (`isPrivate = 1`) are strictly filtered out and never exported.
+  - Full Storage Access Framework (SAF) URI streaming: supports Android document picker and creator (`Intent.ACTION_CREATE_DOCUMENT`, `Intent.ACTION_OPEN_DOCUMENT`) with real-time import progress and detailed summary dialog.
+- **Material 3 Expressive Contact Import & Export Bottom Sheet (`ContactImportExportSheet`)**:
+  - Neumorphic & Material 3 modal bottom sheet with interactive tabs ("Export" and "Import").
+  - Accessible via top bar action icon (`FileDownload`) in `ContactsScreen`, `FixAndManageScreen`, and dedicated settings tile in `SettingsScreen`.
+- **Tactical Carrier Shortcode & Emergency Caller ID Badges (`DialpadCallerIdBadge`)**:
+  - Added dedicated tactical caller ID badge displaying service info for carrier helplines (e.g. `121` -> "🎧 CUSTOMER CARE • Customer Care Helpline", `611` -> "Wireless Customer Service", `111`, `158`, `198`, `411`, `311`, `211`, `511`, `711`, `811`, `333`, `106`, `109`, `1090`, `1098`, `139`) and emergency numbers (`911`, `112`, `999` -> "🚨 EMERGENCY • Emergency Services").
+
+### Fixed
+- **False-Positive Country & Timezone Warning on Shortcodes & Carrier Helplines (`OfflineCallerIdEngine`, `InternationalCountryHelper`)**:
+  - Fixed an issue where typing short carrier codes without leading `+` (such as `121`) inadvertently matched the NANP `+1` prefix and displayed a Canada night/morning warning pill.
+  - Added strict NANP area code verification requiring 11 digits for numbers starting with `1` without `+`.
+  - Carrier service codes and numbers of length $\le 4$ are strictly exempt from international timezone warnings and international conversion.
 - **Material 3 Expressive Motion, Dynamic Logos & Modern Icons (`DesignStyle.MATERIAL3`)**:
   - **Dynamic Scalloped Brand Logo Badge (`Material3BrandLogo`, `Material3FlowerShape`)**: Added Google's signature Material 3 Expressive 4-lobed scalloped flower starburst badge with dynamic gradient fill, an inner stylized cellular dialer icon, and interactive multi-phase spring animation (scale overshoot to 1.25f, playful rotation wiggles $\pm 24^\circ$, and radial sparkle particle burst on tap).
   - **Expressive Header & Tonal Chips (`Material3Header`)**: Replaced plain text headers with an expressive Material 3 brand header featuring bold typography, dynamic pill chip badge (`M3 EXPRESSIVE`), and quick-action tonal squircle pills for QR scanner and profile switcher.

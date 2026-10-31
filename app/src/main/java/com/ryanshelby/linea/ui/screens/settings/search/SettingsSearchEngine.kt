@@ -263,6 +263,19 @@ object SettingsSearchEngine {
             )
         )
 
+        // 12b. Contact Import & Export
+        list.add(
+            SettingsSearchItem(
+                id = "contact_import_export",
+                title = "Contact Import & Export",
+                subtitle = "Export or import contacts via vCard (.vcf), CSV, or JSON",
+                category = SettingsCategory.CALLING,
+                icon = Icons.Filled.FileDownload,
+                keywords = listOf("contact", "import", "export", "vcard", "vcf", "csv", "json", "backup contacts", "restore contacts", "address book"),
+                action = SettingsSearchAction.Navigate(callbacks.onNavigateToBackup)
+            )
+        )
+
         // 13. Call Duration Warning
         list.add(
             SettingsSearchItem(

@@ -9,7 +9,9 @@ import com.ryanshelby.linea.ui.screens.settings.search.SettingsSearchAction
 import com.ryanshelby.linea.ui.screens.settings.search.SettingsSearchEngine
 import com.ryanshelby.linea.ui.screens.settings.search.SettingsSearchItem
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -492,6 +494,23 @@ class EscapeCallAndOfflineCallerIdTest {
         assertNotNull(inPreview)
         assertEquals("India", inPreview?.countryName)
         assertEquals("🇮🇳", inPreview?.flagEmoji)
+
+        // Typing short codes like '121' must NEVER resolve to Canada or show international preview!
+        val c121Preview = com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("121")
+        assertNull("Shortcode 121 must never resolve to an international preview", c121Preview)
+
+        val c121CallerId = OfflineCallerIdEngine.identifyNumber("121")
+        assertEquals("Helpline", c121CallerId.category)
+        assertEquals("Customer Care Helpline", c121CallerId.regionOrCountry)
+        assertEquals("CUSTOMER CARE", c121CallerId.badgeLabel)
+        assertEquals("🎧", c121CallerId.flagEmoji)
+        assertFalse("121 must not be flagged as Canada", c121CallerId.countryName == "Canada")
+
+        // Typing carrier customer service '611' must resolve to Customer Service
+        val c611CallerId = OfflineCallerIdEngine.identifyNumber("611")
+        assertEquals("Helpline", c611CallerId.category)
+        assertEquals("CUSTOMER CARE", c611CallerId.badgeLabel)
+        assertNull(com.ryanshelby.linea.telecom.InternationalCountryHelper.detectCountryAndLocalTime("611"))
     }
 
     @Test

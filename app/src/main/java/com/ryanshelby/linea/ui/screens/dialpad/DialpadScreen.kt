@@ -315,7 +315,13 @@ fun DialpadScreen(
                     showAlwaysAsk = isAlwaysAskEnabled || selectedSimIndex == DialpadViewModel.SIM_ALWAYS_ASK,
                     onSelectSim = viewModel::selectSim)
             },
-            timezone = { DialpadTimezonePill(internationalPreview) }, modifier = modifier
+            timezone = {
+                if (callerIdResult != null && (callerIdResult!!.isEmergency || callerIdResult!!.isTollFree || callerIdResult!!.category == "Helpline" || callerIdResult!!.category == "Short Code")) {
+                    DialpadCallerIdBadge(callerIdResult!!)
+                } else {
+                    DialpadTimezonePill(internationalPreview)
+                }
+            }, modifier = modifier
         )
     } else {
     Column(
@@ -645,48 +651,7 @@ fun DialpadScreen(
 
                 // Offline Caller ID Badge (Emergency / Toll-Free / Country / Region)
                 if (callerIdResult != null) {
-                    val cid = callerIdResult!!
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.2f) else LineaColors.GlassFill)
-                            .border(
-                                0.5.dp,
-                                if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.5f) else LineaColors.GlassBorder,
-                                RoundedCornerShape(12.dp)
-                            )
-                            .padding(horizontal = 10.dp, vertical = 3.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            if (cid.flagEmoji.isNotBlank() && cid.flagEmoji != "🌐") {
-                                Text(
-                                    text = cid.flagEmoji,
-                                    style = LineaTypography.labelSmall,
-                                    fontSize = 11.sp
-                                )
-                            }
-                            Text(
-                                text = cid.badgeLabel,
-                                style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                fontSize = 9.sp,
-                                color = if (cid.isEmergency) LineaColors.Danger else LineaColors.TitaniumBlue
-                            )
-                            Text(
-                                text = "•",
-                                style = LineaTypography.labelSmall,
-                                color = LineaColors.TextTertiary
-                            )
-                            Text(
-                                text = cid.regionOrCountry,
-                                style = LineaTypography.labelSmall,
-                                fontSize = 10.sp,
-                                color = LineaColors.TextSecondary
-                            )
-                        }
-                    }
+                    DialpadCallerIdBadge(callerIdResult!!)
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -1230,5 +1195,59 @@ private fun BackspaceButton(
             tint = if (isPressed) LineaColors.MutedBrickRed else LineaColors.TextSecondary,
             modifier = Modifier.size(22.dp)
         )
+    }
+}
+
+@Composable
+fun DialpadCallerIdBadge(
+    cid: com.ryanshelby.linea.telecom.screening.CallerIdResult,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.2f)
+                else if (cid.category == "Helpline") LineaColors.TitaniumBlue.copy(alpha = 0.15f)
+                else LineaColors.GlassFill
+            )
+            .border(
+                0.5.dp,
+                if (cid.isEmergency) LineaColors.Danger.copy(alpha = 0.5f)
+                else if (cid.category == "Helpline") LineaColors.TitaniumBlue.copy(alpha = 0.4f)
+                else LineaColors.GlassBorder,
+                RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 3.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            if (cid.flagEmoji.isNotBlank() && cid.flagEmoji != "🌐") {
+                Text(
+                    text = cid.flagEmoji,
+                    style = LineaTypography.labelSmall,
+                    fontSize = 11.sp
+                )
+            }
+            Text(
+                text = cid.badgeLabel,
+                style = LineaTypography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                fontSize = 9.sp,
+                color = if (cid.isEmergency) LineaColors.Danger else LineaColors.TitaniumBlue
+            )
+            Text(
+                text = "•",
+                style = LineaTypography.labelSmall,
+                color = LineaColors.TextTertiary
+            )
+            Text(
+                text = cid.regionOrCountry,
+                style = LineaTypography.labelSmall,
+                fontSize = 10.sp,
+                color = LineaColors.TextSecondary
+            )
+        }
     }
 }

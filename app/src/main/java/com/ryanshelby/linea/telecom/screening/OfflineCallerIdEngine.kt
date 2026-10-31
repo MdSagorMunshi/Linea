@@ -15,8 +15,34 @@ data class CallerIdResult(
 
 object OfflineCallerIdEngine {
 
-    private val EMERGENCY_NUMBERS = setOf(
+    val EMERGENCY_NUMBERS = setOf(
         "911", "112", "999", "000", "100", "101", "102", "110", "119", "199", "993", "912"
+    )
+
+    data class ServiceCodeDetail(
+        val serviceName: String,
+        val badgeLabel: String,
+        val flagEmoji: String = "🎧"
+    )
+
+    val SERVICE_CODES = mapOf(
+        "121" to ServiceCodeDetail("Customer Care Helpline", "CUSTOMER CARE", "🎧"),
+        "111" to ServiceCodeDetail("Customer Support Hotline", "HELPLINE", "🎧"),
+        "158" to ServiceCodeDetail("Telecom Complaints Helpline", "COMPLAINTS", "📞"),
+        "198" to ServiceCodeDetail("Telecom Complaints Helpline", "COMPLAINTS", "📞"),
+        "611" to ServiceCodeDetail("Wireless Customer Service", "CUSTOMER CARE", "🎧"),
+        "411" to ServiceCodeDetail("Directory Assistance", "DIRECTORY", "ℹ️"),
+        "311" to ServiceCodeDetail("Municipal Citizen Services", "MUNICIPAL", "🏛️"),
+        "211" to ServiceCodeDetail("Community Information & Services", "COMMUNITY", "ℹ️"),
+        "511" to ServiceCodeDetail("Traffic & Transit Information", "TRANSIT", "🚗"),
+        "711" to ServiceCodeDetail("Telecommunications Relay Service", "RELAY", "📞"),
+        "811" to ServiceCodeDetail("Essential Health / Utility Locator", "SERVICES", "ℹ️"),
+        "333" to ServiceCodeDetail("National Citizen Services", "CITIZEN CARE", "🏛️"),
+        "106" to ServiceCodeDetail("Anti-Corruption Helpline", "HELPLINE", "🛡️"),
+        "109" to ServiceCodeDetail("Women & Child Helpline", "HELPLINE", "🛡️"),
+        "1090" to ServiceCodeDetail("Disaster Early Warning", "HELPLINE", "⚠️"),
+        "1098" to ServiceCodeDetail("Childline Helpline", "HELPLINE", "🛡️"),
+        "139" to ServiceCodeDetail("Railway Enquiry Helpline", "HELPLINE", "🚆")
     )
 
     private val TOLL_FREE_PREFIXES = listOf(
@@ -286,8 +312,8 @@ object OfflineCallerIdEngine {
         CountryInfo("+98", "IR", "Iran", "🇮🇷"),
         CountryInfo("+7", "KZ", "Kazakhstan", "🇰🇿"),
         CountryInfo("+7", "RU", "Russia", "🇷🇺"),
-        CountryInfo("+1", "CA", "Canada", "🇨🇦"),
         CountryInfo("+1", "US", "United States", "🇺🇸"),
+        CountryInfo("+1", "CA", "Canada", "🇨🇦"),
     )
 
     // NANP (US + Canada) Area Codes mapping to State/Province and Metro
@@ -684,6 +710,12 @@ object OfflineCallerIdEngine {
         if (clean.startsWith("+")) return clean
         if (clean.startsWith("00")) return "+" + clean.substring(2)
 
+        // Never convert emergency numbers, carrier helplines, or short codes into international E.164
+        if (clean in EMERGENCY_NUMBERS || SERVICE_CODES.containsKey(clean) ||
+            (!clean.startsWith("+") && clean.length <= 4 && !ALL_COUNTRIES.any { it.dialCode.removePrefix("+") == clean })) {
+            return null
+        }
+
         val homeCountry = ALL_COUNTRIES.firstOrNull { it.iso.equals(homeIso, ignoreCase = true) }
 
         // A. Domestic Trunk Dialing (starts with '0' and not '00')
@@ -747,7 +779,9 @@ object OfflineCallerIdEngine {
                     if (homeIso == "BD" && clean.length in 2..10 && clean[1] in '3'..'9') {
                         return "+880$clean"
                     }
-                    if (clean.length >= 4 && !NANP_AREA_CODES.containsKey(clean.substring(1, 4))) {
+                    // For +1 without '+', it MUST be a full 11-digit NANP number with valid area code!
+                    // Short numbers starting with 1 (e.g. 121, 112, 199) must NEVER match +1!
+                    if (clean.length < 11 || !NANP_AREA_CODES.containsKey(clean.substring(1, 4))) {
                         continue
                     }
                 }
@@ -788,6 +822,39 @@ object OfflineCallerIdEngine {
                 badgeLabel = "EMERGENCY",
                 flagEmoji = "🚨"
             )
+        }
+
+        // 1b. Carrier & Service Helplines (e.g. 121, 611, 411, 311, 158, 198)
+        val serviceCode = SERVICE_CODES[clean]
+        if (serviceCode != null) {
+            return CallerIdResult(
+                category = "Helpline",
+                regionOrCountry = serviceCode.serviceName,
+                isEmergency = false,
+                isTollFree = true,
+                badgeLabel = serviceCode.badgeLabel,
+                flagEmoji = serviceCode.flagEmoji,
+                carrierOrType = "Service Hotline",
+                countryName = null,
+                isSimCountry = true
+            )
+        }
+
+        // 1c. Short Codes & Service Extensions (<= 4 digits without '+')
+        if (!clean.startsWith("+") && clean.length in 2..4 && !clean.startsWith("00")) {
+            val isExactCountryCode = ALL_COUNTRIES.any { it.dialCode.removePrefix("+") == clean }
+            if (!isExactCountryCode) {
+                return CallerIdResult(
+                    category = "Short Code",
+                    regionOrCountry = "Carrier Short Code",
+                    isEmergency = false,
+                    badgeLabel = "SHORT CODE",
+                    flagEmoji = "📞",
+                    carrierOrType = "Short Code",
+                    countryName = null,
+                    isSimCountry = true
+                )
+            }
         }
 
         // 2. Toll-Free
