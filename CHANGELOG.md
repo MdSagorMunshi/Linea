@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added dedicated `beta` build configuration in [`app/build.gradle.kts`](file:///home/ryan/Desktop/PROJECT_2026/Linea/app/build.gradle.kts) (`applicationIdSuffix = ".beta"`, `versionNameSuffix = "-beta"`).
   - Configured resource overlay in [`app/src/beta/res/values/strings.xml`](file:///home/ryan/Desktop/PROJECT_2026/Linea/app/src/beta/res/values/strings.xml) renaming the app to `LINEA Beta` on the launcher and system dialogs.
   - Allows beta testers and developers to install and run the Beta dialer alongside the stable release on the same device with complete database, preferences, and cache isolation.
+- **Dynamic Build-Time Version Synchronization (`BuildConfig`)**:
+  - Enabled `buildFeatures.buildConfig` in Gradle to generate strongly typed `BuildConfig.VERSION_NAME` and `BuildConfig.VERSION_CODE`.
+  - Replaced all hardcoded version fallbacks across `SettingsScreen`, `AboutScreen`, and diagnostic system reports to automatically synchronize directly from Gradle's single source of truth at compile-time and runtime.
 - **Universal Sovereign Contact Import & Export Subsystem (`ContactImportExportManager`)**:
   - Full support for RFC 2426 vCard 3.0 (`.vcf`), RFC 4180 CSV (`.csv`), and structured JSON (`.json`) formats.
   - Multi-policy duplicate resolution engine: `MERGE_EXISTING` (smart-merge imported fields with existing contacts), `SKIP_DUPLICATES` (preserve existing contacts without duplication), and `KEEP_BOTH` (import as separate distinct contacts).
