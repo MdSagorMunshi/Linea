@@ -25,7 +25,7 @@ android {
         applicationId = "com.ryanshelby.linea"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 13
+        versionCode = 14
         versionName = "2.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [2.8.0] - 2026-11-07
+
 ### Added
 - **Side-by-Side Beta Release Variant (`beta` Build Type)**:
   - Added dedicated `beta` build configuration in [`app/build.gradle.kts`](file:///home/ryan/Desktop/PROJECT_2026/Linea/app/build.gradle.kts) (`applicationIdSuffix = ".beta"`, `versionNameSuffix = "-beta"`).
@@ -24,12 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Accessible via top bar action icon (`FileDownload`) in `ContactsScreen`, `FixAndManageScreen`, and dedicated settings tile in `SettingsScreen`.
 - **Tactical Carrier Shortcode & Emergency Caller ID Badges (`DialpadCallerIdBadge`)**:
   - Added dedicated tactical caller ID badge displaying service info for carrier helplines (e.g. `121` -> "🎧 CUSTOMER CARE • Customer Care Helpline", `611` -> "Wireless Customer Service", `111`, `158`, `198`, `411`, `311`, `211`, `511`, `711`, `811`, `333`, `106`, `109`, `1090`, `1098`, `139`) and emergency numbers (`911`, `112`, `999` -> "🚨 EMERGENCY • Emergency Services").
-
-### Fixed
-- **False-Positive Country & Timezone Warning on Shortcodes & Carrier Helplines (`OfflineCallerIdEngine`, `InternationalCountryHelper`)**:
-  - Fixed an issue where typing short carrier codes without leading `+` (such as `121`) inadvertently matched the NANP `+1` prefix and displayed a Canada night/morning warning pill.
-  - Added strict NANP area code verification requiring 11 digits for numbers starting with `1` without `+`.
-  - Carrier service codes and numbers of length $\le 4$ are strictly exempt from international timezone warnings and international conversion.
 - **Material 3 Expressive Motion, Dynamic Logos & Modern Icons (`DesignStyle.MATERIAL3`)**:
   - **Dynamic Scalloped Brand Logo Badge (`Material3BrandLogo`, `Material3FlowerShape`)**: Added Google's signature Material 3 Expressive 4-lobed scalloped flower starburst badge with dynamic gradient fill, an inner stylized cellular dialer icon, and interactive multi-phase spring animation (scale overshoot to 1.25f, playful rotation wiggles $\pm 24^\circ$, and radial sparkle particle burst on tap).
   - **Expressive Header & Tonal Chips (`Material3Header`)**: Replaced plain text headers with an expressive Material 3 brand header featuring bold typography, dynamic pill chip badge (`M3 EXPRESSIVE`), and quick-action tonal squircle pills for QR scanner and profile switcher.
@@ -142,6 +140,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Real-Time Contacts ContentObserver**: Added a background `ContentObserver` on `ContactsContract.Contacts.CONTENT_URI` within `ContactSyncRepository` to automatically detect system address book changes and synchronize them into Room within 600ms.
   - **Instant UI Reflection Without App Restart**: Eliminated the need for app restarts by invalidating `ContactLookupHelper` in-memory caches, propagating new caller names to `CallRecordDao`, and directly collecting `cachedT9Contacts` in `DialpadViewModel` for real-time T9 search results.
   - **Contact Edit Form Keying**: Keyed `ContactCreateEditSheet` remember state to contact ID and initial numbers, preventing stale form fields when toggling between contact edits.
+
+### Fixed
+- **False-Positive Country & Timezone Warning on Shortcodes & Carrier Helplines (`OfflineCallerIdEngine`, `InternationalCountryHelper`)**:
+  - Fixed an issue where typing short carrier codes without leading `+` (such as `121`) inadvertently matched the NANP `+1` prefix and displayed a Canada night/morning warning pill.
+  - Added strict NANP area code verification requiring 11 digits for numbers starting with `1` without `+`.
+  - Carrier service codes and numbers of length $\le 4$ are strictly exempt from international timezone warnings and international conversion.
 - **Private Vault Security Hardening & Password Recovery Vulnerability Remediation**:
   - **Cryptographic Recovery Answer Validation**: Fixed critical vulnerability where entering any recovery answer allowed users to reset the vault PIN without answer verification. PIN resets now strictly require valid answer verification before authorizing a new PIN.
   - **Vault Overwrite Prevention**: Sealed `setupInitialPin` to reject re-initialization when a PIN is already configured (`hasPinSet()`), preventing malicious or accidental master key erasure.
